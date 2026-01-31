@@ -1,0 +1,25 @@
+<div class="chat-container">
+    <div class="messages-list" #scrollContainer>
+        <div *ngIf="loading" class="spinner-container">
+            <mat-spinner diameter="40"></mat-spinner>
+        </div>
+        <div *ngFor="let msg of messages" [class]="'message ' + msg.type">
+            <div class="message-content">
+                {{ msg.content }}
+            </div>
+        </div>
+        <div *ngIf="sending" class="message ai sending">
+            <div class="message-content">...</div>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Message</mat-label>
+            <input matInput [(ngModel)]="newMessage" (keyup.enter)="sendMessage()" [disabled]="sending">
+            <button mat-icon-button matSuffix (click)="sendMessage()" [disabled]="!newMessage.trim() || sending">
+                <mat-icon>send</mat-icon>
+            </button>
+        </mat-form-field>
+    </div>
+</div>

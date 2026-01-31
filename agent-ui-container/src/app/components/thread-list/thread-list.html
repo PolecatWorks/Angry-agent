@@ -1,0 +1,12 @@
+<div class="thread-list-header">
+    <h3>History</h3>
+    <button mat-icon-button (click)="newChat()" title="New Chat">
+        <mat-icon>add</mat-icon>
+    </button>
+</div>
+<mat-nav-list>
+    <a mat-list-item *ngFor="let thread of threads" [routerLink]="['/chat', thread.thread_id]" routerLinkActive="active-thread">
+        <span matListItemTitle>{{ thread.title || 'New Chat' }}</span>
+        <span matListItemLine>{{ thread.created_at | date:'short' }}</span>
+    </a>
+</mat-nav-list>

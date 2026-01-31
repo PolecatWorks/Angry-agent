@@ -1,0 +1,11 @@
+.thread-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #eee;
+}
+
+.active-thread {
+    background-color: rgba(0,0,0,0.04);
+}

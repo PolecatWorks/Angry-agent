@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "agent-be"
+version = "0.1.0"
+description = "AI Agent Backend with LangGraph"
+authors = ["Admin <admin@example.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+langgraph = "^0.2.70"
+langgraph-checkpoint-postgres = "^2.0.12"
+aiohttp = "^3.11.12"
+asyncpg = "^0.30.0"
+pydantic = "^2.10.6"
+langchain-core = "^0.3.37"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

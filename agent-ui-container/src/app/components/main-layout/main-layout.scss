@@ -1,0 +1,17 @@
+.sidenav-container {
+  height: 100vh;
+}
+
+.sidenav {
+  width: 250px;
+  border-right: 1px solid #ccc;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.content {
+    height: calc(100vh - 64px); /* toolbar height */
+    overflow: hidden;
+}

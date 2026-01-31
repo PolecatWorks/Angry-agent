@@ -1,0 +1,8 @@
+INFO:__main__:Skipping DB init due to NO_DB env var
+INFO:aiohttp.access:::1 [31/Jan/2026:21:01:39 +0000] "POST /api/chat HTTP/1.1" 200 278 "-" "curl/8.5.0"
+INFO:aiohttp.access:::1 [31/Jan/2026:21:01:48 +0000] "GET /api/threads HTTP/1.1" 200 305 "-" "curl/8.5.0"
+INFO:aiohttp.access:::1 [31/Jan/2026:21:01:56 +0000] "GET /api/threads HTTP/1.1" 200 206 "-" "curl/8.5.0"
+INFO:aiohttp.access:::1 [31/Jan/2026:21:02:06 +0000] "GET /api/threads/724ce98d-f867-4f97-b6f9-9f9f43afb957/history HTTP/1.1" 404 220 "-" "curl/8.5.0"
+INFO:__main__:Cleaning up...
+======== Running on http://0.0.0.0:8000 ========
+(Press CTRL+C to quit)

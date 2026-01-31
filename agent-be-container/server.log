@@ -1,0 +1,5 @@
+INFO:__main__:Skipping DB init due to NO_DB env var
+INFO:aiohttp.access:::1 [31/Jan/2026:21:00:29 +0000] "GET /health HTTP/1.1" 200 175 "-" "curl/8.5.0"
+INFO:__main__:Cleaning up...
+======== Running on http://0.0.0.0:8000 ========
+(Press CTRL+C to quit)
