@@ -24,6 +24,8 @@ export class ChatWindow implements OnInit, AfterViewChecked {
 
     @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
+    @ViewChild('messageInput') private messageInput!: ElementRef;
+
     constructor(
         private chatService: ChatService,
         private route: ActivatedRoute,
@@ -80,6 +82,14 @@ export class ChatWindow implements OnInit, AfterViewChecked {
         });
     }
 
+    focusInput() {
+        setTimeout(() => {
+            if (this.messageInput) {
+                this.messageInput.nativeElement.focus();
+            }
+        }, 0);
+    }
+
     sendMessage() {
         if (!this.newMessage.trim()) return;
 
@@ -106,12 +116,14 @@ export class ChatWindow implements OnInit, AfterViewChecked {
                 }
                 this.sending = false;
                 this.cdr.detectChanges();
+                this.focusInput();
             },
             error: (err) => {
                 console.error('Error sending message:', err);
                 this.messages.push({ type: 'error', content: 'Failed to send message' });
                 this.sending = false;
                 this.cdr.detectChanges();
+                this.focusInput();
             }
         });
     }

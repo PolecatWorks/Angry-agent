@@ -33,7 +33,7 @@
     <div class="input-area">
         <mat-form-field appearance="outline" class="full-width">
             <mat-label>Message</mat-label>
-            <input matInput [(ngModel)]="newMessage" (keyup.enter)="sendMessage()" [disabled]="sending"
+            <input matInput #messageInput [(ngModel)]="newMessage" (keyup.enter)="sendMessage()" [disabled]="sending"
                 placeholder="Type your message...">
             <button mat-icon-button matSuffix (click)="sendMessage()" [disabled]="!newMessage.trim() || sending"
                 color="primary">
