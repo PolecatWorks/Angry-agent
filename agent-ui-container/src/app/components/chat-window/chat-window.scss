@@ -10,7 +10,7 @@
     padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 16px;
 }
 
 .spinner-container {
@@ -19,41 +19,112 @@
     padding: 20px;
 }
 
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #757575;
+
+    .large-icon {
+        font-size: 64px;
+        width: 64px;
+        height: 64px;
+        margin-bottom: 16px;
+    }
+
+    p {
+        font-size: 18px;
+        margin: 0;
+    }
+}
+
 .message {
     display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    max-width: 80%;
 
     &.human {
-        justify-content: flex-end;
+        align-self: flex-end;
+        flex-direction: row-reverse;
+
         .message-content {
             background-color: #3f51b5;
             color: white;
             border-radius: 12px 12px 0 12px;
         }
-    }
 
-    &.ai {
-        justify-content: flex-start;
-        .message-content {
-            background-color: #e0e0e0;
-            color: black;
-            border-radius: 12px 12px 12px 0;
+        .message-avatar {
+            color: #3f51b5;
         }
     }
 
+    &.ai, &.error {
+        align-self: flex-start;
+
+        .message-content {
+            background-color: #f5f5f5;
+            color: rgba(0,0,0,0.87);
+            border-radius: 12px 12px 12px 0;
+        }
+
+        .message-avatar {
+            color: #757575;
+        }
+    }
+
+    &.error .message-content {
+        background-color: #ffebee;
+        color: #c62828;
+    }
+
     .message-content {
-        max-width: 70%;
-        padding: 10px 16px;
-        font-size: 14px;
-        line-height: 1.4;
+        padding: 12px 16px;
+        font-size: 15px;
+        line-height: 1.5;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .message-avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 4px;
     }
 }
 
 .input-area {
-    padding: 10px 20px;
+    padding: 16px 24px;
     background-color: white;
     border-top: 1px solid #eee;
 }
 
 .full-width {
     width: 100%;
+}
+
+// Dot typing animation
+.dot-typing {
+  position: relative;
+  left: -9999px;
+  width: 6px;
+  height: 6px;
+  border-radius: 5px;
+  background-color: #9880ff;
+  color: #9880ff;
+  box-shadow: 9984px 0 0 0, 9999px 0 0 0, 10014px 0 0 0;
+  animation: dotTyping 1.5s infinite linear;
+  margin-left: 20px; // Offset for the hidden dots
+  margin-right: 20px;
+}
+
+@keyframes dotTyping {
+  0% { box-shadow: 9984px 0 0 0, 9999px 0 0 0, 10014px 0 0 0; }
+  16.667% { box-shadow: 9984px -10px 0 0, 9999px 0 0 0, 10014px 0 0 0; }
+  33.333% { box-shadow: 9984px 0 0 0, 9999px -10px 0 0, 10014px 0 0 0; }
+  50% { box-shadow: 9984px 0 0 0, 9999px 0 0 0, 10014px -10px 0 0; }
+  66.667% { box-shadow: 9984px 0 0 0, 9999px 0 0 0, 10014px 0 0 0; }
+  100% { box-shadow: 9984px 0 0 0, 9999px 0 0 0, 10014px 0 0 0; }
 }

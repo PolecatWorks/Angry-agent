@@ -3,21 +3,40 @@
         <div *ngIf="loading" class="spinner-container">
             <mat-spinner diameter="40"></mat-spinner>
         </div>
+
+        <div *ngIf="!loading && messages.length === 0" class="empty-state">
+            <mat-icon class="large-icon">chat_bubble_outline</mat-icon>
+            <p>No messages yet. Start the conversation!</p>
+        </div>
+
         <div *ngFor="let msg of messages" [class]="'message ' + msg.type">
+            <div class="message-avatar">
+                <mat-icon *ngIf="msg.type === 'human'">person</mat-icon>
+                <mat-icon *ngIf="msg.type === 'ai'">smart_toy</mat-icon>
+                <mat-icon *ngIf="msg.type === 'error'">error</mat-icon>
+            </div>
             <div class="message-content">
                 {{ msg.content }}
             </div>
         </div>
+
         <div *ngIf="sending" class="message ai sending">
-            <div class="message-content">...</div>
+            <div class="message-avatar">
+                <mat-icon>smart_toy</mat-icon>
+            </div>
+            <div class="message-content">
+                <span class="dot-typing"></span>
+            </div>
         </div>
     </div>
 
     <div class="input-area">
         <mat-form-field appearance="outline" class="full-width">
             <mat-label>Message</mat-label>
-            <input matInput [(ngModel)]="newMessage" (keyup.enter)="sendMessage()" [disabled]="sending">
-            <button mat-icon-button matSuffix (click)="sendMessage()" [disabled]="!newMessage.trim() || sending">
+            <input matInput #messageInput [(ngModel)]="newMessage" (keyup.enter)="sendMessage()" [disabled]="sending"
+                placeholder="Type your message...">
+            <button mat-icon-button matSuffix (click)="sendMessage()" [disabled]="!newMessage.trim() || sending"
+                color="primary">
                 <mat-icon>send</mat-icon>
             </button>
         </mat-form-field>

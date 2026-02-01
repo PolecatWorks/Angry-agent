@@ -16,15 +16,13 @@ const authGuard = () => {
 };
 
 export const routes: Routes = [
-  { path: 'login', component: Login },
   {
     path: '',
     component: MainLayout,
-    canActivate: [authGuard],
     children: [
-        { path: 'chat', component: ChatWindow },
-        { path: 'chat/:threadId', component: ChatWindow },
-        { path: '', redirectTo: 'chat', pathMatch: 'full' }
+      { path: 'chat', component: ChatWindow },
+      { path: 'chat/:threadId', component: ChatWindow },
+      { path: '', redirectTo: 'chat', pathMatch: 'full' }
     ]
   },
   { path: '**', redirectTo: '' }
