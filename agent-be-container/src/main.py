@@ -188,7 +188,7 @@ async def on_cleanup(app):
     logger.info("Cleaning up...")
     await close_db_pool()
 
-def init_app():
+def create_app():
     app = web.Application(middlewares=[auth_middleware])
     app.router.add_get("/health", health_check)
     app.router.add_post("/api/chat", chat_endpoint)
@@ -200,4 +200,4 @@ def init_app():
     return app
 
 if __name__ == "__main__":
-    web.run_app(init_app(), port=8000)
+    web.run_app(create_app(), port=8000)
