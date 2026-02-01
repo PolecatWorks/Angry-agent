@@ -12,10 +12,10 @@ DSN = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 pool: Optional[asyncpg.Pool] = None
 
-async def init_db_pool():
+async def init_db_pool(dsn: Optional[str] = None):
     global pool
     # Wait for DB to be ready potentially, but for now just create pool
-    pool = await asyncpg.create_pool(dsn=DSN)
+    pool = await asyncpg.create_pool(dsn=dsn or DSN)
     return pool
 
 async def close_db_pool():

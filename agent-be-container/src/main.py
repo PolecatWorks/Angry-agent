@@ -1,4 +1,8 @@
 import os
+import warnings
+# Suppress Pydantic V1 warning on Python 3.14 until langchain-core updates
+warnings.filterwarnings("ignore", message=".*Core Pydantic V1 functionality isn't compatible with Python 3.14.*")
+
 import logging
 import uuid
 import json
@@ -12,6 +16,8 @@ try:
     from langgraph.checkpoint.memory import MemorySaver
 except ImportError:
     MemorySaver = None
+
+from .config import ServiceConfig
 
 # Config logging
 logging.basicConfig(level=logging.INFO)
@@ -60,6 +66,7 @@ async def health_check(request):
     return web.json_response({"status": "ok"})
 
 async def chat_endpoint(request):
+    config: ServiceConfig = request.app["config"]
     user_id = request["user_id"]
     try:
         data = await request.json()
@@ -76,7 +83,7 @@ async def chat_endpoint(request):
         thread_id = str(uuid.uuid4())
 
     # --- DB Logic: Threads Table ---
-    if os.getenv("NO_DB"):
+    if config.no_db:
         if thread_id not in mock_threads_db:
             mock_threads_db[thread_id] = {"user_id": user_id, "title": message[:20], "thread_id": thread_id}
         elif mock_threads_db[thread_id]["user_id"] != user_id:
@@ -95,19 +102,19 @@ async def chat_endpoint(request):
                 )
 
     # --- Agent Logic ---
-    config = {"configurable": {"thread_id": thread_id}}
+    agent_config = {"configurable": {"thread_id": thread_id}}
     final_res = {}
 
-    if os.getenv("NO_DB"):
+    if config.no_db:
         agent = create_agent(mock_checkpointer)
-        final_res = await agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=config)
+        final_res = await agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=agent_config)
     else:
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-        async with AsyncPostgresSaver.from_conn_string(DSN) as checkpointer:
+        async with AsyncPostgresSaver.from_conn_string(config.database.dsn) as checkpointer:
             # Ensure checkpointer tables exist
             await checkpointer.setup()
             agent = create_agent(checkpointer)
-            final_res = await agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=config)
+            final_res = await agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=agent_config)
 
     messages = final_res["messages"]
     last_msg = messages[-1]
@@ -119,10 +126,11 @@ async def chat_endpoint(request):
     })
 
 async def list_threads(request):
+    config: ServiceConfig = request.app["config"]
     user_id = request["user_id"]
     threads = []
 
-    if os.getenv("NO_DB"):
+    if config.no_db:
         for tid, data in mock_threads_db.items():
             if data["user_id"] == user_id:
                 threads.append(data)
@@ -137,18 +145,19 @@ async def list_threads(request):
     return web.json_response({"threads": threads})
 
 async def get_history(request):
+    config: ServiceConfig = request.app["config"]
     user_id = request["user_id"]
     thread_id = request.match_info["thread_id"]
 
-    if os.getenv("NO_DB"):
+    if config.no_db:
         if thread_id not in mock_threads_db or mock_threads_db[thread_id]["user_id"] != user_id:
              return web.json_response({"error": "Not found"}, status=404)
         checkpointer = mock_checkpointer # Reuse global mock
 
         # Check if we need to "construct" agent to get state
         agent = create_agent(checkpointer)
-        config = {"configurable": {"thread_id": thread_id}}
-        state = await agent.aget_state(config)
+        agent_config = {"configurable": {"thread_id": thread_id}}
+        state = await agent.aget_state(agent_config)
         messages_list = []
         if state.values and "messages" in state.values:
              for m in state.values["messages"]:
@@ -163,10 +172,10 @@ async def get_history(request):
                 return web.json_response({"error": "Not found"}, status=404)
 
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-        async with AsyncPostgresSaver.from_conn_string(DSN) as checkpointer:
+        async with AsyncPostgresSaver.from_conn_string(config.database.dsn) as checkpointer:
             agent = create_agent(checkpointer)
-            config = {"configurable": {"thread_id": thread_id}}
-            state = await agent.aget_state(config)
+            agent_config = {"configurable": {"thread_id": thread_id}}
+            state = await agent.aget_state(agent_config)
             messages_list = []
             if state.values and "messages" in state.values:
                 for m in state.values["messages"]:
@@ -174,13 +183,14 @@ async def get_history(request):
             return web.json_response({"messages": messages_list})
 
 async def on_startup(app):
-    if os.getenv("NO_DB"):
-        logger.info("Skipping DB init due to NO_DB env var")
+    config: ServiceConfig = app["config"]
+    if config.no_db:
+        logger.info("Skipping DB init due to NO_DB config")
         return
 
     logger.info("Starting up and connecting to DB...")
     try:
-        pool = await init_db_pool()
+        pool = await init_db_pool(dsn=config.database.dsn)
         async with pool.acquire() as conn:
             await create_tables(conn)
         logger.info("DB initialized.")
@@ -192,8 +202,24 @@ async def on_cleanup(app):
     logger.info("Cleaning up...")
     await close_db_pool()
 
-def create_app():
+def create_app(config: ServiceConfig = None):
+    if config is None:
+        # Fallback for dev/testing when config isn't injected (e.g. adev)
+        # We try to load partial config from env or just use defaults
+        try:
+            # Create a default config.
+            # Note: This might miss secrets or yaml if not specified.
+            # We assume dev mode defaults are sufficient.
+            config = ServiceConfig(webservice={"url": "http://0.0.0.0:8000", "prefix": ""})
+            # Attempt to set specific fields from env if needed, but ServiceConfig does that via pydantic if we let it.
+            # But here we just instantiated with minimal args.
+            pass
+        except Exception as e:
+            logger.warning(f"Using fallback config failed slightly: {e}")
+            config = ServiceConfig(webservice={"url": "http://0.0.0.0:8000", "prefix": ""})
+
     app = web.Application(middlewares=[auth_middleware])
+    app["config"] = config
     app.router.add_get("/health", health_check)
     app.router.add_post("/api/chat", chat_endpoint)
     app.router.add_get("/api/threads", list_threads)
@@ -203,5 +229,21 @@ def create_app():
     app.on_cleanup.append(on_cleanup)
     return app
 
+def app_start(config: ServiceConfig):
+    app = create_app(config)
+    web.run_app(app,
+                host=str(config.webservice.url.host) if config.webservice.url.host else "0.0.0.0",
+                port=config.webservice.url.port or 8000)
+
 if __name__ == "__main__":
-    web.run_app(create_app(), port=8000)
+    # Fallback to defaults if run directly without config
+    # This might fail if ServiceConfig requires params, but we can try basic defaults
+    # Or just warn.
+    print("Please run via cli.py to support full configuration")
+    # Minimal config for direct run (e.g. dev)
+    # We can try to load via Env or defaults
+    try:
+        config = ServiceConfig(webservice={"url": "http://0.0.0.0:8000", "prefix": ""})
+        app_start(config)
+    except Exception as e:
+        print(f"Failed to start with default config: {e}")
