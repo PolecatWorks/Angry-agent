@@ -27,7 +27,7 @@ async def auth_middleware(app, handler):
         if request.method == "OPTIONS":
             response = web.Response()
             response.headers["Access-Control-Allow-Origin"] = "*"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
             response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-User-ID"
             return response
 
@@ -35,20 +35,24 @@ async def auth_middleware(app, handler):
         if request.path == "/health":
             return await handler(request)
 
+        # Default to a test user if header matches request from single-user UI
+        # or just allow it for now since we are removing login.
         user_id = request.headers.get("X-User-ID")
         if not user_id:
-            return web.json_response({"error": "Unauthorized: Missing X-User-ID header"}, status=401)
+             # Fallback for single user mode if header is missing (though frontend should send it)
+             user_id = "default-user"
 
         request["user_id"] = user_id
 
         try:
             response = await handler(request)
-            # Add CORS headers to response
-            response.headers["Access-Control-Allow-Origin"] = "*"
-            return response
         except Exception as e:
-            logger.error(f"Error handling request: {e}", exc_info=True)
-            return web.json_response({"error": str(e)}, status=500)
+             logger.error(f"Error handling request: {e}", exc_info=True)
+             response = web.json_response({"error": str(e)}, status=500)
+
+        # Always add CORS headers
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
 
     return middleware_handler
 
@@ -95,11 +99,11 @@ async def chat_endpoint(request):
     final_res = {}
 
     if os.getenv("NO_DB"):
-         agent = create_agent(mock_checkpointer)
-         final_res = await agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=config)
+        agent = create_agent(mock_checkpointer)
+        final_res = await agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=config)
     else:
-        from langgraph.checkpoint.postgres.aio import PostgresSaver
-        async with PostgresSaver.from_conn_string(DSN) as checkpointer:
+        from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+        async with AsyncPostgresSaver.from_conn_string(DSN) as checkpointer:
             # Ensure checkpointer tables exist
             await checkpointer.setup()
             agent = create_agent(checkpointer)
@@ -152,14 +156,14 @@ async def get_history(request):
         return web.json_response({"messages": messages_list})
 
     else:
-         pool = await get_db_pool()
-         async with pool.acquire() as conn:
-             row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
-             if not row or row["user_id"] != user_id:
-                 return web.json_response({"error": "Not found"}, status=404)
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
+            if not row or row["user_id"] != user_id:
+                return web.json_response({"error": "Not found"}, status=404)
 
-         from langgraph.checkpoint.postgres.aio import PostgresSaver
-         async with PostgresSaver.from_conn_string(DSN) as checkpointer:
+        from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+        async with AsyncPostgresSaver.from_conn_string(DSN) as checkpointer:
             agent = create_agent(checkpointer)
             config = {"configurable": {"thread_id": thread_id}}
             state = await agent.aget_state(config)
