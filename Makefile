@@ -76,9 +76,6 @@ tests: $(foreach app,$(APPS),$(app)-test)
 
 
 
-
-
-
 # --- Database ---
 
 db-local:
