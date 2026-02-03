@@ -1,0 +1,30 @@
+webservice:
+  url: "http://0.0.0.0:8000"
+  prefix: ""
+
+logging:
+  version: 1
+  disable_existing_loggers: False
+  formatters:
+    simple:
+      format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: INFO
+      formatter: simple
+      stream: ext://sys.stdout
+  root:
+    level: INFO
+    handlers: [console]
+
+no_db: true
+hams:
+  url: http://localhost:8079
+  prefix: hams
+  shutdownDuration: P0DT0H0M10S
+  checks:
+    timeout: 5
+    fails: 2
+    preflights: []
+    shutdowns: []

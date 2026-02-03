@@ -2,6 +2,9 @@
 .PHONY: frontend-dev frontend-docker frontend-docker-run \
         db-local
 
+BASE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
+
 PYTHON_APPS := agent-be
 NODE_APPS := agent-ui
 APPS := $(PYTHON_APPS) $(NODE_APPS)
@@ -35,7 +38,7 @@ $(foreach app,$(PYTHON_APPS),$(app)-venv/bin/adev):%-venv/bin/adev: %-venv/bin/a
 # Run development server
 $(foreach app,$(PYTHON_APPS),$(app)-dev):%-dev:%-venv/bin/adev
 	cd $*-container && \
-	PYTHONPATH=src ../$*-venv/bin/adev runserver --port ${$*_PORT} src
+	${BASE_DIR}$*-venv/bin/adev runserver --port ${$*_PORT}
 
 # Run tests
 $(foreach app,$(PYTHON_APPS),$(app)-test):%-test:%-venv/bin/pytest
@@ -72,9 +75,6 @@ $(foreach app,$(APPS),$(app)-docker-run):%-docker-run:%-docker
 .PHONY: venvs tests
 venvs: $(foreach app,$(PYTHON_APPS),$(app)-venv/bin/activate)
 tests: $(foreach app,$(APPS),$(app)-test)
-
-
-
 
 
 
