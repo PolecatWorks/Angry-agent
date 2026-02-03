@@ -1,7 +1,6 @@
 """
 Tests for database connection and table management
 """
-import unittest
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import sys
@@ -11,31 +10,29 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
 
 from database import create_tables, init_db_pool, close_db_pool, get_db_pool
 
+@pytest.mark.asyncio
+async def test_create_tables():
+    """Test SQL for creating threads table"""
+    mock_conn = AsyncMock()
+    await create_tables(mock_conn)
 
-class TestDatabaseTables(unittest.IsolatedAsyncioTestCase):
-    """Test database table creation"""
+    # Verify execute was called
+    assert mock_conn.execute.called
 
-    async def test_create_tables(self):
-        """Test SQL for creating threads table"""
-        mock_conn = AsyncMock()
-        await create_tables(mock_conn)
+    # Get the SQL executed
+    args, _ = mock_conn.execute.call_args
+    sql = args[0]
 
-        # Verify execute was called
-        self.assertTrue(mock_conn.execute.called)
-
-        # Get the SQL executed
-        args, _ = mock_conn.execute.call_args
-        sql = args[0]
-
-        self.assertIn("CREATE TABLE IF NOT EXISTS threads", sql)
-        self.assertIn("thread_id TEXT PRIMARY KEY", sql)
-        self.assertIn("user_id TEXT NOT NULL", sql)
-        self.assertIn("title TEXT", sql)
+    assert "CREATE TABLE IF NOT EXISTS threads" in sql
+    assert "thread_id TEXT PRIMARY KEY" in sql
+    assert "user_id TEXT NOT NULL" in sql
+    assert "title TEXT" in sql
 
 
-class TestDatabasePoolLifecycle(unittest.IsolatedAsyncioTestCase):
+class TestDatabasePoolLifecycle:
     """Test database connection pool initialization and cleanup"""
 
+    @pytest.mark.asyncio
     @patch('database.asyncpg.create_pool', new_callable=MagicMock)
     async def test_init_db_pool(self, mock_create_pool):
         """Test database pool initialization"""
@@ -53,6 +50,7 @@ class TestDatabasePoolLifecycle(unittest.IsolatedAsyncioTestCase):
         mock_create_pool.assert_called_once_with(dsn=dsn)
         assert pool == mock_pool
 
+    @pytest.mark.asyncio
     @patch('database.pool')
     async def test_get_db_pool_initialized(self, mock_pool_var):
         """Test getting initialized database pool"""
@@ -67,6 +65,7 @@ class TestDatabasePoolLifecycle(unittest.IsolatedAsyncioTestCase):
         finally:
             database.pool = None
 
+    @pytest.mark.asyncio
     async def test_close_db_pool(self):
         """Test closing database pool"""
         mock_pool = AsyncMock()
@@ -80,6 +79,7 @@ class TestDatabasePoolLifecycle(unittest.IsolatedAsyncioTestCase):
         finally:
             database.pool = None
 
+    @pytest.mark.asyncio
     async def test_get_db_pool_not_initialized(self):
         """Test error when getting pool before initialization"""
         import database
@@ -87,7 +87,3 @@ class TestDatabasePoolLifecycle(unittest.IsolatedAsyncioTestCase):
 
         with pytest.raises(Exception, match="Database pool not initialized"):
             await get_db_pool()
-
-
-if __name__ == '__main__':
-    unittest.main()

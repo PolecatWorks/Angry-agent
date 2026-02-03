@@ -1,7 +1,6 @@
 """
 Tests for HAMS health monitoring endpoints
 """
-import unittest
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import sys
@@ -14,50 +13,49 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
 from hams import Hams
 from hams.config import HamsConfig
 
+@pytest.fixture
+def hams_config():
+    return HamsConfig(
+        url="http://localhost:8079/",
+        prefix="hams",
+        checks={"timeout": 5, "fails": 3, "preflights": [], "shutdowns": []},
+        shutdownDuration="PT5S"
+    )
 
-class TestHamsEndpoints(unittest.IsolatedAsyncioTestCase):
+@pytest.fixture
+def hams_instance(hams_config):
+    mock_hams_app = web.Application()
+    mock_base_app = web.Application()
+    registry = CollectorRegistry()
+    return Hams(
+        hams_app=mock_hams_app,
+        app=mock_base_app,
+        config=hams_config,
+        registry=registry
+    )
+
+class TestHamsEndpoints:
     """Test HAMS health check endpoints"""
 
-    def setUp(self):
-        """Set up test HAMS instance"""
-        config = HamsConfig(
-            url="http://localhost:8079/",
-            prefix="hams",
-            checks={"timeout": 5, "fails": 3, "preflights": [], "shutdowns": []},
-            shutdownDuration="PT5S"
-        )
-        self.mock_hams_app = web.Application()
-        self.mock_base_app = web.Application()
-
-        # Use a custom registry to avoid "Duplicated timeseries" errors
-        self.registry = CollectorRegistry()
-
-        self.hams = Hams(
-            hams_app=self.mock_hams_app,
-            app=self.mock_base_app,
-            config=config,
-            registry=self.registry
-        )
-
-    async def test_alive_endpoint(self):
+    @pytest.mark.asyncio
+    async def test_alive_endpoint(self, hams_instance):
         """Test /alive endpoint always returns true"""
         # alive() is synchronous
-        result = self.hams.alive()
+        result = hams_instance.alive()
         assert result is True
 
-    async def test_ready_endpoint_always_ready(self):
+    @pytest.mark.asyncio
+    async def test_ready_endpoint_always_ready(self, hams_instance):
         """Test /ready endpoint returns true when no prestart checks"""
         # ready() is synchronous
-        result = self.hams.ready()
+        result = hams_instance.ready()
         assert result is True
 
-    async def test_monitor_endpoint_response(self):
+    @pytest.mark.asyncio
+    async def test_monitor_endpoint_response(self, hams_instance):
         """Test /monitor endpoint returns service info"""
-        # monitor is not a method on Hams class, it's a View in __init__.py
-        # But we previously checked self.hams.monitor() which failed
-        # Let's check if the method exists, if not remove test
-        if hasattr(self.hams, 'monitor'):
-            result = await self.hams.monitor()
+        if hasattr(hams_instance, 'monitor'):
+            result = await hams_instance.monitor()
             assert "name" in result
 
     def test_hams_config_url_parsing(self):
@@ -72,21 +70,14 @@ class TestHamsEndpoints(unittest.IsolatedAsyncioTestCase):
         assert config.url.port == 9090
         assert config.prefix == "health"
 
-
-class TestHamsLifecycle(unittest.IsolatedAsyncioTestCase):
+class TestHamsLifecycle:
     """Test HAMS startup and shutdown lifecycle"""
 
+    @pytest.mark.asyncio
     @patch('hams.web.TCPSite')
     @patch('hams.web.AppRunner')
-    async def test_hams_startup(self, mock_runner, mock_site):
+    async def test_hams_startup(self, mock_runner, mock_site, hams_config):
         """Test HAMS starts up correctly"""
-        config = HamsConfig(
-            url="http://localhost:8079/",
-            prefix="hams",
-            checks={"timeout": 5, "fails": 3, "preflights": [], "shutdowns": []},
-            shutdownDuration="PT5S"
-        )
-
         # Mock the runner and site
         mock_runner_instance = AsyncMock()
         mock_runner.return_value = mock_runner_instance
@@ -101,45 +92,38 @@ class TestHamsLifecycle(unittest.IsolatedAsyncioTestCase):
         hams = Hams(
             hams_app=mock_hams_app,
             app=mock_base_app,
-            config=config,
+            config=hams_config,
             registry=registry
         )
 
         assert hams.config.url.port == 8079
         assert hams.config.prefix == "hams"
 
-
-class TestHamsPrestartChecks(unittest.IsolatedAsyncioTestCase):
+class TestHamsPrestartChecks:
     """Test HAMS prestart check execution"""
 
-    def test_checks_configuration(self):
+    def test_checks_configuration(self, hams_config):
         """Test checks configuration is properly loaded"""
+        # Re-creating config for this specific test to match original params
         config = HamsConfig(
             url="http://localhost:8079/",
             prefix="hams",
             checks={"timeout": 10, "fails": 3, "preflights": [], "shutdowns": []},
             shutdownDuration="PT5S"
         )
-
         assert config.checks.timeout == 10
         assert config.checks.fails == 3
 
-    async def test_ready_with_no_checks(self):
+    @pytest.mark.asyncio
+    async def test_ready_with_no_checks(self, hams_config):
         """Test ready endpoint with no prestart checks configured"""
-        config = HamsConfig(
-            url="http://localhost:8079/",
-            prefix="hams",
-            checks={"timeout": 5, "fails": 3, "preflights": [], "shutdowns": []},
-            shutdownDuration="PT5S"
-        )
-
         mock_hams_app = web.Application()
         mock_base_app = web.Application()
         registry = CollectorRegistry()
         hams = Hams(
             hams_app=mock_hams_app,
             app=mock_base_app,
-            config=config,
+            config=hams_config,
             registry=registry
         )
 

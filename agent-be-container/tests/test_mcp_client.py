@@ -1,20 +1,18 @@
 """
 Tests for MCP client initialization and tool management
 """
-import unittest
+import pytest
 from unittest.mock import MagicMock, patch
 import sys
 import os
 
-# sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
 # Instead, rely on pytest rootdir being valid for src package imports
-
 from src.mcp_client import mcp_app_create, MCPObjects, connect_to_mcp_server
 
-
-class TestMCPClient(unittest.IsolatedAsyncioTestCase):
+class TestMCPClient:
     """Test MCP client initialization"""
 
+    @pytest.mark.asyncio
     @patch('src.mcp_client.logger')
     async def test_mcp_client_no_servers(self, mock_logger):
         """Test MCP initialization with no servers configured"""
@@ -50,7 +48,3 @@ class TestMCPClient(unittest.IsolatedAsyncioTestCase):
         # Test get_tools_for_mcp method
         tools = mcp_objects.get_tools_for_mcp("test-mcp")
         assert tools == []
-
-
-if __name__ == '__main__':
-    unittest.main()

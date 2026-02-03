@@ -1,7 +1,6 @@
 """
 Tests for configuration loading and validation
 """
-import unittest
 import pytest
 from pathlib import Path
 from pydantic import ValidationError
