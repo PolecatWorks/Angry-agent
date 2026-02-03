@@ -8,8 +8,9 @@ import uuid
 import json
 from aiohttp import web
 from langchain_core.messages import HumanMessage
-from agent import create_agent
-from database import init_db_pool, close_db_pool, get_db_pool, create_tables, DSN
+from .agent import create_agent
+from .database import init_db_pool, close_db_pool, get_db_pool, create_tables
+from . import keys
 
 # Optional imports for NO_DB mode
 try:
@@ -66,7 +67,7 @@ async def health_check(request):
     return web.json_response({"status": "ok"})
 
 async def chat_endpoint(request):
-    config: ServiceConfig = request.app["config"]
+    config: ServiceConfig = request.app[keys.config]
     user_id = request["user_id"]
     try:
         data = await request.json()
@@ -126,7 +127,7 @@ async def chat_endpoint(request):
     })
 
 async def list_threads(request):
-    config: ServiceConfig = request.app["config"]
+    config: ServiceConfig = request.app[keys.config]
     user_id = request["user_id"]
     threads = []
 
@@ -145,7 +146,7 @@ async def list_threads(request):
     return web.json_response({"threads": threads})
 
 async def get_history(request):
-    config: ServiceConfig = request.app["config"]
+    config: ServiceConfig = request.app[keys.config]
     user_id = request["user_id"]
     thread_id = request.match_info["thread_id"]
 
@@ -183,7 +184,7 @@ async def get_history(request):
             return web.json_response({"messages": messages_list})
 
 async def on_startup(app):
-    config: ServiceConfig = app["config"]
+    config: ServiceConfig = app[keys.config]
     if config.no_db:
         logger.info("Skipping DB init due to NO_DB config")
         return
@@ -202,24 +203,13 @@ async def on_cleanup(app):
     logger.info("Cleaning up...")
     await close_db_pool()
 
-def create_app(config: ServiceConfig = None):
-    if config is None:
-        # Fallback for dev/testing when config isn't injected (e.g. adev)
-        # We try to load partial config from env or just use defaults
-        try:
-            # Create a default config.
-            # Note: This might miss secrets or yaml if not specified.
-            # We assume dev mode defaults are sufficient.
-            config = ServiceConfig(webservice={"url": "http://0.0.0.0:8000", "prefix": ""})
-            # Attempt to set specific fields from env if needed, but ServiceConfig does that via pydantic if we let it.
-            # But here we just instantiated with minimal args.
-            pass
-        except Exception as e:
-            logger.warning(f"Using fallback config failed slightly: {e}")
-            config = ServiceConfig(webservice={"url": "http://0.0.0.0:8000", "prefix": ""})
-
+def create_app_with_middleware(config: ServiceConfig):
+    """
+    Create app with middleware - used when main.py runs standalone
+    This is mostly for backward compatibility, the preferred way is via __init__.py
+    """
     app = web.Application(middlewares=[auth_middleware])
-    app["config"] = config
+    app[keys.config] = config
     app.router.add_get("/health", health_check)
     app.router.add_post("/api/chat", chat_endpoint)
     app.router.add_get("/api/threads", list_threads)
@@ -230,7 +220,8 @@ def create_app(config: ServiceConfig = None):
     return app
 
 def app_start(config: ServiceConfig):
-    app = create_app(config)
+    """Start the service - used by CLI"""
+    app = create_app_with_middleware(config)
     web.run_app(app,
                 host=str(config.webservice.url.host) if config.webservice.url.host else "0.0.0.0",
                 port=config.webservice.url.port or 8000)

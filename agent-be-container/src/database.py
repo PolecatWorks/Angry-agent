@@ -1,29 +1,24 @@
-import os
 import asyncpg
 from typing import Optional
 
-DB_USER = os.getenv("POSTGRES_USER", "postgres")
-DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "mysecretpassword")
-DB_NAME = os.getenv("POSTGRES_DB", "agentdb")
-DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
-DB_PORT = os.getenv("POSTGRES_PORT", "5432")
-
-DSN = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
+# Global pool instance
 pool: Optional[asyncpg.Pool] = None
 
-async def init_db_pool(dsn: Optional[str] = None):
+async def init_db_pool(dsn: str):
+    """Initialize database pool with the provided DSN from ServiceConfig"""
     global pool
-    # Wait for DB to be ready potentially, but for now just create pool
-    pool = await asyncpg.create_pool(dsn=dsn or DSN)
+    pool = await asyncpg.create_pool(dsn=dsn)
     return pool
 
 async def close_db_pool():
+    """Close the database pool"""
     global pool
     if pool:
         await pool.close()
+        pool = None
 
 async def create_tables(conn: asyncpg.Connection):
+    """Create required database tables"""
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS threads (
             thread_id TEXT PRIMARY KEY,
@@ -36,6 +31,7 @@ async def create_tables(conn: asyncpg.Connection):
     """)
 
 async def get_db_pool() -> asyncpg.Pool:
+    """Get the database pool, raising an error if not initialized"""
     if pool is None:
         raise Exception("Database pool not initialized")
     return pool

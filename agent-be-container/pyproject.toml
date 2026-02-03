@@ -16,6 +16,9 @@ pydantic = "^2.12"
 langchain-core = "^1.2"
 click = "^8.1.7"
 pydantic-settings = "^2.12"
+prometheus-async = "^25.1.0"
+ruamel-yaml = "^0.19.1"
+langchain-mcp-adapters = "^0.2.1"
 
 [build-system]
 requires = ["poetry-core"]

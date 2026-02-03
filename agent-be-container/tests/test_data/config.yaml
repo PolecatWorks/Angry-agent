@@ -19,3 +19,12 @@ logging:
     handlers: [console]
 
 no_db: true
+hams:
+  url: http://localhost:8079
+  prefix: hams
+  shutdownDuration: P0DT0H0M10S
+  checks:
+    timeout: 5
+    fails: 2
+    preflights: []
+    shutdowns: []

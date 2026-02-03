@@ -16,6 +16,7 @@ from pydantic_settings import (
     NestedSecretsSettingsSource,
     SettingsConfigDict,
 )
+from src.hams.config import HamsConfig
 
 import os
 
@@ -145,6 +146,7 @@ class ServiceConfig(BaseSettings):
     logging: dict[str, Any] = Field(default_factory=dict, description="Logging configuration")
     aiclient: LangchainConfig = Field(default_factory=LangchainConfig, description="AI Client configuration")
     myai: MyAiConfig = Field(default_factory=MyAiConfig, description="MyAI bot configuration")
+    hams: HamsConfig = Field(description="Health and monitoring configuration")
 
     webservice: WebServerConfig = Field(description="Web server configuration")
     database: DatabaseConfig = Field(default_factory=DatabaseConfig, description="Database configuration")

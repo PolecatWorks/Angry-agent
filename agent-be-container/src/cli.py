@@ -7,7 +7,8 @@ import click
 import sys
 import logging
 import logging.config
-from pydantic_yaml import to_yaml_str
+from ruamel.yaml import YAML
+import io
 
 from .config import ServiceConfig
 
@@ -61,12 +62,15 @@ def shared_options(function):
 @shared_options
 def parse(ctx, config, secrets):
     """Parse a config"""
-    from pydantic_yaml import to_yaml_str
+    yaml = YAML()
+    yaml.indent(mapping=2, sequence=4, offset=2)
 
     configObj: ServiceConfig = ServiceConfig.from_yaml_and_secrets_dir(config.name, secrets)
-    click.echo(configObj)
 
-    click.echo(to_yaml_str(configObj))
+    # Print to stdout
+    stream = io.StringIO()
+    yaml.dump(configObj.model_dump(mode='json'), stream)
+    click.echo(stream.getvalue())
 
 
 @cli.command()
@@ -75,12 +79,18 @@ def start(ctx, config, secrets):
     """Start the service"""
     from .main import app_start
 
+    yaml = YAML()
+    yaml.indent(mapping=2, sequence=4, offset=2)
+
     configObj: ServiceConfig = ServiceConfig.from_yaml_and_secrets_dir(config.name, secrets)
 
     # Load logging configuration from YAML file
     logging.config.dictConfig(configObj.logging)
 
-    print(to_yaml_str(configObj, indent=2))
+    # Print config
+    stream = io.StringIO()
+    yaml.dump(configObj.model_dump(mode='json'), stream)
+    print(stream.getvalue())
 
     app_start(configObj)
 
