@@ -9,8 +9,11 @@ PYTHON_APPS := agent-be
 NODE_APPS := agent-ui
 APPS := $(PYTHON_APPS) $(NODE_APPS)
 
-agent-be_PORT := 8000
+agent-be_PORT := 8080
 agent-ui_PORT := 4200
+
+agent-be_INTERNAL_PORT := 8080
+agent-ui_INTERNAL_PORT := 8080
 
 # --- Python Venvs & Deps ---
 
@@ -68,7 +71,7 @@ $(foreach app,$(APPS),$(app)-docker):%-docker:
 # Docker Run
 $(foreach app,$(APPS),$(app)-docker-run):%-docker-run:%-docker
 	docker run -it --rm --name $* \
-		-p ${$*_PORT}:${$*_PORT} \
+		-p ${$*_PORT}:${$*_INTERNAL_PORT} \
 		-e NO_DB=true \
 		$*
 
