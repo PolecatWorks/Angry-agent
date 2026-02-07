@@ -224,7 +224,7 @@ def app_start(config: ServiceConfig):
     app = create_app_with_middleware(config)
     web.run_app(app,
                 host=str(config.webservice.url.host) if config.webservice.url.host else "0.0.0.0",
-                port=config.webservice.url.port or 8000)
+                port=config.webservice.url.port or 8080)
 
 if __name__ == "__main__":
     # Fallback to defaults if run directly without config
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     # Minimal config for direct run (e.g. dev)
     # We can try to load via Env or defaults
     try:
-        config = ServiceConfig(webservice={"url": "http://0.0.0.0:8000", "prefix": ""})
+        config = ServiceConfig(webservice={"url": "http://0.0.0.0:8080", "prefix": ""})
         app_start(config)
     except Exception as e:
         print(f"Failed to start with default config: {e}")

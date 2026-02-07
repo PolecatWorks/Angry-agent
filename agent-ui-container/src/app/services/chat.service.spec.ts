@@ -44,7 +44,7 @@ describe('ChatService', () => {
             expect(response).toEqual(mockResponse);
         });
 
-        const req = httpMock.expectOne('http://localhost:8000/api/chat');
+        const req = httpMock.expectOne('http://localhost:8080/api/chat');
         expect(req.request.method).toBe('POST');
         expect(req.request.body).toEqual({ message, thread_id: undefined });
         expect(req.request.headers.get('X-User-ID')).toBe('test-user');
@@ -60,7 +60,7 @@ describe('ChatService', () => {
             expect(response).toEqual(mockResponse);
         });
 
-        const req = httpMock.expectOne('http://localhost:8000/api/chat');
+        const req = httpMock.expectOne('http://localhost:8080/api/chat');
         expect(req.request.method).toBe('POST');
         expect(req.request.body).toEqual({ message, thread_id: threadId });
         req.flush(mockResponse);
@@ -76,7 +76,7 @@ describe('ChatService', () => {
             expect(response.threads).toEqual(mockThreads);
         });
 
-        const req = httpMock.expectOne('http://localhost:8000/api/threads');
+        const req = httpMock.expectOne('http://localhost:8080/api/threads');
         expect(req.request.method).toBe('GET');
         expect(req.request.headers.get('X-User-ID')).toBe('test-user');
         req.flush({ threads: mockThreads });
@@ -95,7 +95,7 @@ describe('ChatService', () => {
             expect(response).toEqual(mockHistory);
         });
 
-        const req = httpMock.expectOne(`http://localhost:8000/api/threads/${threadId}/history`);
+        const req = httpMock.expectOne(`http://localhost:8080/api/threads/${threadId}/history`);
         expect(req.request.method).toBe('GET');
         req.flush(mockHistory);
     });
