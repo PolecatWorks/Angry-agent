@@ -25,7 +25,7 @@ class TestConfigLoading:
         )
 
         assert config is not None
-        assert config.webservice.url.port == 8000
+        assert config.webservice.url.port == 8080
         assert config.hams.url.port == 8079
         assert config.database.user == "postgres"
         assert config.database.db_name == "agentdb"

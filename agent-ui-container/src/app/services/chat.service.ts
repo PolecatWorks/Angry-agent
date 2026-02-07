@@ -28,7 +28,7 @@ export interface HistoryResponse {
   providedIn: 'root'
 })
 export class ChatService {
-  private apiUrl = 'http://localhost:8000/api';
+  private apiUrl = 'http://localhost:8080/api';
 
   constructor(private http: HttpClient, private authService: AuthService) { }
 

@@ -16,7 +16,7 @@ RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
 
 # Command
 CMD ["python", "src/main.py"]
