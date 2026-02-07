@@ -15,51 +15,27 @@ This project consists of an Angular Frontend and a Python Backend (using LangGra
 Run the following command to start a PostgreSQL container:
 
 ```bash
-docker run --name agent-postgres \
-  -e POSTGRES_PASSWORD=mysecretpassword \
-  -e POSTGRES_DB=agentdb \
-  -p 5432:5432 \
-  -d postgres:15-alpine
+make db-local
 ```
 
 ### 2. Backend
 Build and run the backend container. It needs to connect to the Postgres database.
-If running on the same host (Mac/Windows), you can use `host.docker.internal` to access the postgres port mapped to localhost.
-
-**Build:**
-```bash
-cd agent-be-container
-docker build -t agent-be .
-```
 
 **Run:**
 ```bash
-docker run --name agent-be \
-  -p 8000:8000 \
-  -e POSTGRES_HOST=host.docker.internal \
-  -e POSTGRES_PASSWORD=mysecretpassword \
-  -e POSTGRES_DB=agentdb \
-  agent-be
+make agent-be-docker-run
 ```
-*Note: On Linux, add `--add-host=host.docker.internal:host-gateway` to the run command, or use a shared docker network.*
+*Note: This target handles building the image and setting up environment variables.*
 
 ### 3. Frontend
 Build and run the frontend container.
 
-**Build:**
-```bash
-cd agent-ui-container
-docker build -t agent-ui .
-```
-
 **Run:**
 ```bash
-docker run --name agent-ui \
-  -p 80:80 \
-  agent-ui
+make agent-ui-docker-run
 ```
 
-Access the application at `http://localhost`.
+Access the application at `http://localhost:4200`.
 
 ## Features
 - **Multi-User Isolation**: Chats are isolated by User ID (Mocked via Login screen).
@@ -70,15 +46,11 @@ Access the application at `http://localhost`.
 
 **Backend:**
 ```bash
-cd agent-be-container
-poetry install
 # Ensure Postgres is running on localhost:5432
-python src/main.py
+make agent-be-dev
 ```
 
 **Frontend:**
 ```bash
-cd agent-ui-container
-npm install
-npm start
+make agent-ui-dev
 ```
