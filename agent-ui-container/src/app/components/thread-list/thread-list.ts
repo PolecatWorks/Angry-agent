@@ -52,8 +52,17 @@ import { Observable } from 'rxjs';
     a[mat-list-item] {
         height: auto;
         min-height: 64px;
+        position: relative;
 
-        .mat-icon {
+        button[matListItemMeta] {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Target only the leading icon */
+        > .mat-icon {
             color: #757575;
             margin-right: 16px;
         }
