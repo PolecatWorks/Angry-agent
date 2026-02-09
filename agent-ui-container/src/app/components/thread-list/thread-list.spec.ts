@@ -15,7 +15,8 @@ describe('ThreadList', () => {
 
   beforeEach(async () => {
     chatServiceSpy = {
-      getThreads: vi.fn()
+      getThreads: vi.fn(),
+      threadCreated$: new Subject<void>()
     };
 
     // Router events setup

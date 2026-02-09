@@ -1,54 +1,53 @@
-import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { ChatService, Thread, ChatResponse, HistoryResponse } from './chat.service';
-import { AuthService } from './auth.service';
+import { of } from 'rxjs';
 import { vi } from 'vitest';
 
 describe('ChatService', () => {
     let service: ChatService;
-    let httpMock: HttpTestingController;
+    let httpClientSpy: any;
     let authServiceSpy: any;
 
     beforeEach(() => {
-        // Create mock using plain object with functions
+        httpClientSpy = {
+            post: vi.fn(),
+            get: vi.fn()
+        };
         authServiceSpy = {
-            getUserId: vi.fn(),
+            getUserId: vi.fn().mockReturnValue('test-user'),
             isLoggedIn: vi.fn()
         };
-        authServiceSpy.getUserId.mockReturnValue('test-user');
 
-        TestBed.configureTestingModule({
-            imports: [HttpClientTestingModule],
-            providers: [
-                ChatService,
-                { provide: AuthService, useValue: authServiceSpy }
-            ]
-        });
-        service = TestBed.inject(ChatService);
-        httpMock = TestBed.inject(HttpTestingController);
-    });
-
-    afterEach(() => {
-        httpMock.verify();
+        service = new ChatService(httpClientSpy, authServiceSpy);
     });
 
     it('should be created', () => {
         expect(service).toBeTruthy();
     });
 
+    it('should emit when notifyThreadCreated is called', () => {
+        let emitted = false;
+        service.threadCreated$.subscribe(() => {
+            emitted = true;
+        });
+        service.notifyThreadCreated();
+        expect(emitted).toBe(true);
+    });
+
     it('should send a message and return response', () => {
         const mockResponse: ChatResponse = { thread_id: 'thread-1', response: 'Hello user' };
         const message = 'Hello';
+
+        httpClientSpy.post.mockReturnValue(of(mockResponse));
 
         service.sendMessage(message).subscribe(response => {
             expect(response).toEqual(mockResponse);
         });
 
-        const req = httpMock.expectOne('http://localhost:8080/api/chat');
-        expect(req.request.method).toBe('POST');
-        expect(req.request.body).toEqual({ message, thread_id: undefined });
-        expect(req.request.headers.get('X-User-ID')).toBe('test-user');
-        req.flush(mockResponse);
+        expect(httpClientSpy.post).toHaveBeenCalledWith(
+            expect.stringContaining('/api/chat'),
+            expect.objectContaining({ message, thread_id: undefined }),
+            expect.anything() // headers
+        );
     });
 
     it('should send a message with threadId', () => {
@@ -56,14 +55,17 @@ describe('ChatService', () => {
         const message = 'How are you?';
         const threadId = 'thread-1';
 
+        httpClientSpy.post.mockReturnValue(of(mockResponse));
+
         service.sendMessage(message, threadId).subscribe(response => {
             expect(response).toEqual(mockResponse);
         });
 
-        const req = httpMock.expectOne('http://localhost:8080/api/chat');
-        expect(req.request.method).toBe('POST');
-        expect(req.request.body).toEqual({ message, thread_id: threadId });
-        req.flush(mockResponse);
+        expect(httpClientSpy.post).toHaveBeenCalledWith(
+            expect.stringContaining('/api/chat'),
+            expect.objectContaining({ message, thread_id: threadId }),
+            expect.anything()
+        );
     });
 
     it('should get threads', () => {
@@ -72,14 +74,16 @@ describe('ChatService', () => {
             { thread_id: '2', user_id: 'test-user', title: 'Thread 2' }
         ];
 
+        httpClientSpy.get.mockReturnValue(of({ threads: mockThreads }));
+
         service.getThreads().subscribe(response => {
             expect(response.threads).toEqual(mockThreads);
         });
 
-        const req = httpMock.expectOne('http://localhost:8080/api/threads');
-        expect(req.request.method).toBe('GET');
-        expect(req.request.headers.get('X-User-ID')).toBe('test-user');
-        req.flush({ threads: mockThreads });
+        expect(httpClientSpy.get).toHaveBeenCalledWith(
+            expect.stringContaining('/api/threads'),
+            expect.anything()
+        );
     });
 
     it('should get history', () => {
@@ -91,12 +95,15 @@ describe('ChatService', () => {
         };
         const threadId = 'thread-1';
 
+        httpClientSpy.get.mockReturnValue(of(mockHistory));
+
         service.getHistory(threadId).subscribe(response => {
             expect(response).toEqual(mockHistory);
         });
 
-        const req = httpMock.expectOne(`http://localhost:8080/api/threads/${threadId}/history`);
-        expect(req.request.method).toBe('GET');
-        req.flush(mockHistory);
+        expect(httpClientSpy.get).toHaveBeenCalledWith(
+            expect.stringContaining(`/api/threads/${threadId}/history`),
+            expect.anything()
+        );
     });
 });

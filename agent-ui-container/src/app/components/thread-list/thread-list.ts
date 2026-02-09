@@ -18,6 +18,7 @@ import { Subscription } from 'rxjs';
 export class ThreadList implements OnInit, OnDestroy {
   threads: Thread[] = [];
   private routerSubscription?: Subscription;
+  private threadSubscription?: Subscription;
 
   constructor(private chatService: ChatService, private router: Router) { }
 
@@ -30,10 +31,15 @@ export class ThreadList implements OnInit, OnDestroy {
       .subscribe(() => {
         this.loadThreads();
       });
+
+    this.threadSubscription = this.chatService.threadCreated$.subscribe(() => {
+      this.loadThreads();
+    });
   }
 
   ngOnDestroy() {
     this.routerSubscription?.unsubscribe();
+    this.threadSubscription?.unsubscribe();
   }
 
   loadThreads() {

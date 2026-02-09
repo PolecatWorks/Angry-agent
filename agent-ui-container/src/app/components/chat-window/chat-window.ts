@@ -110,6 +110,7 @@ export class ChatWindow implements OnInit, AfterViewChecked {
                     // We rely on the check there to preserve these messages.
                     this.messages.push({ type: 'ai', content: res.response });
                     this.router.navigate(['/chat', this.threadId]);
+                    this.chatService.notifyThreadCreated();
                 } else {
                     this.messages.push({ type: 'ai', content: res.response });
                     this.scrollToBottom();
