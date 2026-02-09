@@ -6,7 +6,7 @@
     </button>
 </div>
 <mat-nav-list class="thread-nav-list">
-    <a mat-list-item *ngFor="let thread of threads" [routerLink]="['/chat', thread.thread_id]"
+    <a mat-list-item *ngFor="let thread of threads$ | async" [routerLink]="['/chat', thread.thread_id]"
         routerLinkActive="active-thread">
         <mat-icon matListItemIcon>chat_bubble_outline</mat-icon>
         <div matListItemTitle>{{ thread.title || 'New Chat' }}</div>

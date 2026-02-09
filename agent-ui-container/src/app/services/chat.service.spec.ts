@@ -24,13 +24,16 @@ describe('ChatService', () => {
         expect(service).toBeTruthy();
     });
 
-    it('should emit when notifyThreadCreated is called', () => {
-        let emitted = false;
-        service.threadCreated$.subscribe(() => {
-            emitted = true;
-        });
-        service.notifyThreadCreated();
-        expect(emitted).toBe(true);
+    it('should refresh threads', () => {
+        const mockThreads: Thread[] = [{ thread_id: '1', user_id: 'u', title: 't' }];
+        httpClientSpy.get.mockReturnValue(of({ threads: mockThreads }));
+
+        let threads: Thread[] = [];
+        service.threads$.subscribe(t => threads = t);
+
+        service.refreshThreads();
+
+        expect(threads).toEqual(mockThreads);
     });
 
     it('should send a message and return response', () => {

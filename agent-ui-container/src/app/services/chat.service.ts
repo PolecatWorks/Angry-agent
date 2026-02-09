@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, Subject } from 'rxjs';
+import { Observable, BehaviorSubject, Subject } from 'rxjs';
 import { AuthService } from './auth.service';
 
 export interface Thread {
@@ -40,13 +40,17 @@ export class ChatService {
     });
   }
 
-  private threadCreatedSource = new Subject<void>();
-  threadCreated$ = this.threadCreatedSource.asObservable();
+  private threadsSubject = new BehaviorSubject<Thread[]>([]);
+  threads$ = this.threadsSubject.asObservable();
 
-  notifyThreadCreated() {
-    this.threadCreatedSource.next();
+  refreshThreads() {
+    this.getThreads().subscribe({
+      next: (res) => {
+        this.threadsSubject.next(res.threads);
+      },
+      error: (err) => console.error('Error refreshing threads', err)
+    });
   }
-
 
   sendMessage(message: string, threadId?: string): Observable<ChatResponse> {
     return this.http.post<ChatResponse>(`${this.apiUrl}/chat`, { message, thread_id: threadId }, { headers: this.getHeaders() });
