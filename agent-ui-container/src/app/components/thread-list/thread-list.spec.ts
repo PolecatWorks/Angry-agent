@@ -10,6 +10,7 @@ describe('ThreadList', () => {
   let fixture: ComponentFixture<ThreadList>;
   let chatServiceSpy: any;
   let routerSpy: any;
+  let routerEventsSpec: Subject<any>; // Declare routerEventsSpec here
 
   beforeEach(async () => {
     chatServiceSpy = {
@@ -18,8 +19,12 @@ describe('ThreadList', () => {
       getThreads: vi.fn()
     };
 
+    // Router events setup
+    routerEventsSpec = new Subject<any>();
     routerSpy = {
-      navigate: vi.fn()
+      navigate: vi.fn(),
+      events: routerEventsSpec.asObservable(),
+      url: '/chat/1'
     };
 
     await TestBed.configureTestingModule({
@@ -50,8 +55,21 @@ describe('ThreadList', () => {
     expect(chatServiceSpy.refreshThreads).toHaveBeenCalled();
   });
 
-  it('should navigate to new chat', () => {
-    component.newChat();
-    expect(routerSpy.navigate).toHaveBeenCalledWith(['/chat']);
+  it('should delete thread', () => {
+    const threadId = '1';
+    const event = { stopPropagation: vi.fn(), preventDefault: vi.fn() } as any;
+
+    // Setup confirm mock
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    chatServiceSpy.deleteThread = vi.fn().mockReturnValue(of({}));
+
+    component.deleteThread(event, threadId);
+
+    expect(event.stopPropagation).toHaveBeenCalled();
+    expect(chatServiceSpy.deleteThread).toHaveBeenCalledWith(threadId);
+    expect(chatServiceSpy.refreshThreads).toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
   });
 });

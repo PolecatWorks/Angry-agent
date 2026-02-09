@@ -66,12 +66,13 @@ def langgraph_app_create(app: web.Application, config: ServiceConfig) -> web.App
     Create LangGraph routes and initialize agent endpoints
     This integrates the LangGraph agent defined in main.py with the modular app structure
     """
-    from .main import chat_endpoint, list_threads, get_history, on_startup, on_cleanup
+    from .main import chat_endpoint, list_threads, get_history, delete_thread, on_startup, on_cleanup
 
     # Add API routes for LangGraph agent
     app.router.add_post("/api/chat", chat_endpoint)
     app.router.add_get("/api/threads", list_threads)
     app.router.add_get("/api/threads/{thread_id}/history", get_history)
+    app.router.add_delete("/api/threads/{thread_id}", delete_thread)
 
     # Add startup and cleanup handlers
     app.on_startup.append(on_startup)
