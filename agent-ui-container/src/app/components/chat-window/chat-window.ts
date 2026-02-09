@@ -87,11 +87,11 @@ export class ChatWindow implements OnInit, AfterViewChecked {
             if (this.messageInput) {
                 this.messageInput.nativeElement.focus();
             }
-        }, 0);
+        }, 100);
     }
 
     sendMessage() {
-        if (!this.newMessage.trim()) return;
+        if (!this.newMessage.trim() || this.sending) return;
 
         const content = this.newMessage;
         this.newMessage = '';
