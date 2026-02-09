@@ -63,4 +63,8 @@ export class ChatService {
   getHistory(threadId: string): Observable<HistoryResponse> {
     return this.http.get<HistoryResponse>(`${this.apiUrl}/threads/${threadId}/history`, { headers: this.getHeaders() });
   }
+
+  deleteThread(threadId: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/threads/${threadId}`, { headers: this.getHeaders() });
+  }
 }

@@ -10,7 +10,8 @@ describe('ChatService', () => {
     beforeEach(() => {
         httpClientSpy = {
             post: vi.fn(),
-            get: vi.fn()
+            get: vi.fn(),
+            delete: vi.fn()
         };
         authServiceSpy = {
             getUserId: vi.fn().mockReturnValue('test-user'),
@@ -106,6 +107,20 @@ describe('ChatService', () => {
 
         expect(httpClientSpy.get).toHaveBeenCalledWith(
             expect.stringContaining(`/api/threads/${threadId}/history`),
+            expect.anything()
+        );
+    });
+
+    it('should delete thread', () => {
+        const threadId = '1';
+        httpClientSpy.delete.mockReturnValue(of({ status: 'deleted' }));
+
+        service.deleteThread(threadId).subscribe(res => {
+            expect(res).toEqual({ status: 'deleted' });
+        });
+
+        expect(httpClientSpy.delete).toHaveBeenCalledWith(
+            expect.stringContaining(`/api/threads/${threadId}`),
             expect.anything()
         );
     });
