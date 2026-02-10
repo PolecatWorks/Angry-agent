@@ -1,0 +1,22 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: angry-agent
+spec:
+  releaseName: angry-agent
+  chartRef:
+    kind: OCIRepository
+    name: mfe-shell
+  interval: 50m
+  install:
+    remediation:
+      retries: 3
+  values:
+    image:
+      repository: ghcr.io/polecatworks/angry-agent-ui
+      tag: main
+      pullPolicy: Always # Dev ONLY
+    env:
+      - name: SERVE_ROOT
+        value: /angry-agent

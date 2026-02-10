@@ -1,0 +1,26 @@
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: mfe-shell
+spec:
+  hosts:
+    - mfe-shell.k8s
+  gateways:
+    - istio-ingress/k8s-gateway
+    - mesh # applies to all the sidecars in the mesh
+  http:
+    - name: mfe1
+      match:
+        - uri:
+            prefix: /mfe1
+      route:
+        - destination:
+            host: mfe1-nginx-view
+    - name: mfe-shell
+      match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: mfe-shell-nginx-view
