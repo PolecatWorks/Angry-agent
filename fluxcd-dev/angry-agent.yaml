@@ -2,9 +2,9 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: angry-agent
+  name: mfe-angry-agent
 spec:
-  releaseName: angry-agent
+  releaseName: mfe-angry-agent
   chartRef:
     kind: OCIRepository
     name: mfe-shell
