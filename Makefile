@@ -10,7 +10,7 @@ NODE_APPS := agent-ui
 APPS := $(PYTHON_APPS) $(NODE_APPS)
 
 agent-be_PORT := 8080
-agent-ui_PORT := 4200
+agent-ui_PORT := 4202
 
 agent-be_INTERNAL_PORT := 8080
 agent-ui_INTERNAL_PORT := 8080
@@ -56,7 +56,7 @@ $(foreach app,$(NODE_APPS),$(app)-container/node_modules):%-container/node_modul
 
 # Run dev server (Node)
 $(foreach app,$(NODE_APPS),$(app)-dev):%-dev:%-container/node_modules
-	cd $*-container && npm start
+	cd $*-container && ng serve --port ${$*_PORT}
 
 # Run tests (Node)
 $(foreach app,$(NODE_APPS),$(app)-test):%-test:%-container/node_modules
