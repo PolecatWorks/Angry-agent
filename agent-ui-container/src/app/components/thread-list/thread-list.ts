@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatListModule } from '@angular/material/list';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { ChatService, Thread } from '../../services/chat.service';
 import { Observable } from 'rxjs';
 
@@ -17,6 +17,7 @@ import { Observable } from 'rxjs';
 export class ThreadList implements OnInit {
   private chatService = inject(ChatService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   threads$ = this.chatService.threads$;
 
   constructor() { }
@@ -26,7 +27,7 @@ export class ThreadList implements OnInit {
   }
 
   newChat() {
-    this.router.navigate(['/chat']);
+    this.router.navigate(['chat'], { relativeTo: this.route });
   }
 
   deleteThread(event: Event, threadId: string) {
@@ -38,8 +39,9 @@ export class ThreadList implements OnInit {
         next: () => {
           this.chatService.refreshThreads();
           // If we are currently on this thread, navigate away
-          if (this.router.url.includes('/chat/' + threadId)) {
-            this.router.navigate(['/chat']);
+          // We check for the threadId in the URL, simpler than traversing route tree
+          if (this.router.url.includes(threadId)) {
+            this.router.navigate(['chat'], { relativeTo: this.route });
           }
         },
         error: (err) => console.error('Error deleting thread', err)

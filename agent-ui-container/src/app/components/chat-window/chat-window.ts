@@ -109,7 +109,7 @@ export class ChatWindow implements OnInit, AfterViewChecked {
                     // Note: The router navigation will trigger ngOnInit.
                     // We rely on the check there to preserve these messages.
                     this.messages.push({ type: 'ai', content: res.response });
-                    this.router.navigate(['/chat', this.threadId]);
+                    this.router.navigate(['../chat', this.threadId], { relativeTo: this.route });
                     this.chatService.refreshThreads();
                 } else {
                     this.messages.push({ type: 'ai', content: res.response });

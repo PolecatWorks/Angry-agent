@@ -10,7 +10,7 @@ NODE_APPS := agent-ui
 APPS := $(PYTHON_APPS) $(NODE_APPS)
 
 agent-be_PORT := 8080
-agent-ui_PORT := 4202
+agent-ui_PORT := 3001
 
 agent-be_INTERNAL_PORT := 8080
 agent-ui_INTERNAL_PORT := 8080
