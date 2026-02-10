@@ -10,17 +10,10 @@ spec:
     - istio-ingress/k8s-gateway
     - mesh # applies to all the sidecars in the mesh
   http:
-    - name: mfe1
+    - name: angry-agent
       match:
         - uri:
-            prefix: /mfe1
+            prefix: /mfe/angry-agent
       route:
         - destination:
-            host: mfe1-nginx-view
-    - name: mfe-shell
-      match:
-        - uri:
-            prefix: /
-      route:
-        - destination:
-            host: mfe-shell-nginx-view
+            host: angry-agent-nginx-view

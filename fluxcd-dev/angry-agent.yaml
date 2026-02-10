@@ -19,4 +19,4 @@ spec:
       pullPolicy: Always # Dev ONLY
     env:
       - name: SERVE_ROOT
-        value: /angry-agent
+        value: /mfe/angry-agent
