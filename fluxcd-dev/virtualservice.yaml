@@ -16,4 +16,4 @@ spec:
             prefix: /mfe/angry-agent
       route:
         - destination:
-            host: angry-agent-nginx-view
+            host: mfe-angry-agent-nginx-view
