@@ -61,7 +61,8 @@
 						],
 						"polyfills": [
 							"es-module-shims"
-						]
+						],
+						"preserveSymlinks": true
 					},
 					"configurations": {
 						"production": {

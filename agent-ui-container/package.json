@@ -35,6 +35,7 @@
     "@softarc/native-federation-node": "^3.3.4",
     "es-module-shims": "^1.5.12",
     "rxjs": "~7.8.0",
+    "mfe-shared": "file:../../Mfe-shell/mfe-shell-container/dist/mfe-shared",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
