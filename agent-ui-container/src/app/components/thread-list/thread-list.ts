@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { ChatService, Thread } from '../../services/chat.service';
 import { Observable } from 'rxjs';
+import { SharedContextService } from 'mfe-shared';
 
 @Component({
   selector: 'app-thread-list',
@@ -16,6 +17,7 @@ import { Observable } from 'rxjs';
 })
 export class ThreadList implements OnInit {
   private chatService = inject(ChatService);
+  private sharedContext = inject(SharedContextService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   threads$ = this.chatService.threads$;
@@ -23,6 +25,9 @@ export class ThreadList implements OnInit {
   constructor() { }
 
   ngOnInit() {
+    this.sharedContext.context$.subscribe(user => {
+      console.log('Shared Context User:', user);
+    });
     this.chatService.refreshThreads();
   }
 

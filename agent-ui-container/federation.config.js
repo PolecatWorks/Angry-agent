@@ -6,11 +6,12 @@ module.exports = withNativeFederation({
 
 
   exposes: {
-    './routes': './src/app/remote.routes.ts',
+    './routes': './src/app/remote.routes.ts'
   },
 
   shared: {
     ...shareAll({ singleton: true, strictVersion: true, requiredVersion: 'auto' }),
+    'mfe-shared': { singleton: true, strictVersion: false }
   },
 
   skip: [

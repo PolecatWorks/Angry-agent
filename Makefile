@@ -83,6 +83,8 @@ tests: $(foreach app,$(APPS),$(app)-test)
 
 
 # --- Database ---
+compose-db:
+	docker compose -f docker-compose/postgres.yaml up
 
 db-local:
 	docker container stop agent-postgres || true
