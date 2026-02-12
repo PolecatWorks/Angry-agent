@@ -1,5 +1,5 @@
 # Use mfe-shell image for mfe-shared library
-ARG MFE_SHELL_IMAGE=mfe-shell-container:latest
+ARG MFE_SHELL_IMAGE=docker pull ghcr.io/polecatworks/mfe-shell-mfe-shell:main
 FROM ${MFE_SHELL_IMAGE} AS mfe-shell
 
 FROM node:20-alpine as build
