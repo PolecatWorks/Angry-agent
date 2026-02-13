@@ -1,0 +1,100 @@
+
+> agent-ui@0.0.0 start
+> ng serve
+
+ INFO  [Federation SSE] Local reloader initialized with endpoint /@angular-architects/native-federation:build-notifications
+ INFO  Building federation artefacts
+ INFO  Preparing shared npm packages for the platform browser-shared
+ NOTE  This only needs to be done once, as results are cached
+ NOTE  Skip packages you don't want to share in your federation config
+❯ Building...
+✔ Building...
+Initial chunk files | Names         |  Raw size
+styles.css          | styles        | 111.49 kB |
+main.js             | main          | 251 bytes |
+polyfills.js        | polyfills     | 103 bytes |
+
+                    | Initial total | 111.84 kB
+
+Lazy chunk files    | Names         |  Raw size
+chunk-YKHVXTCF.js   | bootstrap     |  36.89 kB |
+
+Application bundle generation complete. [3.152 seconds] - 2026-02-13T11:29:17.860Z
+
+Watch mode enabled. Watching for file changes...
+NOTE: Raw file sizes do not reflect development server per-request transformations.
+  ➜  Local:   http://localhost:4200/
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names     |  Raw size
+main.js             | main      | 251 bytes |
+
+Lazy chunk files    | Names     |  Raw size
+chunk-7IEGXWM5.js   | bootstrap |  37.07 kB |
+
+Application bundle generation complete. [0.442 seconds] - 2026-02-13T11:29:28.954Z
+
+Page reload sent to client(s).
+ INFO  Building federation artefacts
+ INFO  Done!
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names     |  Raw size
+main.js             | main      | 251 bytes |
+
+Lazy chunk files    | Names     |  Raw size
+chunk-YKHVXTCF.js   | bootstrap |  36.89 kB |
+
+Application bundle generation complete. [0.172 seconds] - 2026-02-13T11:30:45.842Z
+
+Page reload sent to client(s).
+ INFO  Building federation artefacts
+ INFO  Done!
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Application bundle generation failed. [0.297 seconds] - 2026-02-13T11:31:03.255Z
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2307: Cannot find module 'mfe-shared' or its corresponding type declarations.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/components/thread-list/thread-list.ts:9:37:
+[37m      9 │ import { SharedContextService } from [32m'mfe-shared'[37m;
+        ╵                                      [32m~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2571: Object is of type 'unknown'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/components/thread-list/thread-list.ts:28:4:
+[37m      28 │     [32mthis.sharedContext[37m.context$.subscribe(user => {
+         ╵     [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS7006: Parameter 'user' implicitly has an 'any' type.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/components/thread-list/thread-list.ts:28:42:
+[37m      28 │     this.sharedContext.context$.subscribe([32muser[37m => {
+         ╵                                           [32m~~~~[0m
+
+
+ INFO  Building federation artefacts
+✘ [ERROR] TS2307: Cannot find module 'mfe-shared' or its corresponding type declarations. [plugin angular-compiler]
+
+    src/app/components/thread-list/thread-list.ts:9:37:
+      9 │ import { SharedContextService } from 'mfe-shared';
+        ╵                                      ~~~~~~~~~~~~
+
+✘ [ERROR] TS2571: Object is of type 'unknown'. [plugin angular-compiler]
+
+    src/app/components/thread-list/thread-list.ts:28:4:
+      28 │     this.sharedContext.context$.subscribe(user => {
+         ╵     ~~~~~~~~~~~~~~~~~~
+
+✘ [ERROR] TS7006: Parameter 'user' implicitly has an 'any' type. [plugin angular-compiler]
+
+    src/app/components/thread-list/thread-list.ts:28:42:
+      28 │     this.sharedContext.context$.subscribe(user => {
+         ╵                                           ~~~~
+
+✘ [ERROR] Could not resolve "/app/agent-ui-container/node_modules/mfe-shared"
+
+ ERRR  Error building federation artefacts
+ ERRR  Federation rebuild failed!

@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { vi } from 'vitest';
 import { AuthService } from '../../services/auth.service';
+import { SharedContextService } from 'mfe-shared';
 
 import { MainLayout } from './main-layout';
 
@@ -32,6 +33,12 @@ describe('MainLayout', () => {
           useValue: {
             getUserId: () => 'test-user',
             isLoggedIn: () => true
+          }
+        },
+        {
+          provide: SharedContextService,
+          useValue: {
+            context$: { subscribe: (fn: any) => fn({}) }
           }
         }
       ]
