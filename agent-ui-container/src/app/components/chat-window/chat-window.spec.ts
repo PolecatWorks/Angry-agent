@@ -86,6 +86,6 @@ describe('ChatWindow', () => {
     component.newMessage = message;
     component.sendMessage();
 
-    expect(routerSpy.navigate).toHaveBeenCalledWith(['/chat', 'new-thread']);
+    expect(routerSpy.navigate).toHaveBeenCalledWith(['../chat', 'new-thread'], expect.anything());
   });
 });

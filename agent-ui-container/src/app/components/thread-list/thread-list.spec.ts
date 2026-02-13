@@ -4,6 +4,7 @@ import { ChatService, Thread } from '../../services/chat.service';
 import { ThreadList } from './thread-list';
 import { of, Subject, BehaviorSubject } from 'rxjs';
 import { vi } from 'vitest';
+import { SharedContextService } from 'mfe-shared';
 
 describe('ThreadList', () => {
   let component: ThreadList;
@@ -38,6 +39,10 @@ describe('ThreadList', () => {
             paramMap: of({ get: (key: string) => null })
           }
         },
+        {
+          provide: SharedContextService,
+          useValue: { context$: of({}) }
+        }
       ]
     })
       .compileComponents();
