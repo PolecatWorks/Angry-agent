@@ -1,24 +1,24 @@
 # Use mfe-shell image for mfe-shared library
-ARG MFE_SHELL_IMAGE=docker pull ghcr.io/polecatworks/mfe-shell-mfe-shell:main
+ARG MFE_SHELL_IMAGE=ghcr.io/polecatworks/mfe-shell-mfe-shell:main
 FROM ${MFE_SHELL_IMAGE} AS mfe-shell
 
-FROM node:20-alpine as build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
-# Copy and link mfe-shared library from mfe-shell image
-COPY --from=mfe-shell /usr/share/mfe-shared /tmp/mfe-shared
-WORKDIR /tmp/mfe-shared
-RUN npm link
+# Copy mfe-shared library from mfe-shell image to a path that matches package.json relative path
+# package.json has: "mfe-shared": "file:../../Mfe-shell/mfe-shell-container/dist/mfe-shared"
+# We need to recreate this structure relative to /app/agent-ui-container (where we will build)
 
-# Copy ui application
-WORKDIR /app
+# Create the directory structure
+COPY --from=mfe-shell /usr/share/mfe-shared dist/mfe-shared
+
+
+# Switch to app directory
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Link mfe-shared into ui
-RUN npm link mfe-shared
-
+# Copy application code
 COPY . .
 RUN npm run build
 
