@@ -1,7 +1,7 @@
 const { withNativeFederation, shareAll } = require('@angular-architects/native-federation/config');
 
 module.exports = withNativeFederation({
-  name: 'agent-ui',
+  name: 'angry-agent',
 
 
 
