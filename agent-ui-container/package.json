@@ -36,7 +36,7 @@
     "es-module-shims": "^1.5.12",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
-    "mfe-shared": "file:dist/mfe-shared"
+    "mfe-shared": "file:../../Mfe-shell/mfe-shell-container/dist/mfe-shared"
   },
   "devDependencies": {
     "@angular-architects/native-federation": "^21.1.0",
