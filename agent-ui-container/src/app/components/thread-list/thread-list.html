@@ -13,8 +13,25 @@
         <div matListItemTitle>{{ thread.title || 'New Chat' }}</div>
         <div matListItemLine>{{ thread.created_at | date:'short' }}</div>
 
-        <button mat-icon-button matListItemMeta (click)="deleteThread($event, thread.thread_id)">
-            <mat-icon>delete</mat-icon>
-        </button>
+        <div matListItemMeta class="thread-actions" style="display: flex; align-items: center;">
+            <button mat-icon-button [matMenuTriggerFor]="colorMenu"
+                (click)="$event.stopPropagation(); $event.preventDefault()">
+                <mat-icon [style.color]="thread.color || null">palette</mat-icon>
+            </button>
+            <mat-menu #colorMenu="matMenu">
+                <button mat-menu-item *ngFor="let color of colors"
+                    (click)="changeColor($event, thread.thread_id, color.value)">
+                    <mat-icon [style.color]="color.value">circle</mat-icon>
+                    <span>{{ color.name }}</span>
+                </button>
+                <button mat-menu-item (click)="changeColor($event, thread.thread_id, '')">
+                    <mat-icon>format_color_reset</mat-icon>
+                    <span>Reset</span>
+                </button>
+            </mat-menu>
+            <button mat-icon-button (click)="deleteThread($event, thread.thread_id)">
+                <mat-icon>delete</mat-icon>
+            </button>
+        </div>
     </a>
 </mat-nav-list>

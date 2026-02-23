@@ -19,6 +19,7 @@ export class ChatWindow implements OnInit, AfterViewChecked {
     messages: Message[] = [];
     newMessage: string = '';
     threadId: string | null = null;
+    threadColor: string | null = null;
     loading: boolean = false;
     sending: boolean = false;
 
@@ -69,6 +70,7 @@ export class ChatWindow implements OnInit, AfterViewChecked {
 
         this.chatService.getHistory(threadId).subscribe({
             next: (res) => {
+                this.threadColor = res.thread?.color || null;
                 this.messages = res.messages;
                 this.loading = false;
                 this.scrollToBottom();

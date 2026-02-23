@@ -56,13 +56,13 @@
         // flex-direction: row; // Default is row
 
         .message-content {
-            background-color: #3f51b5;
+            background-color: var(--chat-color, #3f51b5);
             color: white;
             border-radius: 12px 12px 12px 0;
         }
 
         .message-avatar {
-            color: #3f51b5;
+            color: var(--chat-color, #3f51b5);
         }
     }
 

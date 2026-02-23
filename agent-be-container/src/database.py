@@ -24,6 +24,7 @@ async def create_tables(conn: asyncpg.Connection):
             thread_id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL,
             title TEXT,
+            color TEXT,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         );
