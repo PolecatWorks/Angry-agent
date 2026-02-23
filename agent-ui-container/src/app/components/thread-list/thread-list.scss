@@ -29,9 +29,8 @@
             transform: translateY(-50%);
         }
 
-        /* Target only the leading icon */
+        /* Target only the leading icon if not inline styled */
         >.mat-icon {
-            color: #757575;
             margin-right: 16px;
         }
 
@@ -44,9 +43,10 @@
 }
 
 .active-thread {
-    background-color: rgba(63, 81, 181, 0.08) !important;
+    background-color: rgba(0, 0, 0, 0.04) !important;
+    border-left: 4px solid var(--thread-color);
 
     .mat-icon {
-        color: #3f51b5 !important;
+        color: var(--thread-color) !important;
     }
 }
