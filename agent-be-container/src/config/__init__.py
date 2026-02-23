@@ -21,19 +21,26 @@ from src.hams.config import HamsConfig
 import os
 
 
-class DatabaseConfig(BaseModel):
-    """
-    Configuration for the database
-    """
-    user: str = Field(default="postgres", description="Database user")
-    password: str = Field(default="mysecretpassword", description="Database password")
-    db_name: str = Field(default="agentdb", description="Database name")
-    host: str = Field(default="localhost", description="Database host")
-    port: int = Field(default=5432, description="Database port")
+class DbConnectionConfig(BaseModel):
+    url: str = Field(description="Base Postgres URL without credentials")
+    username: str = Field(description="Database username")
+    password: SecretStr = Field(description="Database password")
 
     @property
     def dsn(self) -> str:
-        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.db_name}"
+        base_url = self.url.replace("postgresql://", "").replace("postgres://", "")
+        return f"postgresql://{self.username}:{self.password.get_secret_value()}@{base_url}"
+
+
+class DbOptionsConfig(BaseModel):
+    pool_size: int = Field(description="Max size of the asyncpg pool")
+    automigrate: bool = Field(description="Whether to run migrations on startup")
+    acquire_timeout: int = Field(description="Pool acquire timeout in seconds")
+    connection: DbConnectionConfig
+
+
+class PersistenceConfig(BaseModel):
+    db: DbOptionsConfig
 
 
 class WebServerConfig(BaseModel):
@@ -149,10 +156,8 @@ class ServiceConfig(BaseSettings):
     hams: HamsConfig = Field(description="Health and monitoring configuration")
 
     webservice: WebServerConfig = Field(description="Web server configuration")
-    database: DatabaseConfig = Field(default_factory=DatabaseConfig, description="Database configuration")
+    persistence: PersistenceConfig = Field(description="Database persistence configuration")
     events: EventConfig = Field(default_factory=EventConfig, description="Process costs for events")
-
-    no_db: bool = Field(default=False, description="Run without database")
 
     model_config = SettingsConfigDict(
         env_prefix="APP_",

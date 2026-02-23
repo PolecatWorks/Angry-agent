@@ -9,6 +9,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
 
 from database import create_tables, init_db_pool, close_db_pool, get_db_pool
+from config import DbOptionsConfig, DbConnectionConfig
 
 @pytest.mark.asyncio
 async def test_create_tables():
@@ -45,9 +46,20 @@ class TestDatabasePoolLifecycle:
         mock_create_pool.side_effect = return_pool
 
         dsn = "postgresql://user:pass@localhost:5432/testdb"
-        pool = await init_db_pool(dsn)
+        mock_conn = MagicMock(spec=DbConnectionConfig)
+        mock_conn.dsn = dsn
+        mock_config = MagicMock(spec=DbOptionsConfig)
+        mock_config.connection = mock_conn
+        mock_config.pool_size = 10
+        mock_config.acquire_timeout = 5
 
-        mock_create_pool.assert_called_once_with(dsn=dsn)
+        pool = await init_db_pool(mock_config)
+
+        mock_create_pool.assert_called_once_with(
+            dsn=dsn,
+            max_size=10,
+            timeout=5
+        )
         assert pool == mock_pool
 
     @pytest.mark.asyncio

@@ -18,7 +18,15 @@ logging:
     level: INFO
     handlers: [console]
 
-no_db: true
+persistence:
+  db:
+    pool_size: 20
+    automigrate: true
+    acquire_timeout: 3
+    connection:
+      url: postgresql://localhost:5432/service-capture
+      username: myuser
+      password: mysecretpassword
 hams:
   url: http://localhost:8079
   prefix: hams
