@@ -1,4 +1,4 @@
-<div class="chat-container">
+<div class="chat-container" [style.--chat-color]="threadColor || '#3f51b5'">
     <div class="messages-list" #scrollContainer>
         <div *ngIf="loading" class="spinner-container">
             <mat-spinner diameter="40"></mat-spinner>

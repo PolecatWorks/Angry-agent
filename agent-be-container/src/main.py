@@ -86,7 +86,7 @@ async def chat_endpoint(request):
     # --- DB Logic: Threads Table ---
     if config.no_db:
         if thread_id not in mock_threads_db:
-            mock_threads_db[thread_id] = {"user_id": user_id, "title": message[:20], "thread_id": thread_id}
+            mock_threads_db[thread_id] = {"user_id": user_id, "title": message[:20], "thread_id": thread_id, "color": None}
         elif mock_threads_db[thread_id]["user_id"] != user_id:
              return web.json_response({"error": "Thread access denied"}, status=403)
     else:
@@ -138,7 +138,7 @@ async def list_threads(request):
     else:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            rows = await conn.fetch("SELECT thread_id, title, created_at FROM threads WHERE user_id = $1 ORDER BY updated_at DESC", user_id)
+            rows = await conn.fetch("SELECT thread_id, title, color, created_at FROM threads WHERE user_id = $1 ORDER BY updated_at DESC", user_id)
             threads = [dict(r) for r in rows]
             for t in threads:
                 if t.get("created_at"): t["created_at"] = str(t["created_at"])
@@ -163,12 +163,15 @@ async def get_history(request):
         if state.values and "messages" in state.values:
              for m in state.values["messages"]:
                 messages_list.append({"type": m.type, "content": m.content})
-        return web.json_response({"messages": messages_list})
+        return web.json_response({
+            "thread": mock_threads_db[thread_id],
+            "messages": messages_list
+        })
 
     else:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
+            row = await conn.fetchrow("SELECT user_id, color FROM threads WHERE thread_id = $1", thread_id)
             if not row or row["user_id"] != user_id:
                 return web.json_response({"error": "Not found"}, status=404)
 
@@ -181,7 +184,10 @@ async def get_history(request):
             if state.values and "messages" in state.values:
                 for m in state.values["messages"]:
                     messages_list.append({"type": m.type, "content": m.content})
-            return web.json_response({"messages": messages_list})
+            return web.json_response({
+                "thread": {"thread_id": thread_id, "user_id": row["user_id"], "color": row["color"]},
+                "messages": messages_list
+            })
 
 async def delete_thread(request):
     config: ServiceConfig = request.app[keys.config]
@@ -208,6 +214,31 @@ async def delete_thread(request):
             # In a real app we'd want to clean that up too.
 
             return web.json_response({"status": "deleted"})
+
+async def update_thread_color(request):
+    config: ServiceConfig = request.app[keys.config]
+    user_id = request["user_id"]
+    thread_id = request.match_info["thread_id"]
+
+    try:
+        data = await request.json()
+        color = data.get("color")
+    except:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    if config.no_db:
+        if thread_id in mock_threads_db and mock_threads_db[thread_id]["user_id"] == user_id:
+            mock_threads_db[thread_id]["color"] = color
+            return web.json_response({"status": "updated"})
+        return web.json_response({"error": "Not found or access denied"}, status=404)
+    else:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
+            if not row or row["user_id"] != user_id:
+                 return web.json_response({"error": "Not found or access denied"}, status=404)
+            await conn.execute("UPDATE threads SET color = $1, updated_at = NOW() WHERE thread_id = $2", color, thread_id)
+            return web.json_response({"status": "updated"})
 
 async def on_startup(app):
     config: ServiceConfig = app[keys.config]
@@ -241,6 +272,7 @@ def create_app_with_middleware(config: ServiceConfig):
     app.router.add_get("/api/threads", list_threads)
     app.router.add_get("/api/threads/{thread_id}/history", get_history)
     app.router.add_delete("/api/threads/{thread_id}", delete_thread)
+    app.router.add_patch("/api/threads/{thread_id}/color", update_thread_color)
 
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)

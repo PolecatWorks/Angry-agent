@@ -8,6 +8,7 @@ export interface Thread {
   user_id: string;
   title: string;
   created_at?: string;
+  color?: string;
 }
 
 export interface ChatResponse {
@@ -21,6 +22,7 @@ export interface Message {
 }
 
 export interface HistoryResponse {
+  thread?: Thread;
   messages: Message[];
 }
 
@@ -66,5 +68,9 @@ export class ChatService {
 
   deleteThread(threadId: string): Observable<any> {
     return this.http.delete(`${this.apiUrl}/threads/${threadId}`, { headers: this.getHeaders() });
+  }
+
+  updateThreadColor(threadId: string, color: string): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/threads/${threadId}/color`, { color }, { headers: this.getHeaders() });
   }
 }
