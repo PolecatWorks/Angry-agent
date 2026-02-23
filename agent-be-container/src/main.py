@@ -27,7 +27,7 @@ async def auth_middleware(app, handler):
         if request.method == "OPTIONS":
             response = web.Response()
             response.headers["Access-Control-Allow-Origin"] = "*"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE, PATCH"
             response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-User-ID"
             return response
 
