@@ -35,14 +35,14 @@ export class ThreadList implements OnInit {
   constructor(
     public sharedContext: SharedContextService
   ) {
-    this.sharedContext.context$.subscribe(user => {
+    this.sharedContext.context$.subscribe((user: any) => {
       console.log('User:', user);
     });
 
   }
 
   ngOnInit() {
-    this.sharedContext.context$.subscribe(user => {
+    this.sharedContext.context$.subscribe((user: any) => {
       console.log('Shared Context User:', user);
     });
     this.chatService.refreshThreads();
