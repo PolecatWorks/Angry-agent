@@ -236,7 +236,21 @@ if __name__ == "__main__":
     # Minimal config for direct run (e.g. dev)
     # We can try to load via Env or defaults
     try:
-        config = ServiceConfig(webservice={"url": "http://0.0.0.0:8080", "prefix": ""})
+        config = ServiceConfig(
+            webservice={"url": "http://0.0.0.0:8080", "prefix": ""},
+            persistence={
+                "db": {
+                    "pool_size": 10,
+                    "automigrate": True,
+                    "acquire_timeout": 10,
+                    "connection": {
+                        "url": "postgresql://localhost:5432/agentdb",
+                        "username": "postgres",
+                        "password": "mysecretpassword"
+                    }
+                }
+            }
+        )
         app_start(config)
     except Exception as e:
         print(f"Failed to start with default config: {e}")

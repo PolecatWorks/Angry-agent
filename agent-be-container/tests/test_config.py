@@ -26,16 +26,16 @@ class TestConfigLoading:
         assert config is not None
         assert config.webservice.url.port == 8080
         assert config.hams.url.port == 8079
-        assert config.persistence.db.connection.username == "myuser"
+        assert config.persistence.db.connection.username == "postgres"
 
     def test_config_database_dsn_property(self, sample_config):
         """Test that database DSN property is correctly formatted"""
         dsn = sample_config.persistence.db.connection.dsn
 
         assert "postgresql://" in dsn
-        assert "myuser" in dsn
+        assert "postgres" in dsn
         assert "localhost:5432" in dsn
-        assert "service-capture" in dsn
+        assert "agentdb" in dsn
 
 
         """Test HAMS URL configuration"""

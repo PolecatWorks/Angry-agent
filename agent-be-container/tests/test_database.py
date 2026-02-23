@@ -8,8 +8,8 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
 
-from database import create_tables, init_db_pool, close_db_pool, get_db_pool
-from config import DbOptionsConfig, DbConnectionConfig
+from src.database import create_tables, init_db_pool, close_db_pool, get_db_pool
+from src.config import DbOptionsConfig, DbConnectionConfig
 
 @pytest.mark.asyncio
 async def test_create_tables():
@@ -34,7 +34,7 @@ class TestDatabasePoolLifecycle:
     """Test database connection pool initialization and cleanup"""
 
     @pytest.mark.asyncio
-    @patch('database.asyncpg.create_pool', new_callable=MagicMock)
+    @patch('src.database.asyncpg.create_pool', new_callable=MagicMock)
     async def test_init_db_pool(self, mock_create_pool):
         """Test database pool initialization"""
         mock_pool = AsyncMock()
@@ -63,11 +63,11 @@ class TestDatabasePoolLifecycle:
         assert pool == mock_pool
 
     @pytest.mark.asyncio
-    @patch('database.pool')
+    @patch('src.database.pool')
     async def test_get_db_pool_initialized(self, mock_pool_var):
         """Test getting initialized database pool"""
         # Set the mock variable effectively
-        import database
+        import src.database as database
         mock_pool = AsyncMock()
         database.pool = mock_pool
 
@@ -81,7 +81,7 @@ class TestDatabasePoolLifecycle:
     async def test_close_db_pool(self):
         """Test closing database pool"""
         mock_pool = AsyncMock()
-        import database
+        import src.database as database
         database.pool = mock_pool
 
         try:
@@ -94,7 +94,7 @@ class TestDatabasePoolLifecycle:
     @pytest.mark.asyncio
     async def test_get_db_pool_not_initialized(self):
         """Test error when getting pool before initialization"""
-        import database
+        import src.database as database
         database.pool = None
 
         with pytest.raises(Exception, match="Database pool not initialized"):

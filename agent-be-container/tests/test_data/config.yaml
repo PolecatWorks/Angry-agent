@@ -24,8 +24,8 @@ persistence:
     automigrate: true
     acquire_timeout: 3
     connection:
-      url: postgresql://localhost:5432/service-capture
-      username: myuser
+      url: postgresql://localhost:5432/agentdb
+      username: postgres
       password: mysecretpassword
 hams:
   url: http://localhost:8079

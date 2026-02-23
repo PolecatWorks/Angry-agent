@@ -4,7 +4,7 @@ from typing import Optional
 # Global pool instance
 pool: Optional[asyncpg.Pool] = None
 
-from config import DbOptionsConfig
+from .config import DbOptionsConfig
 
 async def init_db_pool(config: DbOptionsConfig):
     """Initialize database pool with the provided DbOptionsConfig"""
