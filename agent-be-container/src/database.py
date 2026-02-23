@@ -4,10 +4,16 @@ from typing import Optional
 # Global pool instance
 pool: Optional[asyncpg.Pool] = None
 
-async def init_db_pool(dsn: str):
-    """Initialize database pool with the provided DSN from ServiceConfig"""
+from config import DbOptionsConfig
+
+async def init_db_pool(config: DbOptionsConfig):
+    """Initialize database pool with the provided DbOptionsConfig"""
     global pool
-    pool = await asyncpg.create_pool(dsn=dsn)
+    pool = await asyncpg.create_pool(
+        dsn=config.connection.dsn,
+        max_size=config.pool_size,
+        timeout=config.acquire_timeout
+    )
     return pool
 
 async def close_db_pool():
