@@ -10,13 +10,13 @@ WORKDIR /app
 # package.json has: "mfe-shared": "file:../../Mfe-shell/mfe-shell-container/dist/mfe-shared"
 # We need to recreate this structure relative to /app/agent-ui-container (where we will build)
 
-# Create the directory structure
-COPY --from=mfe-shell /usr/share/mfe-shared dist/mfe-shared
+# Create the directory structure needed by package.json
+COPY --from=mfe-shell /usr/share/mfe-shared /Mfe-shell/mfe-shell-container/dist/mfe-shared
 
 
 # Switch to app directory
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json ./
+RUN npm install
 
 # Copy application code
 COPY . .

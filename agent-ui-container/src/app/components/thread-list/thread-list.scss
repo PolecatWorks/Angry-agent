@@ -43,7 +43,7 @@
 }
 
 .active-thread {
-    background-color: rgba(0, 0, 0, 0.04) !important;
+    background-color: color-mix(in srgb, var(--thread-color) 15%, transparent) !important;
     border-left: 4px solid var(--thread-color);
 
     .mat-icon {
