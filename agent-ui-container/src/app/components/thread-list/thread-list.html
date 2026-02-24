@@ -8,7 +8,8 @@
 
 <mat-nav-list class="thread-nav-list">
     <a mat-list-item *ngFor="let thread of threads$ | async" [routerLink]="['chat', thread.thread_id]"
-        routerLinkActive="active-thread" [style.--thread-color]="thread.color || '#3f51b5'">
+        routerLinkActive="active-thread" [style.--thread-color]="thread.color || '#3f51b5'"
+        (click)="audioService.playChangeThread()" [title]="thread.title || 'New Chat'">
         <mat-icon matListItemIcon [style.color]="thread.color || '#757575'">chat_bubble_outline</mat-icon>
         <div matListItemTitle>{{ thread.title || 'New Chat' }}</div>
         <div matListItemLine>{{ thread.created_at | date:'short' }}</div>
