@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { ChatService, Thread } from '../../services/chat.service';
+import { AudioService } from '../../services/audio.service';
 import { Observable } from 'rxjs';
 import { SharedContextService } from 'mfe-shared';
 
@@ -18,6 +19,7 @@ import { SharedContextService } from 'mfe-shared';
 })
 export class ThreadList implements OnInit {
   private chatService = inject(ChatService);
+  public audioService = inject(AudioService);
   // sharedContext: SharedContextService = inject(SharedContextService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -49,6 +51,7 @@ export class ThreadList implements OnInit {
   }
 
   newChat() {
+    this.audioService.playNewChat();
     this.router.navigate(['chat'], { relativeTo: this.route });
   }
 

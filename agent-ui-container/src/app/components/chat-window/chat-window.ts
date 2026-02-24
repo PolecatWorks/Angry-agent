@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChatService, Message } from '../../services/chat.service';
+import { AudioService } from '../../services/audio.service';
 
 @Component({
     selector: 'app-chat-window',
@@ -29,6 +30,7 @@ export class ChatWindow implements OnInit, AfterViewChecked {
 
     constructor(
         private chatService: ChatService,
+        private audioService: AudioService,
         private route: ActivatedRoute,
         private router: Router,
         private cdr: ChangeDetectorRef
@@ -99,12 +101,16 @@ export class ChatWindow implements OnInit, AfterViewChecked {
         this.newMessage = '';
         this.sending = true;
 
+        this.audioService.playSendMessage();
+
         // Optimistic add
         this.messages.push({ type: 'human', content });
         this.scrollToBottom();
 
         this.chatService.sendMessage(content, this.threadId || undefined).subscribe({
             next: (res) => {
+                this.audioService.playBotReply();
+
                 // If new chat, navigate to URL with threadId
                 if (!this.threadId) {
                     this.threadId = res.thread_id;
