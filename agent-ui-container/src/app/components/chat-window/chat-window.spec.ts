@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChatWindow } from './chat-window';
 import { ChatService, Message } from '../../services/chat.service';
+import { AudioService } from '../../services/audio.service';
 import { of } from 'rxjs';
 import { By } from '@angular/platform-browser';
 import { ChangeDetectorRef } from '@angular/core';
@@ -12,6 +13,7 @@ describe('ChatWindow', () => {
   let fixture: ComponentFixture<ChatWindow>;
   let chatServiceSpy: any;
   let routerSpy: any;
+  let audioServiceSpy: any;
 
   beforeEach(async () => {
     chatServiceSpy = {
@@ -23,6 +25,12 @@ describe('ChatWindow', () => {
     routerSpy = {
       navigate: vi.fn()
     };
+    audioServiceSpy = {
+      playBotReply: vi.fn(),
+      playSendMessage: vi.fn(),
+      playNewChat: vi.fn(),
+      playChangeThread: vi.fn()
+    };
 
     // Default mock returns
     chatServiceSpy.getHistory.mockReturnValue(of({ messages: [] }));
@@ -32,6 +40,7 @@ describe('ChatWindow', () => {
       providers: [
         { provide: ChatService, useValue: chatServiceSpy },
         { provide: Router, useValue: routerSpy },
+        { provide: AudioService, useValue: audioServiceSpy },
         {
           provide: ActivatedRoute,
           useValue: {
