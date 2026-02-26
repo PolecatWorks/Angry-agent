@@ -19,6 +19,9 @@ pydantic-settings = "^2.12"
 prometheus-async = "^25.1.0"
 ruamel-yaml = "^0.19.1"
 langchain-mcp-adapters = "^0.2.1"
+langchain-google-genai = "^4.2.1"
+langchain-openai = "^1.1.10"
+httpx = "^0.28.1"
 
 [build-system]
 requires = ["poetry-core"]

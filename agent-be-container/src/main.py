@@ -182,9 +182,14 @@ async def on_startup(app):
             async with pool.acquire() as conn:
                 await create_tables(conn)
 
+        # Initialize LLM
+        logger.info("Initializing LLM")
+        from .agent import llm_model
+        llm = llm_model(config.aiclient)
+
         # Initialize LLM Handler
         logger.info("Initializing LLMHandler")
-        llm_handler = LLMHandler(db_dsn=config.persistence.db.connection.dsn)
+        llm_handler = LLMHandler(db_dsn=config.persistence.db.connection.dsn, llm=llm)
         await llm_handler.initialize()
         app["llm_handler"] = llm_handler
 
