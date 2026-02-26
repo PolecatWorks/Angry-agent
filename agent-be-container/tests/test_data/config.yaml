@@ -36,3 +36,8 @@ hams:
     fails: 2
     preflights: []
     shutdowns: []
+
+aiclient:
+  model_provider: ollama
+  model: qwen2.5-coder:14b
+  ollama_base_url: http://localhost:11434
