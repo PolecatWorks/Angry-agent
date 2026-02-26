@@ -9,6 +9,7 @@ import json
 from aiohttp import web
 from langchain_core.messages import HumanMessage
 from .agent import create_agent
+from .agent.handler import LLMHandler
 from .database import init_db_pool, close_db_pool, get_db_pool, create_tables
 from . import keys
 
@@ -89,19 +90,8 @@ async def chat_endpoint(request):
             )
 
     # --- Agent Logic ---
-    agent_config = {"configurable": {"thread_id": thread_id}}
-    final_res = {}
-
-    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-    async with AsyncPostgresSaver.from_conn_string(config.persistence.db.connection.dsn) as checkpointer:
-        # Ensure checkpointer tables exist
-        await checkpointer.setup()
-        agent = create_agent(checkpointer)
-        final_res = await agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=agent_config)
-
-    messages = final_res["messages"]
-    last_msg = messages[-1]
-    response_text = last_msg.content if last_msg else ""
+    llm_handler: LLMHandler = request.app["llm_handler"]
+    response_text = await llm_handler.chat(thread_id, message)
 
     return web.json_response({
         "thread_id": thread_id,
@@ -133,16 +123,13 @@ async def get_history(request):
         if not row or row["user_id"] != user_id:
             return web.json_response({"error": "Not found"}, status=404)
 
-    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-    async with AsyncPostgresSaver.from_conn_string(config.persistence.db.connection.dsn) as checkpointer:
-        agent = create_agent(checkpointer)
-        agent_config = {"configurable": {"thread_id": thread_id}}
-        state = await agent.aget_state(agent_config)
-        messages_list = []
-        if state.values and "messages" in state.values:
-            for m in state.values["messages"]:
-                messages_list.append({"type": m.type, "content": m.content})
-        return web.json_response({
+    llm_handler: LLMHandler = request.app["llm_handler"]
+    state = await llm_handler.get_thread_state(thread_id)
+    messages_list = []
+    if state.values and "messages" in state.values:
+        for m in state.values["messages"]:
+            messages_list.append({"type": m.type, "content": m.content})
+    return web.json_response({
             "thread": {"thread_id": thread_id, "user_id": row["user_id"], "color": row["color"]},
             "messages": messages_list
         })
@@ -194,6 +181,13 @@ async def on_startup(app):
         if config.persistence.db.automigrate:
             async with pool.acquire() as conn:
                 await create_tables(conn)
+
+        # Initialize LLM Handler
+        logger.info("Initializing LLMHandler")
+        llm_handler = LLMHandler(db_dsn=config.persistence.db.connection.dsn)
+        await llm_handler.initialize()
+        app["llm_handler"] = llm_handler
+
         logger.info("DB initialized.")
     except Exception as e:
         logger.error(f"Failed to init DB: {e}")
@@ -201,6 +195,9 @@ async def on_startup(app):
 
 async def on_cleanup(app):
     logger.info("Cleaning up...")
+    llm_handler = app.get("llm_handler")
+    if llm_handler:
+        await llm_handler.close()
     await close_db_pool()
 
 def create_app_with_middleware(config: ServiceConfig):
