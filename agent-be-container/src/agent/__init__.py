@@ -88,7 +88,7 @@ def llm_model(config: LangchainConfig):
 
             model = ChatGoogleGenerativeAI(
                 model=config.model,
-                google_api_key=config.google_api_key.get_secret_value(),
+                google_api_key=config.google_api_key.get_secret_value() if config.google_api_key else None,
                 # http_client=httpx_client,
             )
         case "azure_openai":
@@ -99,9 +99,18 @@ def llm_model(config: LangchainConfig):
                 model=config.model,
                 azure_endpoint=str(config.azure_endpoint),
                 api_version=config.azure_api_version,
-                api_key=config.azure_api_key.get_secret_value(),
+                api_key=config.azure_api_key.get_secret_value() if config.azure_api_key else None,
                 http_client=httpx_client,
             )
+        case "ollama":
+            from langchain_community.chat_models import ChatOllama
+
+            # Using str(ollama_base_url) because it's validated as an HttpUrl object
+            kwargs = {"model": config.model}
+            if config.ollama_base_url:
+                kwargs["base_url"] = str(config.ollama_base_url)
+
+            model = ChatOllama(**kwargs)
         case _:
             raise ValueError(f"Unsupported model provider: {config.model_provider}")
 

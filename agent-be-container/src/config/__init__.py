@@ -88,10 +88,10 @@ class MyAiConfig(BaseModel):
 
 class LangchainConfig(BaseModel):
     """
-    Configuration for LangChain, supporting both Azure OpenAI and GitHub-hosted models
+    Configuration for LangChain, supporting Azure OpenAI, GitHub-hosted models, Google GenAI, and Ollama
     """
 
-    model_provider: Literal["azure_openai", "github", "google_genai"] = Field(default="azure", description="Provider for the model: 'azure' or 'github'")
+    model_provider: Literal["azure_openai", "github", "google_genai", "ollama"] = Field(default="azure", description="Provider for the model: 'azure', 'github', 'google_genai', or 'ollama'")
 
     httpx_verify_ssl: str | bool = Field(
         default=True,
@@ -122,6 +122,12 @@ class LangchainConfig(BaseModel):
         description="Optional API key for authenticated access to Genai model",
     )
 
+    # Ollama settings
+    ollama_base_url: HttpUrl | None = Field(
+        default=None,
+        description="Base URL for your local Ollama instance (e.g. http://localhost:11434)",
+    )
+
     # Common settings
     model: str = Field(default="gemini-1.5-flash-latest", description="The model to use (e.g., 'gemini-1.5-flash-latest' or GitHub model name)")
     temperature: float = Field(
@@ -139,7 +145,7 @@ class LangchainConfig(BaseModel):
     @classmethod
     def validate_provider_settings(cls, v, values):
         """Validate that the required settings are present for the chosen provider"""
-        if v == "azure" and not (values.get("azure_openai_endpoint") and values.get("azure_deployment")):
+        if v == "azure_openai" and not (values.get("azure_openai_endpoint") and values.get("azure_deployment")):
             # Raising this might be annoying if defaults make it valid, but leaving logic for now
             pass
         return v
