@@ -115,7 +115,7 @@ async def list_threads(request):
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT thread_id, title, color, created_at FROM threads WHERE user_id = $1 ORDER BY updated_at DESC", user_id)
+        rows = await conn.fetch("SELECT thread_id, title, color, created_at FROM threads WHERE user_id = $1 ORDER BY created_at DESC", user_id)
         threads = [dict(r) for r in rows]
         for t in threads:
             if t.get("created_at"): t["created_at"] = str(t["created_at"])
