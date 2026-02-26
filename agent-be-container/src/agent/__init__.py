@@ -4,6 +4,8 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_core.language_models import BaseChatModel
+import httpx
+from src.config import LangchainConfig
 
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
@@ -44,6 +46,7 @@ async def echo_node(state: AgentState):
         return {"messages": [AIMessage(content=f"Echo: {last_message.content}")]}
     return {}
 
+
 def create_agent(llm: BaseChatModel, checkpointer=None):
     builder = StateGraph(AgentState)
 
@@ -75,3 +78,31 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
     builder.add_edge("echo", END)
 
     return builder.compile(checkpointer=checkpointer)
+
+def llm_model(config: LangchainConfig):
+    httpx_client = httpx.Client(verify=config.httpx_verify_ssl)
+
+    match config.model_provider:
+        case "google_genai":
+            from langchain_google_genai import ChatGoogleGenerativeAI
+
+            model = ChatGoogleGenerativeAI(
+                model=config.model,
+                google_api_key=config.google_api_key.get_secret_value(),
+                # http_client=httpx_client,
+            )
+        case "azure_openai":
+            from langchain_openai import AzureChatOpenAI
+
+            # https://python.langchain.com/api_reference/openai/llms/langchain_openai.llms.azure.AzureOpenAI.html#langchain_openai.llms.azure.AzureOpenAI.http_client
+            model = AzureChatOpenAI(
+                model=config.model,
+                azure_endpoint=str(config.azure_endpoint),
+                api_version=config.azure_api_version,
+                api_key=config.azure_api_key.get_secret_value(),
+                http_client=httpx_client,
+            )
+        case _:
+            raise ValueError(f"Unsupported model provider: {config.model_provider}")
+
+    return model
