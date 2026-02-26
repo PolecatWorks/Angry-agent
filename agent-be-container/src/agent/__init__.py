@@ -103,7 +103,7 @@ def llm_model(config: LangchainConfig):
                 http_client=httpx_client,
             )
         case "ollama":
-            from langchain_community.chat_models import ChatOllama
+            from langchain_ollama import ChatOllama
 
             # Using str(ollama_base_url) because it's validated as an HttpUrl object
             kwargs = {"model": config.model}
