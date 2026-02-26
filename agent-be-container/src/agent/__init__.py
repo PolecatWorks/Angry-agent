@@ -1,10 +1,11 @@
-from typing import TypedDict, Annotated, List, Literal
+from typing import Annotated, List, Literal
+from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
-class AgentState(TypedDict):
-    messages: Annotated[List[BaseMessage], add_messages]
+class AgentState(BaseModel):
+    messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
 
 async def initial_node(state: AgentState):
     # Placeholder for any initial setup or logging
@@ -14,8 +15,8 @@ async def intent_node(state: AgentState):
     # Placeholder for intent analysis if needed in state
     return {}
 
-def route_intent(state: AgentState) -> Literal["hello", "echo"]:
-    messages = state["messages"]
+def route_intent(state: AgentState) -> Literal["hello", "echo", "llm"]:
+    messages = state.messages
     if not messages:
         return "echo"
 
@@ -31,7 +32,7 @@ async def hello_node(state: AgentState):
     return {"messages": [AIMessage(content="Hello there!")]}
 
 async def echo_node(state: AgentState):
-    messages = state["messages"]
+    messages = state.messages
     if not messages:
         return {}
 
