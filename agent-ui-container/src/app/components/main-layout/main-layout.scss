@@ -1,10 +1,15 @@
+:host {
+    display: block;
+    height: 100%;
+}
+
 .sidenav-container {
-  height: 100vh;
+    height: 100%;
 }
 
 .sidenav {
-  width: 250px;
-  border-right: 1px solid #ccc;
+    width: 250px;
+    border-right: 1px solid #ccc;
 }
 
 .content {
