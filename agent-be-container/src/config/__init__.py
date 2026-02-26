@@ -91,7 +91,7 @@ class LangchainConfig(BaseModel):
     Configuration for LangChain, supporting Azure OpenAI, GitHub-hosted models, Google GenAI, and Ollama
     """
 
-    model_provider: Literal["azure_openai", "github", "google_genai", "ollama"] = Field(default="azure", description="Provider for the model: 'azure', 'github', 'google_genai', or 'ollama'")
+    model_provider: Literal["azure_openai", "github", "google_genai", "ollama"] = Field(default="azure_openai", description="Provider for the model: 'azure_openai', 'github', 'google_genai', or 'ollama'")
 
     httpx_verify_ssl: str | bool = Field(
         default=True,
