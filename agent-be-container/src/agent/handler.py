@@ -53,13 +53,18 @@ class LLMHandler:
 
         agent_config = {"configurable": {"thread_id": thread_id}}
 
-        # We manually update state first so the user's message is immediately available to get_history
         import uuid
         msg = HumanMessage(content=message, id=str(uuid.uuid4()))
-        await self.agent.aupdate_state(agent_config, {"messages": [msg]})
 
-        # Then run graph in background from current state
-        task = asyncio.create_task(self.agent.ainvoke(None, config=agent_config))
+        async def _run_graph():
+            try:
+                await self.agent.ainvoke({"messages": [msg]}, config=agent_config)
+            except Exception as e:
+                logger.error(f"Error in background task for thread {thread_id}: {e}", exc_info=True)
+                err_msg = AIMessage(content=f"Oops! I encountered an error: {str(e)}", id=str(uuid.uuid4()))
+                await self.agent.aupdate_state(agent_config, {"messages": [err_msg]})
+
+        task = asyncio.create_task(_run_graph())
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
 
