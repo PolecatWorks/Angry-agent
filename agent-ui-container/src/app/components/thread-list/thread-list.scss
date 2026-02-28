@@ -1,4 +1,11 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
 .thread-list-header {
+    flex-shrink: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -15,6 +22,8 @@
 
 
 .thread-nav-list {
+    flex: 1;
+    overflow-y: auto;
     padding-top: 8px;
 
     a[mat-list-item] {
