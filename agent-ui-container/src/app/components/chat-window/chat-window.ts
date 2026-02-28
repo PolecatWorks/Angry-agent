@@ -9,7 +9,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ChatService, Message } from '../../services/chat.service';
 import { AudioService } from '../../services/audio.service';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
-import { interval, Subscription } from 'rxjs';
+import { interval, Subscription, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 @Component({
     selector: 'app-chat-window',
@@ -26,6 +27,8 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     loading: boolean = false;
     sending: boolean = false;
     pollingSubscription?: Subscription;
+    pollCount: number = 0;
+    pollingError: string | null = null;
 
     @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
@@ -84,6 +87,8 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 this.threadColor = res.thread?.color || null;
                 this.messages = res.messages;
                 this.loading = false;
+                this.pollCount = 0;
+                this.pollingError = null;
 
                 if (this.messages.length > 0 && this.messages[this.messages.length - 1].type === 'human') {
                     this.startPolling(threadId);
@@ -115,6 +120,8 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         const content = this.newMessage;
         this.newMessage = '';
         this.sending = true;
+        this.pollCount = 0;
+        this.pollingError = null;
 
         this.audioService.playSendMessage();
 
@@ -146,27 +153,33 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
             return;
         }
         this.sending = true;
+        this.pollCount = 0;
+        this.pollingError = null;
+
         this.pollingSubscription = interval(2000).subscribe(() => {
-            this.chatService.getHistory(threadId).subscribe({
-                next: (res) => {
-                    const messages = res.messages;
-                    if (messages.length > 0) {
-                        const lastMsg = messages[messages.length - 1];
-                        if (lastMsg.type === 'ai' || lastMsg.type === 'error') {
-                            this.messages = messages;
-                            this.stopPolling();
-                            this.audioService.playBotReply();
-                            this.scrollToBottom();
-                            this.cdr.detectChanges();
-                            this.focusInput();
-                        }
-                    }
-                },
-                error: (err) => {
+            this.pollCount++;
+            this.chatService.getHistory(threadId).pipe(
+                catchError(err => {
                     console.error('Error polling history:', err);
-                    this.stopPolling();
-                    this.messages.push({ type: 'error', content: 'Failed to check response status' });
+                    this.pollingError = 'Connection failed, retrying...';
                     this.cdr.detectChanges();
+                    return of(null);
+                })
+            ).subscribe(res => {
+                if (!res) return; // Request failed, wait for next tick
+
+                this.pollingError = null;
+                const messages = res.messages;
+                if (messages.length > 0) {
+                    const lastMsg = messages[messages.length - 1];
+                    if (lastMsg.type === 'ai' || lastMsg.type === 'error') {
+                        this.messages = messages;
+                        this.stopPolling();
+                        this.audioService.playBotReply();
+                        this.scrollToBottom();
+                        this.cdr.detectChanges();
+                        this.focusInput();
+                    }
                 }
             });
         });
@@ -174,6 +187,8 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
 
     stopPolling() {
         this.sending = false;
+        this.pollCount = 0;
+        this.pollingError = null;
         if (this.pollingSubscription) {
             this.pollingSubscription.unsubscribe();
             this.pollingSubscription = undefined;
