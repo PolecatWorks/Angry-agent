@@ -20,10 +20,21 @@
 
         <div *ngIf="sending" class="message ai sending">
             <div class="message-avatar">
-                <mat-icon>smart_toy</mat-icon>
+                <mat-icon [class.spinning]="!pollingError">smart_toy</mat-icon>
             </div>
-            <div class="message-content">
-                <span class="dot-typing"></span>
+            <div class="message-content indicator-content">
+                <div class="thinking-row">
+                    <span>Thinking</span>
+                    <span class="dot-typing"></span>
+                </div>
+                <div class="poll-tracker" *ngIf="pollCount > 0">
+                    <mat-icon>sync</mat-icon>
+                    <small>Checked {{ pollCount }} time{{ pollCount !== 1 ? 's' : '' }}</small>
+                </div>
+                <div class="polling-error" *ngIf="pollingError">
+                    <mat-icon>warning</mat-icon>
+                    <small>{{ pollingError }}</small>
+                </div>
             </div>
         </div>
     </div>
