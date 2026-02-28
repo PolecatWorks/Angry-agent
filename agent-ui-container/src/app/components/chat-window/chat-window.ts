@@ -8,11 +8,12 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChatService, Message } from '../../services/chat.service';
 import { AudioService } from '../../services/audio.service';
+import { MarkdownPipe } from '../../pipes/markdown.pipe';
 
 @Component({
     selector: 'app-chat-window',
     standalone: true,
-    imports: [CommonModule, FormsModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
+    imports: [CommonModule, FormsModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MarkdownPipe],
     templateUrl: './chat-window.html',
     styleUrls: ['./chat-window.scss']
 })

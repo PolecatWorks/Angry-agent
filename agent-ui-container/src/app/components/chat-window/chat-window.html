@@ -15,9 +15,7 @@
                 <mat-icon *ngIf="msg.type === 'ai'">smart_toy</mat-icon>
                 <mat-icon *ngIf="msg.type === 'error'">error</mat-icon>
             </div>
-            <div class="message-content">
-                {{ msg.content }}
-            </div>
+            <div class="message-content markdown-body" [innerHTML]="msg.content | markdown"></div>
         </div>
 
         <div *ngIf="sending" class="message ai sending">
