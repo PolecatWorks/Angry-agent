@@ -53,6 +53,7 @@ export class ChatWindow implements OnInit, AfterViewChecked {
                 this.loadHistory(this.threadId);
             } else {
                 this.loading = false;
+                this.focusInput();
             }
         });
     }
@@ -78,6 +79,7 @@ export class ChatWindow implements OnInit, AfterViewChecked {
                 this.loading = false;
                 this.scrollToBottom();
                 this.cdr.detectChanges();
+                this.focusInput();
             },
             error: (err) => {
                 console.error('Error loading history:', err);
