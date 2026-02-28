@@ -75,26 +75,31 @@ describe('ChatWindow', () => {
 
   it('should send a message', () => {
     const message = 'Hello world';
-    const response = { thread_id: 'thread-1', response: 'Hi there' };
+    const response = { thread_id: 'thread-1', status: 'processing' };
     chatServiceSpy.sendMessage.mockReturnValue(of(response));
+    const startPollingSpy = vi.spyOn(component, 'startPolling');
 
+    component.threadId = 'thread-1';
     component.newMessage = message;
     component.sendMessage();
 
-    expect(chatServiceSpy.sendMessage).toHaveBeenCalledWith(message, undefined);
-    expect(component.messages.length).toBe(2); // Human + AI
-    expect(component.messages[1].content).toBe('Hi there');
+    expect(chatServiceSpy.sendMessage).toHaveBeenCalledWith(message, 'thread-1');
+    expect(component.messages.length).toBe(1); // Human only
+    expect(component.messages[0].content).toBe('Hello world');
+    expect(startPollingSpy).toHaveBeenCalledWith('thread-1');
   });
 
   it('should navigate to new thread on first message', () => {
     const message = 'New Thread';
-    const response = { thread_id: 'new-thread', response: 'Created' };
+    const response = { thread_id: 'new-thread', status: 'processing' };
     chatServiceSpy.sendMessage.mockReturnValue(of(response));
+    const startPollingSpy = vi.spyOn(component, 'startPolling');
 
     component.threadId = null;
     component.newMessage = message;
     component.sendMessage();
 
     expect(routerSpy.navigate).toHaveBeenCalledWith(['../chat', 'new-thread'], expect.anything());
+    expect(startPollingSpy).toHaveBeenCalledWith('new-thread');
   });
 });

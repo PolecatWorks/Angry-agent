@@ -13,7 +13,8 @@ export interface Thread {
 
 export interface ChatResponse {
   thread_id: string;
-  response: string;
+  response?: string;
+  status?: string;
 }
 
 export interface Message {

@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
@@ -9,6 +9,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ChatService, Message } from '../../services/chat.service';
 import { AudioService } from '../../services/audio.service';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
+import { interval, Subscription } from 'rxjs';
 
 @Component({
     selector: 'app-chat-window',
@@ -17,13 +18,14 @@ import { MarkdownPipe } from '../../pipes/markdown.pipe';
     templateUrl: './chat-window.html',
     styleUrls: ['./chat-window.scss']
 })
-export class ChatWindow implements OnInit, AfterViewChecked {
+export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     messages: Message[] = [];
     newMessage: string = '';
     threadId: string | null = null;
     threadColor: string | null = null;
     loading: boolean = false;
     sending: boolean = false;
+    pollingSubscription?: Subscription;
 
     @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
@@ -62,6 +64,10 @@ export class ChatWindow implements OnInit, AfterViewChecked {
         this.scrollToBottom();
     }
 
+    ngOnDestroy() {
+        this.stopPolling();
+    }
+
     scrollToBottom(): void {
         try {
             this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
@@ -69,6 +75,7 @@ export class ChatWindow implements OnInit, AfterViewChecked {
     }
 
     loadHistory(threadId: string) {
+        this.stopPolling();
         this.loading = true;
         this.cdr.detectChanges(); // Force update
 
@@ -77,6 +84,11 @@ export class ChatWindow implements OnInit, AfterViewChecked {
                 this.threadColor = res.thread?.color || null;
                 this.messages = res.messages;
                 this.loading = false;
+
+                if (this.messages.length > 0 && this.messages[this.messages.length - 1].type === 'human') {
+                    this.startPolling(threadId);
+                }
+
                 this.scrollToBottom();
                 this.cdr.detectChanges();
                 this.focusInput();
@@ -112,31 +124,59 @@ export class ChatWindow implements OnInit, AfterViewChecked {
 
         this.chatService.sendMessage(content, this.threadId || undefined).subscribe({
             next: (res) => {
-                this.audioService.playBotReply();
-
-                // If new chat, navigate to URL with threadId
                 if (!this.threadId) {
                     this.threadId = res.thread_id;
-                    // Note: The router navigation will trigger ngOnInit.
-                    // We rely on the check there to preserve these messages.
-                    this.messages.push({ type: 'ai', content: res.response });
                     this.router.navigate(['../chat', this.threadId], { relativeTo: this.route });
                     this.chatService.refreshThreads();
-                } else {
-                    this.messages.push({ type: 'ai', content: res.response });
-                    this.scrollToBottom();
                 }
-                this.sending = false;
-                this.cdr.detectChanges();
-                this.focusInput();
+                this.startPolling(res.thread_id);
             },
             error: (err) => {
                 console.error('Error sending message:', err);
                 this.messages.push({ type: 'error', content: 'Failed to send message' });
-                this.sending = false;
+                this.stopPolling();
                 this.cdr.detectChanges();
                 this.focusInput();
             }
         });
+    }
+
+    startPolling(threadId: string) {
+        if (this.pollingSubscription && !this.pollingSubscription.closed) {
+            return;
+        }
+        this.sending = true;
+        this.pollingSubscription = interval(2000).subscribe(() => {
+            this.chatService.getHistory(threadId).subscribe({
+                next: (res) => {
+                    const messages = res.messages;
+                    if (messages.length > 0) {
+                        const lastMsg = messages[messages.length - 1];
+                        if (lastMsg.type === 'ai' || lastMsg.type === 'error') {
+                            this.messages = messages;
+                            this.stopPolling();
+                            this.audioService.playBotReply();
+                            this.scrollToBottom();
+                            this.cdr.detectChanges();
+                            this.focusInput();
+                        }
+                    }
+                },
+                error: (err) => {
+                    console.error('Error polling history:', err);
+                    this.stopPolling();
+                    this.messages.push({ type: 'error', content: 'Failed to check response status' });
+                    this.cdr.detectChanges();
+                }
+            });
+        });
+    }
+
+    stopPolling() {
+        this.sending = false;
+        if (this.pollingSubscription) {
+            this.pollingSubscription.unsubscribe();
+            this.pollingSubscription = undefined;
+        }
     }
 }

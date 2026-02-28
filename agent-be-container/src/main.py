@@ -91,12 +91,15 @@ async def chat_endpoint(request):
 
     # --- Agent Logic ---
     llm_handler: LLMHandler = request.app["llm_handler"]
-    response_text = await llm_handler.chat(thread_id, message)
+    await llm_handler.chat_async(thread_id, message)
 
-    return web.json_response({
-        "thread_id": thread_id,
-        "response": response_text
-    })
+    return web.json_response(
+        {
+            "thread_id": thread_id,
+            "status": "processing"
+        },
+        status=202
+    )
 
 async def list_threads(request):
     config: ServiceConfig = request.app[keys.config]

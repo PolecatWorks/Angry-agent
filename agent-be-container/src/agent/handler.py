@@ -3,6 +3,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from . import create_agent
 from typing import Optional
 from contextlib import AsyncExitStack
+import asyncio
 
 from langchain_core.messages import (
     HumanMessage,
@@ -21,6 +22,7 @@ class LLMHandler:
         self.checkpointer: Optional[AsyncPostgresSaver] = None
         self.agent = None
         self._exit_stack = AsyncExitStack()
+        self._background_tasks = set()
 
     async def initialize(self):
         """Initializes the checkpointer and compiles the agent exactly once."""
@@ -43,6 +45,23 @@ class LLMHandler:
         messages = final_res.get("messages", [])
         last_msg = messages[-1] if messages else None
         return last_msg.content if last_msg else ""
+
+    async def chat_async(self, thread_id: str, message: str) -> None:
+        """Starts the chat agent in the background."""
+        if not self.agent:
+            raise RuntimeError("LLMHandler is not initialized. Call initialize() first.")
+
+        agent_config = {"configurable": {"thread_id": thread_id}}
+
+        # We manually update state first so the user's message is immediately available to get_history
+        import uuid
+        msg = HumanMessage(content=message, id=str(uuid.uuid4()))
+        await self.agent.aupdate_state(agent_config, {"messages": [msg]})
+
+        # Then run graph in background from current state
+        task = asyncio.create_task(self.agent.ainvoke(None, config=agent_config))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
 
     async def get_thread_state(self, thread_id: str) -> dict:
