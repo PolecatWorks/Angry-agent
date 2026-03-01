@@ -12,10 +12,12 @@ import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
+import { MatTooltipModule } from '@angular/material/tooltip';
+
 @Component({
     selector: 'app-chat-window',
     standalone: true,
-    imports: [CommonModule, FormsModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MarkdownPipe],
+    imports: [CommonModule, FormsModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule, MarkdownPipe],
     templateUrl: './chat-window.html',
     styleUrls: ['./chat-window.scss']
 })
@@ -169,19 +171,17 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         if (this.durationSubscription && !this.durationSubscription.closed) {
             return;
         }
-        this.durationSubscription = interval(100).subscribe(() => {
+        this.durationSubscription = interval(1000).subscribe(() => {
             const now = Date.now();
             if (this.stepStartTime) {
                 const diffMs = now - this.stepStartTime;
                 const secs = Math.floor(diffMs / 1000);
-                const tens = Math.floor((diffMs % 1000) / 100);
-                this.currentStatusDuration = `${secs}.${tens}s`;
+                this.currentStatusDuration = `${secs}s`;
             }
             if (this.requestStartTime) {
                 const diffMs = now - this.requestStartTime;
                 const secs = Math.floor(diffMs / 1000);
-                const tens = Math.floor((diffMs % 1000) / 100);
-                this.totalDuration = `${secs}.${tens}s`;
+                this.totalDuration = `${secs}s`;
             }
             this.cdr.detectChanges();
         });
@@ -220,9 +220,20 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 }
 
                 const messages = res.messages;
+
+                // Preserve local durations
+                for (let i = 0; i < messages.length; i++) {
+                    if (this.messages[i] && this.messages[i].duration) {
+                        messages[i].duration = this.messages[i].duration;
+                    }
+                }
+
                 if (messages.length > 0) {
                     const lastMsg = messages[messages.length - 1];
                     if (lastMsg.type === 'ai' || lastMsg.type === 'error') {
+                        if (this.sending && this.totalDuration) {
+                            lastMsg.duration = this.totalDuration;
+                        }
                         this.messages = messages;
                         this.stopPolling();
                         this.audioService.playBotReply();

@@ -22,6 +22,7 @@ export interface ChatResponse {
 export interface Message {
   type: string;
   content: string;
+  duration?: string;
 }
 
 export interface HistoryResponse {
