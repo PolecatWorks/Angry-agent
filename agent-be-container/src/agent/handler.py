@@ -63,6 +63,14 @@ class LLMHandler:
                 logger.error(f"Error in background task for thread {thread_id}: {e}", exc_info=True)
                 err_msg = AIMessage(content=f"Oops! I encountered an error: {str(e)}", id=str(uuid.uuid4()))
                 await self.agent.aupdate_state(agent_config, {"messages": [err_msg]})
+            finally:
+                from ..database import get_db_pool
+                try:
+                    pool = await get_db_pool()
+                    async with pool.acquire() as conn:
+                        await conn.execute("UPDATE threads SET locked_until = NULL WHERE thread_id = $1", thread_id)
+                except Exception as e:
+                    logger.error(f"Failed to release lock for thread {thread_id}: {e}", exc_info=True)
 
         task = asyncio.create_task(_run_graph())
         self._background_tasks.add(task)

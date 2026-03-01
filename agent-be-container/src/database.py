@@ -31,10 +31,14 @@ async def create_tables(conn: asyncpg.Connection):
             user_id TEXT NOT NULL,
             title TEXT,
             color TEXT,
+            locked_until TIMESTAMP WITH TIME ZONE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS idx_threads_user_id ON threads(user_id);
+
+        -- Safe migration for existing tables
+        ALTER TABLE threads ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP WITH TIME ZONE;
     """)
 
 async def get_db_pool() -> asyncpg.Pool:
