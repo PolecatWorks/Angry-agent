@@ -23,6 +23,7 @@ export interface Message {
   type: string;
   content: string;
   duration?: string;
+  created_at?: string;
   usage_metadata?: {
     input_tokens?: number;
     output_tokens?: number;
