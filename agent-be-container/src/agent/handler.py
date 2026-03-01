@@ -58,7 +58,27 @@ class LLMHandler:
 
         async def _run_graph():
             try:
-                await self.agent.ainvoke({"messages": [msg]}, config=agent_config)
+                # Use astream_events instead of ainvoke to observe progress
+                # version="v2" is the current standard for LangChain streaming
+                async for event in self.agent.astream_events({"messages": [msg]}, config=agent_config, version="v2"):
+                    kind = event["event"]
+                    name = event.get("name", "unknown")
+
+                    if kind == "on_chain_start":
+                        if name == "LangGraph":
+                            logger.info(f"Thread {thread_id}: LangGraph execution started.")
+                        else:
+                            logger.info(f"Thread {thread_id}: Node '{name}' started.")
+                    elif kind == "on_chain_end":
+                        if name == "LangGraph":
+                            logger.info(f"Thread {thread_id}: LangGraph execution finished.")
+                        else:
+                            logger.info(f"Thread {thread_id}: Node '{name}' finished.")
+                    elif kind == "on_tool_start":
+                        logger.info(f"Thread {thread_id}: Tool '{name}' started executing.")
+                    elif kind == "on_tool_end":
+                        logger.info(f"Thread {thread_id}: Tool '{name}' finished executing.")
+
             except Exception as e:
                 logger.error(f"Error in background task for thread {thread_id}: {e}", exc_info=True)
                 err_msg = AIMessage(content=f"Oops! I encountered an error: {str(e)}", id=str(uuid.uuid4()))
