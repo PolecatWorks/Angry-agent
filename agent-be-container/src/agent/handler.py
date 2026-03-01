@@ -57,6 +57,16 @@ class LLMHandler:
         msg = HumanMessage(content=message, id=str(uuid.uuid4()))
 
         async def _run_graph():
+            from ..database import get_db_pool
+
+            async def _set_status(status_msg: str | None):
+                try:
+                    pool = await get_db_pool()
+                    async with pool.acquire() as conn:
+                        await conn.execute("UPDATE threads SET status_msg = $1 WHERE thread_id = $2", status_msg, thread_id)
+                except Exception as e:
+                    logger.error(f"Failed to update status_msg for thread {thread_id}: {e}", exc_info=False)
+
             try:
                 # Use astream_events instead of ainvoke to observe progress
                 # version="v2" is the current standard for LangChain streaming
@@ -67,8 +77,10 @@ class LLMHandler:
                     if kind == "on_chain_start":
                         if name == "LangGraph":
                             logger.info(f"Thread {thread_id}: LangGraph execution started.")
+                            await _set_status("Agent starting up...")
                         else:
                             logger.info(f"Thread {thread_id}: Node '{name}' started.")
+                            await _set_status(f"Running: {name}...")
                     elif kind == "on_chain_end":
                         if name == "LangGraph":
                             logger.info(f"Thread {thread_id}: LangGraph execution finished.")
@@ -76,6 +88,7 @@ class LLMHandler:
                             logger.info(f"Thread {thread_id}: Node '{name}' finished.")
                     elif kind == "on_tool_start":
                         logger.info(f"Thread {thread_id}: Tool '{name}' started executing.")
+                        await _set_status(f"Executing tool: {name}...")
                     elif kind == "on_tool_end":
                         logger.info(f"Thread {thread_id}: Tool '{name}' finished executing.")
 
@@ -84,13 +97,12 @@ class LLMHandler:
                 err_msg = AIMessage(content=f"Oops! I encountered an error: {str(e)}", id=str(uuid.uuid4()))
                 await self.agent.aupdate_state(agent_config, {"messages": [err_msg]})
             finally:
-                from ..database import get_db_pool
                 try:
                     pool = await get_db_pool()
                     async with pool.acquire() as conn:
-                        await conn.execute("UPDATE threads SET locked_until = NULL WHERE thread_id = $1", thread_id)
+                        await conn.execute("UPDATE threads SET locked_until = NULL, status_msg = NULL WHERE thread_id = $1", thread_id)
                 except Exception as e:
-                    logger.error(f"Failed to release lock for thread {thread_id}: {e}", exc_info=True)
+                    logger.error(f"Failed to release lock and status for thread {thread_id}: {e}", exc_info=True)
 
         task = asyncio.create_task(_run_graph())
         self._background_tasks.add(task)

@@ -31,6 +31,7 @@ async def create_tables(conn: asyncpg.Connection):
             user_id TEXT NOT NULL,
             title TEXT,
             color TEXT,
+            status_msg TEXT,
             locked_until TIMESTAMP WITH TIME ZONE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -39,6 +40,7 @@ async def create_tables(conn: asyncpg.Connection):
 
         -- Safe migration for existing tables
         ALTER TABLE threads ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP WITH TIME ZONE;
+        ALTER TABLE threads ADD COLUMN IF NOT EXISTS status_msg TEXT;
     """)
 
 async def get_db_pool() -> asyncpg.Pool:
