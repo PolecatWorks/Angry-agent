@@ -5,7 +5,7 @@ metadata:
   name: angry-agent
 spec:
   hosts:
-    - mfe-shell.k8s
+    - ai.k8s
   gateways:
     - istio-ingress/k8s-gateway
     - mesh # applies to all the sidecars in the mesh
