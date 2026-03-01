@@ -24,7 +24,10 @@
             </div>
             <div class="message-content indicator-content">
                 <div class="thinking-row">
-                    <span>{{ currentStatusMsg || 'Thinking' }}</span>
+                    <span>
+                        {{ currentStatusMsg || 'Thinking' }}
+                        <span *ngIf="currentStatusDuration" class="duration-badge">[{{ currentStatusDuration }}]</span>
+                    </span>
                     <span class="dot-typing"></span>
                 </div>
                 <div class="poll-tracker" *ngIf="pollCount > 0">
