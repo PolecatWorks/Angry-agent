@@ -23,6 +23,11 @@ export interface Message {
   type: string;
   content: string;
   duration?: string;
+  usage_metadata?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
+  };
 }
 
 export interface HistoryResponse {
