@@ -89,6 +89,17 @@ async def chat_endpoint(request):
                 thread_id, user_id, message[:30]
             )
 
+        # Attempt to acquire the lock
+        lock_query = """
+            UPDATE threads
+            SET locked_until = NOW() + INTERVAL '5 minutes'
+            WHERE thread_id = $1 AND (locked_until IS NULL OR locked_until < NOW())
+            RETURNING thread_id;
+        """
+        locked_row = await conn.fetchrow(lock_query, thread_id)
+        if not locked_row:
+            return web.json_response({"error": "Thread is busy processing a previous request."}, status=409)
+
     # --- Agent Logic ---
     llm_handler: LLMHandler = request.app["llm_handler"]
     await llm_handler.chat_async(thread_id, message)
