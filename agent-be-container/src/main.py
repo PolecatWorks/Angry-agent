@@ -141,10 +141,11 @@ async def get_history(request):
     state = await llm_handler.get_thread_state(thread_id)
     messages_list = []
     if state.values and "messages" in state.values:
-        for m in state.values["messages"]:
             msg_dict = {"type": m.type, "content": m.content}
             if hasattr(m, 'usage_metadata') and m.usage_metadata:
                 msg_dict["usage_metadata"] = m.usage_metadata
+            if hasattr(m, 'additional_kwargs') and m.additional_kwargs and "timestamp" in m.additional_kwargs:
+                msg_dict["created_at"] = m.additional_kwargs["timestamp"]
             messages_list.append(msg_dict)
     return web.json_response({
             "thread": {

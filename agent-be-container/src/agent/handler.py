@@ -54,7 +54,12 @@ class LLMHandler:
         agent_config = {"configurable": {"thread_id": thread_id}}
 
         import uuid
-        msg = HumanMessage(content=message, id=str(uuid.uuid4()))
+        from datetime import datetime, timezone
+        msg = HumanMessage(
+            content=message,
+            id=str(uuid.uuid4()),
+            additional_kwargs={"timestamp": datetime.now(timezone.utc).isoformat()}
+        )
 
         async def _run_graph():
             from ..database import get_db_pool

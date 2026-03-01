@@ -11,7 +11,9 @@
 
         <div *ngFor="let msg of messages" [class]="'message ' + msg.type">
             <div class="message-avatar">
-                <mat-icon *ngIf="msg.type === 'human'">person</mat-icon>
+                <mat-icon *ngIf="msg.type === 'human'"
+                    [matTooltip]="msg.created_at ? 'Sent at: ' + (msg.created_at | date:'mediumTime') : ''"
+                    matTooltipPosition="above">person</mat-icon>
                 <mat-icon *ngIf="msg.type === 'ai'" [matTooltip]="msg.duration ? 'Total time: ' + msg.duration : ''"
                     matTooltipPosition="above">smart_toy</mat-icon>
                 <mat-icon *ngIf="msg.type === 'error'">error</mat-icon>
@@ -20,10 +22,13 @@
                 <div [innerHTML]="msg.content | markdown"></div>
                 <div *ngIf="msg.usage_metadata || msg.duration" class="usage-metadata">
                     <small>
-                        <span *ngIf="msg.duration">Total time: {{ msg.duration }}</span>
-                        <span *ngIf="msg.duration && msg.usage_metadata"> | </span>
-                        <span *ngIf="msg.usage_metadata">{{ msg.usage_metadata.total_tokens }} tokens used ({{
+                        <span *ngIf="msg.usage_metadata">{{ msg.usage_metadata.total_tokens }} tokens ({{
                             msg.usage_metadata.input_tokens }} in / {{ msg.usage_metadata.output_tokens }} out)</span>
+                        <ng-container *ngIf="msg.duration">
+                            <span *ngIf="msg.usage_metadata"> in </span>
+                            <span *ngIf="!msg.usage_metadata">Total time: </span>
+                            <span>{{ msg.duration }}</span>
+                        </ng-container>
                     </small>
                 </div>
             </div>
