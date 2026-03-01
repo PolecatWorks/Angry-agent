@@ -12,7 +12,8 @@
         <div *ngFor="let msg of messages" [class]="'message ' + msg.type">
             <div class="message-avatar">
                 <mat-icon *ngIf="msg.type === 'human'">person</mat-icon>
-                <mat-icon *ngIf="msg.type === 'ai'">smart_toy</mat-icon>
+                <mat-icon *ngIf="msg.type === 'ai'" [matTooltip]="msg.duration ? 'Total time: ' + msg.duration : ''"
+                    matTooltipPosition="above">smart_toy</mat-icon>
                 <mat-icon *ngIf="msg.type === 'error'">error</mat-icon>
             </div>
             <div class="message-content markdown-body" [innerHTML]="msg.content | markdown"></div>
@@ -26,8 +27,7 @@
                 <div class="thinking-row">
                     <span>
                         {{ currentStatusMsg || 'Thinking' }}
-                        <span *ngIf="currentStatusDuration" class="duration-badge">[{{ currentStatusDuration }} step /
-                            {{ totalDuration }} total]</span>
+                        <span *ngIf="currentStatusDuration" class="duration-badge">[{{ currentStatusDuration }}]</span>
                     </span>
                     <span class="dot-typing"></span>
                 </div>
