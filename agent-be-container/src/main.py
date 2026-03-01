@@ -16,6 +16,34 @@ from . import keys
 
 from .config import ServiceConfig
 
+# Known LLM context window limits
+MODEL_CONTEXT_LIMITS = {
+    # OpenAI
+    "gpt-4o": 128000,
+    "gpt-4-turbo": 128000,
+    "gpt-4": 8192,
+    "gpt-3.5-turbo": 16385,
+    # Anthropic
+    "claude-3-opus-20240229": 200000,
+    "claude-3-sonnet-20240229": 200000,
+    "claude-3-haiku-20240307": 200000,
+    "claude-3-5-sonnet-20240620": 200000,
+    # Google
+    "gemini-1.5-pro": 2000000,
+    "gemini-1.5-flash": 1000000,
+    "gemini-1.0-pro": 32000,
+    # Llama
+    "llama3": 8192,
+    "llama3:8b": 8192,
+    "llama3:70b": 8192,
+    "llama3.1": 128000,
+    "llama3.1:8b": 128000,
+    "llama3.1:70b": 128000,
+    # Mistral
+    "mistral": 32000,
+    "mixtral": 32000,
+}
+
 # Config logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -140,11 +168,17 @@ async def get_history(request):
     llm_handler: LLMHandler = request.app["llm_handler"]
     state = await llm_handler.get_thread_state(thread_id)
     messages_list = []
+    model_name = getattr(config.aiclient, "model", "")
+    max_tokens = MODEL_CONTEXT_LIMITS.get(model_name)
+
     if state.values and "messages" in state.values:
         for m in state.values["messages"]:
             msg_dict = {"type": m.type, "content": m.content}
             if hasattr(m, 'usage_metadata') and m.usage_metadata:
-                msg_dict["usage_metadata"] = m.usage_metadata
+                usage = dict(m.usage_metadata)
+                if max_tokens:
+                    usage["max_tokens"] = max_tokens
+                msg_dict["usage_metadata"] = usage
             if hasattr(m, 'additional_kwargs') and m.additional_kwargs and "timestamp" in m.additional_kwargs:
                 msg_dict["created_at"] = m.additional_kwargs["timestamp"]
             messages_list.append(msg_dict)

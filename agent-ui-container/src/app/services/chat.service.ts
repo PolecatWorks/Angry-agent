@@ -28,6 +28,7 @@ export interface Message {
     input_tokens?: number;
     output_tokens?: number;
     total_tokens?: number;
+    max_tokens?: number;
   };
 }
 
