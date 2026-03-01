@@ -133,7 +133,7 @@ async def get_history(request):
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT user_id, color, status_msg FROM threads WHERE thread_id = $1", thread_id)
+        row = await conn.fetchrow("SELECT user_id, color, status_msg, status_updated_at FROM threads WHERE thread_id = $1", thread_id)
         if not row or row["user_id"] != user_id:
             return web.json_response({"error": "Not found"}, status=404)
 
@@ -144,7 +144,13 @@ async def get_history(request):
         for m in state.values["messages"]:
             messages_list.append({"type": m.type, "content": m.content})
     return web.json_response({
-            "thread": {"thread_id": thread_id, "user_id": row["user_id"], "color": row["color"], "status_msg": row["status_msg"]},
+            "thread": {
+                "thread_id": thread_id,
+                "user_id": row["user_id"],
+                "color": row["color"],
+                "status_msg": row["status_msg"],
+                "status_updated_at": str(row["status_updated_at"]) if row["status_updated_at"] else None
+            },
             "messages": messages_list
         })
 

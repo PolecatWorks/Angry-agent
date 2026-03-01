@@ -25,9 +25,12 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     threadId: string | null = null;
     threadColor: string | null = null;
     currentStatusMsg: string | null = null;
+    statusUpdatedAt: Date | null = null;
+    currentStatusDuration: string | null = null;
     loading: boolean = false;
     sending: boolean = false;
     pollingSubscription?: Subscription;
+    durationSubscription?: Subscription;
     pollCount: number = 0;
     pollingError: string | null = null;
 
@@ -87,6 +90,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
             next: (res) => {
                 this.threadColor = res.thread?.color || null;
                 this.currentStatusMsg = res.thread?.status_msg || null;
+                this.statusUpdatedAt = res.thread?.status_updated_at ? new Date(res.thread.status_updated_at) : null;
                 this.messages = res.messages;
                 this.loading = false;
                 this.pollCount = 0;
@@ -125,6 +129,8 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.pollCount = 0;
         this.pollingError = null;
         this.currentStatusMsg = null;
+        this.statusUpdatedAt = null;
+        this.currentStatusDuration = null;
 
         this.audioService.playSendMessage();
 
@@ -151,6 +157,26 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         });
     }
 
+    startDurationTimer() {
+        if (this.durationSubscription && !this.durationSubscription.closed) {
+            return;
+        }
+        this.durationSubscription = interval(100).subscribe(() => {
+            if (this.statusUpdatedAt) {
+                const now = new Date();
+                const diffMs = now.getTime() - this.statusUpdatedAt.getTime();
+                if (diffMs > 0) {
+                    const secs = Math.floor(diffMs / 1000);
+                    const tens = Math.floor((diffMs % 1000) / 100);
+                    this.currentStatusDuration = `${secs}.${tens}s`;
+                    this.cdr.detectChanges();
+                }
+            } else {
+                this.currentStatusDuration = null;
+            }
+        });
+    }
+
     startPolling(threadId: string) {
         if (this.pollingSubscription && !this.pollingSubscription.closed) {
             return;
@@ -158,6 +184,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.sending = true;
         this.pollCount = 0;
         this.pollingError = null;
+        this.startDurationTimer();
 
         this.pollingSubscription = interval(2000).subscribe(() => {
             this.pollCount++;
@@ -173,6 +200,13 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
 
                 this.pollingError = null;
                 this.currentStatusMsg = res.thread?.status_msg || null;
+
+                const newUpdatedAt = res.thread?.status_updated_at ? new Date(res.thread.status_updated_at) : null;
+
+                // If the updated at timestamp changed, reset our local parsing
+                if (newUpdatedAt?.getTime() !== this.statusUpdatedAt?.getTime()) {
+                    this.statusUpdatedAt = newUpdatedAt;
+                }
 
                 const messages = res.messages;
                 if (messages.length > 0) {
@@ -197,9 +231,16 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.pollCount = 0;
         this.pollingError = null;
         this.currentStatusMsg = null;
+        this.statusUpdatedAt = null;
+        this.currentStatusDuration = null;
+
         if (this.pollingSubscription) {
             this.pollingSubscription.unsubscribe();
             this.pollingSubscription = undefined;
+        }
+        if (this.durationSubscription) {
+            this.durationSubscription.unsubscribe();
+            this.durationSubscription = undefined;
         }
     }
 }
