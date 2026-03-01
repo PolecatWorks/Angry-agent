@@ -16,7 +16,13 @@
                     matTooltipPosition="above">smart_toy</mat-icon>
                 <mat-icon *ngIf="msg.type === 'error'">error</mat-icon>
             </div>
-            <div class="message-content markdown-body" [innerHTML]="msg.content | markdown"></div>
+            <div class="message-content markdown-body">
+                <div [innerHTML]="msg.content | markdown"></div>
+                <div *ngIf="msg.usage_metadata" class="usage-metadata">
+                    <small>{{ msg.usage_metadata.total_tokens }} tokens used ({{ msg.usage_metadata.input_tokens }} in /
+                        {{ msg.usage_metadata.output_tokens }} out)</small>
+                </div>
+            </div>
         </div>
 
         <div *ngIf="sending" class="message ai sending">

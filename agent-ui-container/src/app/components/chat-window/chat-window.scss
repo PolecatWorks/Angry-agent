@@ -247,3 +247,9 @@
         transform: rotate(360deg);
     }
 }
+.usage-metadata {
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--text-color-secondary, #666);
+    opacity: 0.8;
+}

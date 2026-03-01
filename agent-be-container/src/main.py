@@ -142,7 +142,10 @@ async def get_history(request):
     messages_list = []
     if state.values and "messages" in state.values:
         for m in state.values["messages"]:
-            messages_list.append({"type": m.type, "content": m.content})
+            msg_dict = {"type": m.type, "content": m.content}
+            if hasattr(m, 'usage_metadata') and m.usage_metadata:
+                msg_dict["usage_metadata"] = m.usage_metadata
+            messages_list.append(msg_dict)
     return web.json_response({
             "thread": {
                 "thread_id": thread_id,
