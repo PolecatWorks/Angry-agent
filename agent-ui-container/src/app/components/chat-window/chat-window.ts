@@ -25,8 +25,11 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     threadId: string | null = null;
     threadColor: string | null = null;
     currentStatusMsg: string | null = null;
-    statusUpdatedAt: Date | null = null;
+    lastStatusUpdatedAtStr: string | null = null;
+    stepStartTime: number | null = null;
+    requestStartTime: number | null = null;
     currentStatusDuration: string | null = null;
+    totalDuration: string | null = null;
     loading: boolean = false;
     sending: boolean = false;
     pollingSubscription?: Subscription;
@@ -90,13 +93,15 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
             next: (res) => {
                 this.threadColor = res.thread?.color || null;
                 this.currentStatusMsg = res.thread?.status_msg || null;
-                this.statusUpdatedAt = res.thread?.status_updated_at ? new Date(res.thread.status_updated_at) : null;
+                this.lastStatusUpdatedAtStr = res.thread?.status_updated_at || null;
                 this.messages = res.messages;
                 this.loading = false;
                 this.pollCount = 0;
                 this.pollingError = null;
 
                 if (this.messages.length > 0 && this.messages[this.messages.length - 1].type === 'human') {
+                    this.requestStartTime = Date.now();
+                    this.stepStartTime = Date.now();
                     this.startPolling(threadId);
                 }
 
@@ -129,8 +134,11 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.pollCount = 0;
         this.pollingError = null;
         this.currentStatusMsg = null;
-        this.statusUpdatedAt = null;
-        this.currentStatusDuration = null;
+        this.lastStatusUpdatedAtStr = null;
+        this.stepStartTime = Date.now();
+        this.requestStartTime = Date.now();
+        this.currentStatusDuration = '0.0s';
+        this.totalDuration = '0.0s';
 
         this.audioService.playSendMessage();
 
@@ -162,18 +170,20 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
             return;
         }
         this.durationSubscription = interval(100).subscribe(() => {
-            if (this.statusUpdatedAt) {
-                const now = new Date();
-                const diffMs = now.getTime() - this.statusUpdatedAt.getTime();
-                if (diffMs > 0) {
-                    const secs = Math.floor(diffMs / 1000);
-                    const tens = Math.floor((diffMs % 1000) / 100);
-                    this.currentStatusDuration = `${secs}.${tens}s`;
-                    this.cdr.detectChanges();
-                }
-            } else {
-                this.currentStatusDuration = null;
+            const now = Date.now();
+            if (this.stepStartTime) {
+                const diffMs = now - this.stepStartTime;
+                const secs = Math.floor(diffMs / 1000);
+                const tens = Math.floor((diffMs % 1000) / 100);
+                this.currentStatusDuration = `${secs}.${tens}s`;
             }
+            if (this.requestStartTime) {
+                const diffMs = now - this.requestStartTime;
+                const secs = Math.floor(diffMs / 1000);
+                const tens = Math.floor((diffMs % 1000) / 100);
+                this.totalDuration = `${secs}.${tens}s`;
+            }
+            this.cdr.detectChanges();
         });
     }
 
@@ -201,11 +211,12 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 this.pollingError = null;
                 this.currentStatusMsg = res.thread?.status_msg || null;
 
-                const newUpdatedAt = res.thread?.status_updated_at ? new Date(res.thread.status_updated_at) : null;
+                const newUpdatedAtStr = res.thread?.status_updated_at || null;
 
                 // If the updated at timestamp changed, reset our local parsing
-                if (newUpdatedAt?.getTime() !== this.statusUpdatedAt?.getTime()) {
-                    this.statusUpdatedAt = newUpdatedAt;
+                if (newUpdatedAtStr !== this.lastStatusUpdatedAtStr) {
+                    this.lastStatusUpdatedAtStr = newUpdatedAtStr;
+                    this.stepStartTime = Date.now();
                 }
 
                 const messages = res.messages;
@@ -231,8 +242,11 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.pollCount = 0;
         this.pollingError = null;
         this.currentStatusMsg = null;
-        this.statusUpdatedAt = null;
+        this.lastStatusUpdatedAtStr = null;
+        this.stepStartTime = null;
+        this.requestStartTime = null;
         this.currentStatusDuration = null;
+        this.totalDuration = null;
 
         if (this.pollingSubscription) {
             this.pollingSubscription.unsubscribe();

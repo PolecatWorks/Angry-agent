@@ -26,7 +26,8 @@
                 <div class="thinking-row">
                     <span>
                         {{ currentStatusMsg || 'Thinking' }}
-                        <span *ngIf="currentStatusDuration" class="duration-badge">[{{ currentStatusDuration }}]</span>
+                        <span *ngIf="currentStatusDuration" class="duration-badge">[{{ currentStatusDuration }} step /
+                            {{ totalDuration }} total]</span>
                     </span>
                     <span class="dot-typing"></span>
                 </div>
