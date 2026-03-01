@@ -24,6 +24,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     newMessage: string = '';
     threadId: string | null = null;
     threadColor: string | null = null;
+    currentStatusMsg: string | null = null;
     loading: boolean = false;
     sending: boolean = false;
     pollingSubscription?: Subscription;
@@ -85,6 +86,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.chatService.getHistory(threadId).subscribe({
             next: (res) => {
                 this.threadColor = res.thread?.color || null;
+                this.currentStatusMsg = res.thread?.status_msg || null;
                 this.messages = res.messages;
                 this.loading = false;
                 this.pollCount = 0;
@@ -122,6 +124,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.sending = true;
         this.pollCount = 0;
         this.pollingError = null;
+        this.currentStatusMsg = null;
 
         this.audioService.playSendMessage();
 
@@ -169,6 +172,8 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 if (!res) return; // Request failed, wait for next tick
 
                 this.pollingError = null;
+                this.currentStatusMsg = res.thread?.status_msg || null;
+
                 const messages = res.messages;
                 if (messages.length > 0) {
                     const lastMsg = messages[messages.length - 1];
@@ -179,6 +184,8 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                         this.scrollToBottom();
                         this.cdr.detectChanges();
                         this.focusInput();
+                    } else {
+                        this.cdr.detectChanges();
                     }
                 }
             });
@@ -189,6 +196,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.sending = false;
         this.pollCount = 0;
         this.pollingError = null;
+        this.currentStatusMsg = null;
         if (this.pollingSubscription) {
             this.pollingSubscription.unsubscribe();
             this.pollingSubscription = undefined;

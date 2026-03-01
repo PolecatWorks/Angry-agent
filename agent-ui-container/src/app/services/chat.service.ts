@@ -9,6 +9,7 @@ export interface Thread {
   title: string;
   created_at?: string;
   color?: string;
+  status_msg?: string;
 }
 
 export interface ChatResponse {
