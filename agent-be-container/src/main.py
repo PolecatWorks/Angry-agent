@@ -281,7 +281,8 @@ if __name__ == "__main__":
                         "password": "mysecretpassword"
                     }
                 }
-            }
+            },
+            aiclient={"context_length": 8192}
         )
         app_start(config)
     except Exception as e:

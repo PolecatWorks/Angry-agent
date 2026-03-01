@@ -134,7 +134,7 @@ class LangchainConfig(BaseModel):
         default=0.7,
         description="Temperature for the model, controlling randomness in responses",
     )
-    context_length: int = Field(default=4096, description="Maximum context length for the model")
+    context_length: int = Field(description="Maximum context length for the model")
     stop_sequences: list[str] = Field(default_factory=list, description="List of sequences that will stop generation")
     timeout: int = Field(default=60, description="Timeout in seconds for model API calls")
     streaming: bool = Field(default=True, description="Whether to stream responses from the model")
