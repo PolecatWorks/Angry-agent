@@ -18,9 +18,13 @@
             </div>
             <div class="message-content markdown-body">
                 <div [innerHTML]="msg.content | markdown"></div>
-                <div *ngIf="msg.usage_metadata" class="usage-metadata">
-                    <small>{{ msg.usage_metadata.total_tokens }} tokens used ({{ msg.usage_metadata.input_tokens }} in /
-                        {{ msg.usage_metadata.output_tokens }} out)</small>
+                <div *ngIf="msg.usage_metadata || msg.duration" class="usage-metadata">
+                    <small>
+                        <span *ngIf="msg.duration">Total time: {{ msg.duration }}</span>
+                        <span *ngIf="msg.duration && msg.usage_metadata"> | </span>
+                        <span *ngIf="msg.usage_metadata">{{ msg.usage_metadata.total_tokens }} tokens used ({{
+                            msg.usage_metadata.input_tokens }} in / {{ msg.usage_metadata.output_tokens }} out)</span>
+                    </small>
                 </div>
             </div>
         </div>
