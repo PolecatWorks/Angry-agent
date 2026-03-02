@@ -1,0 +1,108 @@
+name: Helm CI (Main)
+
+on:
+  push:
+    branches: ["main"]
+
+env:
+  REGISTRY: ghcr.io
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-paths:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      charts: ${{ steps.filter.outputs.charts }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            charts:
+              - 'charts/**'
+              - '.github/workflows/helm-ci-main.yaml'
+
+  lint:
+    needs: check-paths
+    if: needs.check-paths.outputs.charts == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4.2.0
+
+      - name: Lint agent-be
+        run: helm lint charts/agent-be
+
+  publish:
+    needs: [check-paths, lint]
+    if: needs.check-paths.outputs.charts == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: lower-repo
+        name: Repository to lowercase
+        run: |
+          echo "repository=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+
+      - name: Get Content SHA
+        id: content_sha
+        run: |
+          # Get the short SHA of the last commit that modified the chart directory
+          SHA_SHORT=$(git log -1 --format=%h -- charts/agent-be)
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          echo "sha_short=${TIMESTAMP}-${SHA_SHORT}" >> $GITHUB_OUTPUT
+
+      - name: Update Chart Versions
+        run: |
+          # Use the content SHA in the version
+          suffix="-main-${{ steps.content_sha.outputs.sha_short }}"
+          sed -i "s/^version: .*/&${suffix}/" charts/agent-be/Chart.yaml
+          echo "Updated Agent BE Version:"
+          grep "^version:" charts/agent-be/Chart.yaml
+
+      - name: Push Helm chart to OCI for agent-be
+        uses: bsord/helm-push@v4
+        with:
+          chart-folder: charts/agent-be
+          useOCIRegistry: true
+          registry-url: oci://ghcr.io/${{ steps.lower-repo.outputs.repository }}/helm
+          username: ${{ github.actor }}
+          access-token: ${{ secrets.GITHUB_TOKEN }}
+          force: true
+
+  ci-success:
+    name: Helm CI Success
+    needs: [check-paths, lint, publish]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Check Status
+        run: |
+          if [[ "${{ needs.check-paths.outputs.charts }}" == 'true' ]]; then
+            if [[ "${{ needs.lint.result }}" != 'success' ]]; then
+               echo "Lint failed!"
+               exit 1
+            fi
+            if [[ "${{ needs.publish.result }}" != 'success' ]]; then
+               echo "Publish failed!"
+               exit 1
+            fi
+          fi
+          echo "Success!"

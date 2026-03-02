@@ -1,0 +1,59 @@
+name: Helm CI (PR)
+
+on:
+  pull_request:
+    branches: ["main"]
+
+env:
+  REGISTRY: ghcr.io
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-paths:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      charts: ${{ steps.filter.outputs.charts }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            charts:
+              - 'charts/**'
+              - '.github/workflows/helm-ci-pr.yaml'
+
+  lint:
+    needs: check-paths
+    if: needs.check-paths.outputs.charts == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4.2.0
+
+      - name: Lint agent-be
+        run: helm lint charts/agent-be
+
+  ci-success:
+    name: Helm CI Success
+    needs: [check-paths, lint]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Check Status
+        run: |
+          if [[ "${{ needs.check-paths.outputs.charts }}" == 'true' ]]; then
+            if [[ "${{ needs.lint.result }}" != 'success' ]]; then
+               echo "Lint failed!"
+               exit 1
+            fi
+          fi
+          echo "Success!"
