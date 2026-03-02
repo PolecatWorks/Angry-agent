@@ -1,0 +1,6 @@
+apiVersion: v2
+name: agent-be
+description: Helm chart for the Customer MCP service
+version: 0.1.0
+appVersion: 0.1.0
+dependencies: []
