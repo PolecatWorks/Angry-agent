@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, BehaviorSubject, Subject } from 'rxjs';
+import { Observable, BehaviorSubject, Subject, map, shareReplay, switchMap } from 'rxjs';
 import { AuthService } from './auth.service';
 
 export interface Thread {
@@ -41,9 +41,14 @@ export interface HistoryResponse {
   providedIn: 'root'
 })
 export class ChatService {
-  private apiUrl = 'http://localhost:8080/api';
+  private apiUrl$: Observable<string>;
 
-  constructor(private http: HttpClient, private authService: AuthService) { }
+  constructor(private http: HttpClient, private authService: AuthService) {
+    this.apiUrl$ = this.http.get<{ apiUrl: string }>('/assets/contents/config.json').pipe(
+      map(config => config.apiUrl),
+      shareReplay(1)
+    );
+  }
 
   private getHeaders(): HttpHeaders {
     const userId = this.authService.getUserId() || '';
@@ -66,22 +71,32 @@ export class ChatService {
   }
 
   sendMessage(message: string, threadId?: string): Observable<ChatResponse> {
-    return this.http.post<ChatResponse>(`${this.apiUrl}/chat`, { message, thread_id: threadId }, { headers: this.getHeaders() });
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.post<ChatResponse>(`${apiUrl}/chat`, { message, thread_id: threadId }, { headers: this.getHeaders() }))
+    );
   }
 
   getThreads(): Observable<{ threads: Thread[] }> {
-    return this.http.get<{ threads: Thread[] }>(`${this.apiUrl}/threads`, { headers: this.getHeaders() });
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.get<{ threads: Thread[] }>(`${apiUrl}/threads`, { headers: this.getHeaders() }))
+    );
   }
 
   getHistory(threadId: string): Observable<HistoryResponse> {
-    return this.http.get<HistoryResponse>(`${this.apiUrl}/threads/${threadId}/history`, { headers: this.getHeaders() });
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.get<HistoryResponse>(`${apiUrl}/threads/${threadId}/history`, { headers: this.getHeaders() }))
+    );
   }
 
   deleteThread(threadId: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/threads/${threadId}`, { headers: this.getHeaders() });
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.delete(`${apiUrl}/threads/${threadId}`, { headers: this.getHeaders() }))
+    );
   }
 
   updateThreadColor(threadId: string, color: string): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/threads/${threadId}/color`, { color }, { headers: this.getHeaders() });
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.patch(`${apiUrl}/threads/${threadId}/color`, { color }, { headers: this.getHeaders() }))
+    );
   }
 }
