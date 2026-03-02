@@ -18,12 +18,7 @@ import { SharedContextService } from 'mfe-shared';
   styleUrls: ['./thread-list.scss']
 })
 export class ThreadList implements OnInit {
-  private chatService = inject(ChatService);
-  public audioService = inject(AudioService);
-  // sharedContext: SharedContextService = inject(SharedContextService);
-  private router = inject(Router);
-  private route = inject(ActivatedRoute);
-  threads$ = this.chatService.threads$;
+  threads$: Observable<Thread[]>;
 
   colors = [
     { name: 'Default Blue', value: '#3f51b5' },
@@ -35,12 +30,16 @@ export class ThreadList implements OnInit {
   ];
 
   constructor(
-    public sharedContext: SharedContextService
+    private chatService: ChatService,
+    public audioService: AudioService,
+    public sharedContext: SharedContextService,
+    private router: Router,
+    private route: ActivatedRoute
   ) {
+    this.threads$ = this.chatService.threads$;
     this.sharedContext.context$.subscribe((user: any) => {
       console.log('User:', user);
     });
-
   }
 
   ngOnInit() {
