@@ -10,8 +10,9 @@ describe('ChatService', () => {
     beforeEach(() => {
         httpClientSpy = {
             post: vi.fn(),
-            get: vi.fn(),
-            delete: vi.fn()
+            get: vi.fn().mockReturnValue(of({ apiUrl: '/api' })),
+            delete: vi.fn(),
+            patch: vi.fn()
         };
         authServiceSpy = {
             getUserId: vi.fn().mockReturnValue('test-user'),
