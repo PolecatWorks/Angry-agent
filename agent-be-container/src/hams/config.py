@@ -24,7 +24,7 @@ class HamsCheck(ABC, BaseModel):
         """
         try:
             check_response = await self.run_check()
-            logger.info(f"Check[{self.name}]: {"PASSED" if check_response else "FAILED"}")
+            logger.info(f'Check[{self.name}]: {"PASSED" if check_response else "FAILED"}')
 
             return check_response
         except Exception as e:
