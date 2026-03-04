@@ -44,7 +44,8 @@ export class ChatService {
   private apiUrl$: Observable<string>;
 
   constructor(private http: HttpClient, private authService: AuthService) {
-    this.apiUrl$ = this.http.get<{ apiUrl: string }>('/assets/contents/config.json').pipe(
+    const basePath = new URL('/', import.meta.url).href;
+    this.apiUrl$ = this.http.get<{ apiUrl: string }>(`${basePath}assets/contents/config.json`).pipe(
       map(config => config.apiUrl),
       shareReplay(1)
     );
