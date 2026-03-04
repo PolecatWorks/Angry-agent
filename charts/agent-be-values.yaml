@@ -1,0 +1,30 @@
+---
+image:
+  tag: latest
+
+volumes:
+  - name: configs
+    configMap:
+      name: '{{ template "agent-be.fullname" . }}'
+  # - name: objects
+  #   emptyDir:
+  #     sizeLimit: 500Mi
+  - name: secrets
+    projected:
+      sources:
+        - secret:
+            # optional: true
+            name: db0-angry-agent-user
+            items:
+              - key: username
+                path: persistence/db/connections/username
+              - key: password
+                path: persistence/db/connections/password
+              # - key: gcp_llm_key
+              #   path: aiclient/google_api_key
+              # - key: CLIENTID
+              #   path: bot/azure_bot_client/CLIENTID
+              # - key: CLIENTSECRET
+              #   path: bot/azure_bot_client/CLIENTSECRET
+              # - key: TENANTID
+              #   path: bot/azure_bot_client/TENANTID

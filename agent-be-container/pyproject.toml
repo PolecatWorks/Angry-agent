@@ -31,3 +31,6 @@ build-backend = "poetry.core.masonry.api"
 pytest = "^8.0"
 pytest-asyncio = "^1.3"
 aiohttp-devtools = "^1.1"
+
+[tool.poetry.scripts]
+agent-be = "src.cli:cli"

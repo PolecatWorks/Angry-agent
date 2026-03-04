@@ -1,4 +1,15 @@
 ---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: angry-agent
+spec:
+  interval: 10m
+  url: oci://ghcr.io/polecatworks/angry-agent-ui/helm/angry-agent
+  ref:
+    semver: ">= 0.1.x-0"
+    semverFilter: .*-main
+---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -7,14 +18,14 @@ spec:
   releaseName: mfe-angry-agent
   chartRef:
     kind: OCIRepository
-    name: mfe-shell
+    name: angry-agent
   interval: 50m
   install:
     remediation:
       retries: 3
   values:
     image:
-      repository: ghcr.io/polecatworks/angry-agent-ui
+      repository: ghcr.io/polecatworks/angry-agent
       tag: main
       pullPolicy: Always # Dev ONLY
     env:
@@ -27,3 +38,48 @@ spec:
           {
             "apiUrl": "/agent-be/api"
           }
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: angry-agent
+spec:
+  releaseName: angry-agent
+  chartRef:
+    kind: OCIRepository
+    name: angry-agent
+  interval: 50m
+  install:
+    remediation:
+      retries: 3
+  values:
+    image:
+      tag: main
+      pullPolicy: Always
+    configs:
+      volumes:
+        - name: configs
+          configMap:
+            name: '{{ template "agent-be.fullname" . }}'
+        # - name: objects
+        #   emptyDir:
+        #     sizeLimit: 500Mi
+        - name: secrets
+          projected:
+            sources:
+              - secret:
+                  # optional: true
+                  name: db0-angry-agent-user
+                  items:
+                    - key: username
+                      path: persistence/db/connections/username
+                    - key: password
+                      path: persistence/db/connections/password
+                    # - key: gcp_llm_key
+                    #   path: aiclient/google_api_key
+                    # - key: CLIENTID
+                    #   path: bot/azure_bot_client/CLIENTID
+                    # - key: CLIENTSECRET
+                    #   path: bot/azure_bot_client/CLIENTSECRET
+                    # - key: TENANTID
+                    #   path: bot/azure_bot_client/TENANTID
