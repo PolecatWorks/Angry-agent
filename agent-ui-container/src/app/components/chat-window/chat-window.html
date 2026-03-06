@@ -20,6 +20,11 @@
             </div>
             <div class="message-content markdown-body">
                 <div [innerHTML]="msg.content | markdown"></div>
+
+                <div *ngIf="msg.additional_kwargs?.image_url" class="image-block">
+                    <img [src]="msg.additional_kwargs?.image_url" alt="Generated Image" />
+                </div>
+
                 <div *ngIf="msg.usage_metadata || msg.duration" class="usage-metadata">
                     <small>
                         <span *ngIf="msg.usage_metadata">{{ msg.usage_metadata.total_tokens }}<ng-container
