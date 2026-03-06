@@ -114,6 +114,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
+            type=raw,value=pr-${{ github.event.pull_request.number }},enable=${{ github.event_name == 'pull_request' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=sha-${{ env.BACKEND_SHA }}
@@ -204,6 +205,8 @@ jobs:
           annotations: |
             type=org.opencontainers.image.description,value=${{ github.event.repository.description || 'No description provided' }}
           tags: |
+            type=ref,event=pr
+            type=raw,value=pr-${{ github.event.pull_request.number }},enable=${{ github.event_name == 'pull_request' }}
             type=raw,value=main,enable=${{ github.ref_name == 'main' }}
             type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
             type=raw,value=sha-${{ env.BACKEND_SHA }}
