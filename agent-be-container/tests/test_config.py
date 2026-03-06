@@ -51,8 +51,10 @@ class TestConfigLoading:
                 secrets_path=Path("/tmp")
             )
 
-    def test_config_missing_secrets_dir(self, test_config_path):
+    def test_config_missing_secrets_dir(self, test_config_path, monkeypatch):
         """Test loading with missing secrets directory (should use defaults)"""
+        monkeypatch.setenv("APP_PERSISTENCE__DB__CONNECTION__USERNAME", "testuser")
+        monkeypatch.setenv("APP_PERSISTENCE__DB__CONNECTION__PASSWORD", "testpass")
         # Should not raise, just log warning
         config = ServiceConfig.from_yaml_and_secrets_dir(
             yaml_file=test_config_path,
