@@ -1,7 +1,7 @@
 ---
 webservice:
   url: http://0.0.0.0:8080
-  prefix: /mcp
+  prefix: ""
 
 persistence:
   db:
