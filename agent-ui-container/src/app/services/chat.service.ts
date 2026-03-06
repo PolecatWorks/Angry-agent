@@ -30,6 +30,10 @@ export interface Message {
     total_tokens?: number;
     max_tokens?: number;
   };
+  additional_kwargs?: {
+    image_url?: string;
+    [key: string]: any;
+  };
 }
 
 export interface HistoryResponse {

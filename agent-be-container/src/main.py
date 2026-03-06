@@ -150,8 +150,12 @@ async def get_history(request):
                 if max_tokens:
                     usage["max_tokens"] = max_tokens
                 msg_dict["usage_metadata"] = usage
-            if hasattr(m, 'additional_kwargs') and m.additional_kwargs and "timestamp" in m.additional_kwargs:
-                msg_dict["created_at"] = m.additional_kwargs["timestamp"]
+            if hasattr(m, 'additional_kwargs') and m.additional_kwargs:
+                if "timestamp" in m.additional_kwargs:
+                    msg_dict["created_at"] = m.additional_kwargs["timestamp"]
+                # Expose remaining kwargs directly or a specific subset
+                # Here we add additional_kwargs to the dict so frontend can access image_url
+                msg_dict["additional_kwargs"] = m.additional_kwargs
             messages_list.append(msg_dict)
     return web.json_response({
             "thread": {

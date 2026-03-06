@@ -257,3 +257,17 @@
     color: var(--text-color-secondary, #666);
     opacity: 0.8;
 }
+
+.image-block {
+    margin: 16px 0;
+    width: 100%;
+    max-width: 600px;
+
+    img {
+        width: 100%;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        object-fit: cover;
+        display: block;
+    }
+}

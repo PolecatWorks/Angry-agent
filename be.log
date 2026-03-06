@@ -1,0 +1,4 @@
+Usage: python -m src.cli start [OPTIONS]
+Try 'python -m src.cli start --help' for help.
+
+Error: Missing option '--secrets'.

@@ -18,7 +18,7 @@ async def intent_node(state: AgentState):
     # Placeholder for intent analysis if needed in state
     return {}
 
-def route_intent(state: AgentState) -> Literal["hello", "echo", "llm"]:
+def route_intent(state: AgentState) -> Literal["hello", "echo", "image", "llm"]:
     messages = state.messages
     if not messages:
         return "echo"
@@ -28,11 +28,19 @@ def route_intent(state: AgentState) -> Literal["hello", "echo", "llm"]:
         content = last_message.content.lower()
         if "hello" in content:
             return "hello"
+        if any(word in content for word in ["draw", "picture", "image"]):
+            return "image"
 
     return "llm"
 
 async def hello_node(state: AgentState):
     return {"messages": [AIMessage(content="Hello there!")]}
+
+async def image_node(state: AgentState):
+    return {"messages": [AIMessage(
+        content="Here is your image:",
+        additional_kwargs={"image_url": "https://picsum.photos/400/300"}
+    )]}
 
 async def echo_node(state: AgentState):
     messages = state.messages
@@ -58,6 +66,7 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
     builder.add_node("intent", intent_node)
     builder.add_node("hello", hello_node)
     builder.add_node("echo", echo_node)
+    builder.add_node("image", image_node)
     builder.add_node("llm", llm_node)
 
     builder.add_edge(START, "initial")
@@ -69,11 +78,13 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
         {
             "hello": "hello",
             "echo": "echo",
+            "image": "image",
             "llm": "llm",
         }
     )
 
     builder.add_edge("hello", END)
+    builder.add_edge("image", END)
     builder.add_edge("llm", END)
     builder.add_edge("echo", END)
 
