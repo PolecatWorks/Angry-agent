@@ -17,3 +17,10 @@ spec:
       route:
         - destination:
             host: mfe-angry-agent-nginx-view
+    - name: angry-agent-be
+      match:
+        - uri:
+            prefix: /agent-be/api
+      route:
+        - destination:
+            host: angry-agent-agent-be
