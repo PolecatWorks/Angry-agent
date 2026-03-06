@@ -41,6 +41,10 @@ The backend includes specific routing mechanisms for processing incoming user me
 - For example, messages containing simple greetings (like 'hello') can be intercepted and handled directly, while more complex queries are routed to the language model.
 
 ## 5. API Interface Expectations
+- Specific keywords (e.g., 'draw', 'picture', 'image') are intercepted and routed to an `image_node` which currently returns a placeholder image via `additional_kwargs`.
+
+## 6. API Interface Expectations
+- The service exposes endpoints for the frontend to submit messages and fetch chat history. The `get_history` API exposes `additional_kwargs` on messages to support extended capabilities like returning image URLs.
 
 - The service exposes endpoints for the frontend to submit messages and fetch chat history.
 - The structure of requests should consistently provide the necessary authentication headers (`X-User-ID`) to allow proper multi-user state retrieval.

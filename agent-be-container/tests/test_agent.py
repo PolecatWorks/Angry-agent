@@ -32,6 +32,20 @@ async def test_hello_intent(mock_llm):
     assert messages[-1].content == "Hello there!"
 
 @pytest.mark.asyncio
+async def test_image_intent(mock_llm):
+    checkpointer = MemorySaver()
+    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    config = {"configurable": {"thread_id": "test-image"}}
+
+    # Test Image Route
+    input_msg = HumanMessage(content="Please draw a picture")
+    result = await agent.ainvoke({"messages": [input_msg]}, config=config)
+    messages = result["messages"]
+
+    assert "Here is your image:" in messages[-1].content
+    assert messages[-1].additional_kwargs.get("image_url") == "https://picsum.photos/400/300"
+
+@pytest.mark.asyncio
 async def test_llm_intent(mock_llm):
     checkpointer = MemorySaver()
     agent = create_agent(llm=mock_llm, checkpointer=checkpointer)

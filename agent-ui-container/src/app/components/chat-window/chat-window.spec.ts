@@ -102,4 +102,22 @@ describe('ChatWindow', () => {
     expect(routerSpy.navigate).toHaveBeenCalledWith(['../chat', 'new-thread'], expect.anything());
     expect(startPollingSpy).toHaveBeenCalledWith('new-thread');
   });
+
+  it('should conditionally render an image block if additional_kwargs.image_url is present', () => {
+    const threadId = 'thread-image';
+    const mockMessages: Message[] = [{
+      type: 'ai',
+      content: 'Here is your image:',
+      additional_kwargs: { image_url: 'https://fake-image.com/pic.jpg' }
+    }];
+
+    chatServiceSpy.getHistory.mockReturnValue(of({ messages: mockMessages }));
+
+    component.loadHistory(threadId);
+    fixture.detectChanges();
+
+    const imgElement = fixture.debugElement.query(By.css('.image-block img'));
+    expect(imgElement).toBeTruthy();
+    expect(imgElement.nativeElement.src).toBe('https://fake-image.com/pic.jpg');
+  });
 });
