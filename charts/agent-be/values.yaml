@@ -21,7 +21,7 @@ readinessProbe:
     path: "/hams/ready"
   periodSeconds: 5
 
-image: &image
+image:
   repository: ghcr.io/polecatworks/angry-agent-be
   tag: latest
   pullPolicy: IfNotPresent

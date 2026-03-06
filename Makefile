@@ -10,9 +10,11 @@ NODE_APPS := agent-ui
 APPS := $(PYTHON_APPS) $(NODE_APPS)
 
 agent-be_PORT := 8080
+agent-be_HEALTH_PORT := 8079
 agent-ui_PORT := 3001
 
 agent-be_INTERNAL_PORT := 8080
+agent-be_INTERNAL_HEALTH_PORT := 8079
 agent-ui_INTERNAL_PORT := 8080
 
 # --- Python Venvs & Deps ---
@@ -72,8 +74,11 @@ $(foreach app,$(APPS),$(app)-docker):%-docker:
 $(foreach app,$(APPS),$(app)-docker-run):%-docker-run:%-docker
 	docker run -it --rm --name $* \
 		-p ${$*_PORT}:${$*_INTERNAL_PORT} \
+		-p ${$*_HEALTH_PORT}:${$*_INTERNAL_HEALTH_PORT} \
 		-e NO_DB=true \
-		$*
+		-e APP_PERSISTENCE__DB__CONNECTION__URL=postgresql://host.docker.internal:5432/agentdb \
+		--mount type=bind,src=$(PWD)/$*-container/tests/test_data,dst=/test_data \
+		$* start --config /test_data/config.yaml --secrets /test_data/secrets
 
 .PHONY: venvs tests
 venvs: $(foreach app,$(PYTHON_APPS),$(app)-venv/bin/activate)

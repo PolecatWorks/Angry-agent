@@ -1,4 +1,22 @@
 ---
+webservice:
+  url: http://0.0.0.0:8080
+  prefix: /mcp
+
+persistence:
+  db:
+    pool_size: 20
+    automigrate: true
+    acquire_timeout: 3
+    connection:
+      url: postgresql://localhost:5432/agentdb
+
+aiclient:
+  model_provider: ollama
+  model: qwen2.5-coder:14b
+  ollama_base_url: http://localhost:11434
+  context_length: 32768
+
 logging:
   version: 1
   disable_existing_loggers: False
@@ -19,16 +37,7 @@ logging:
   root:
     handlers: [console]
     level: INFO
-# bot:
-#   app_id: bot/id
-#   app_password: bot/passord
-webservice:
-  url: http://0.0.0.0:8080
-  prefix: /mcp
-mcp:
-  name: mcp-server
-  instructions: "You are a helpful assistant."
-  chaser_service_url: http://localhost
+
 hams:
   url: http://0.0.0.0:8079
   prefix: hams

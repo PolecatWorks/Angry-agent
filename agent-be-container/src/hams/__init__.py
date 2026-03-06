@@ -31,7 +31,7 @@ async def hams_app_cleanup(app: web.Application):
         access_log=logger,
     )
     await runner.setup()
-    site = web.TCPSite(runner, app[keys.hams].config.url.host, app[keys.hams].config.url.port)
+    site = web.TCPSite(runner, str(app[keys.hams].config.url.host), app[keys.hams].config.url.port)
 
     await site.start()
 

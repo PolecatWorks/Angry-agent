@@ -37,9 +37,9 @@ class TestConfigLoading:
         assert "localhost:5432" in dsn
         assert "agentdb" in dsn
 
-
+    def test_hams_url_configuration(self, sample_config):
         """Test HAMS URL configuration"""
-        assert sample_config.hams.url.host == "localhost"
+        assert sample_config.hams.url.host == "0.0.0.0"
         assert sample_config.hams.url.port == 8079
         assert sample_config.hams.prefix == "hams"
 
