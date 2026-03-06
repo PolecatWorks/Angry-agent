@@ -23,6 +23,7 @@ langchain-google-genai = "^4.2.1"
 langchain-openai = "^1.1.10"
 httpx = "^0.28.1"
 psycopg = {extras = ["binary"], version = "^3.3.3"}
+langchain-ollama = "^1.0.1"
 
 [build-system]
 requires = ["poetry-core"]
