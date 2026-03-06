@@ -12,9 +12,6 @@ volumes:
   - name: configs
     configMap:
       name: '{{ template "agent-be.fullname" . }}'
-  # - name: objects
-  #   emptyDir:
-  #     sizeLimit: 500Mi
   - name: secrets
     projected:
       sources:
