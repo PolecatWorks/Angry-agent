@@ -32,8 +32,8 @@ async def auth_middleware(app, handler):
             response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-User-ID"
             return response
 
-        # Allow health check without auth
-        if request.path == "/health":
+        # Allow health check without auth (handle prefixed case as well)
+        if request.path.endswith("/health"):
             return await handler(request)
 
         # Default to a test user if header matches request from single-user UI
@@ -246,12 +246,15 @@ def create_app_with_middleware(config: ServiceConfig):
     """
     app = web.Application(middlewares=[auth_middleware])
     app[keys.config] = config
-    app.router.add_get("/health", health_check)
-    app.router.add_post("/api/chat", chat_endpoint)
-    app.router.add_get("/api/threads", list_threads)
-    app.router.add_get("/api/threads/{thread_id}/history", get_history)
-    app.router.add_delete("/api/threads/{thread_id}", delete_thread)
-    app.router.add_patch("/api/threads/{thread_id}/color", update_thread_color)
+    path_prefix = config.webservice.url.path if config.webservice.url.path and config.webservice.url.path != "/" else ""
+    path_prefix = path_prefix.rstrip("/")
+
+    app.router.add_get(f"{path_prefix}/health", health_check)
+    app.router.add_post(f"{path_prefix}/api/chat", chat_endpoint)
+    app.router.add_get(f"{path_prefix}/api/threads", list_threads)
+    app.router.add_get(f"{path_prefix}/api/threads/{{thread_id}}/history", get_history)
+    app.router.add_delete(f"{path_prefix}/api/threads/{{thread_id}}", delete_thread)
+    app.router.add_patch(f"{path_prefix}/api/threads/{{thread_id}}/color", update_thread_color)
 
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
