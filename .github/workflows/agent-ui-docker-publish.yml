@@ -163,7 +163,7 @@ jobs:
       discussions: read
       packages: write
       pages: none
-      pull-requests: read
+      pull-requests: write
       repository-projects: read
       security-events: read
       statuses: read
@@ -253,6 +253,18 @@ jobs:
         id: inspect
         run: |
           docker buildx imagetools inspect '${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWERCASE }}:${{ steps.meta.outputs.version }}'
+
+      - name: Comment PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 Agent-UI Docker image published for testing!\n\n**Image Name:** \`${process.env.REGISTRY}/${process.env.IMAGE_NAME_LOWERCASE}:pr-${context.issue.number}\``
+            })
 
   ci-success:
     name: Agent-UI CI Success
