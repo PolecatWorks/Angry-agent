@@ -7,14 +7,14 @@ spec:
   releaseName: mfe-angry-agent
   chartRef:
     kind: OCIRepository
-    name: angry-agent
+    name: mfe-shell
   interval: 50m
   install:
     remediation:
       retries: 3
   values:
     image:
-      repository: ghcr.io/polecatworks/angry-agent
+      repository: ghcr.io/polecatworks/angry-agent-ui
       tag: main
       pullPolicy: Always # Dev ONLY
     env:
