@@ -50,7 +50,7 @@ LABEL org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 WORKDIR /app
 
 # Expose required port
-EXPOSE 8080
+EXPOSE 8080 8079
 
 # Copy test success flag, venv, and source code from previous stages
 COPY --from=test /app/tests/.test_success /app/tests/.test_success
