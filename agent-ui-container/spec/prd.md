@@ -1,0 +1,43 @@
+# Agent UI Container Specification (PRD)
+
+## 1. Introduction
+
+The `agent-ui-container` is the frontend application of the AI Agent application. It provides an intuitive web interface for users to interact with the LangGraph-powered AI agent backend. The container is designed as an independent Micro-Frontend (MFE) that can be developed, tested, and deployed in isolation or embedded within a larger shell application.
+
+## 2. Goals
+
+- Provide a user-friendly chat interface to communicate with the AI agent.
+- Ensure multi-user isolation where chats are specific to individual users.
+- Support seamless integration as a Module Federation remote.
+- Maintain a high level of testing and reliability.
+- Run independently as a standalone Docker container.
+
+## 3. Architecture & Tech Stack
+
+- **Framework:** Angular.
+- **UI Components:** Angular Material.
+- **Package Management:** npm.
+- **Micro-Frontend Architecture:** The application is built using the `@angular-architects/native-federation` package, allowing it to act as a remote module.
+- **Testing:** Unit and integration testing are handled by Vitest, running via the `ng test` command.
+
+## 4. Features & Functionality
+
+### 4.1 Chat Interface
+The primary interface is a chat window that allows users to send messages to the backend AI agent and view responses. The history of the chat is fetched from and persisted by the backend.
+
+### 4.2 Multi-User Isolation
+Chats are isolated by a `User ID`. Currently, this is handled via a mocked login screen that captures the user ID and passes it to the backend via an HTTP header (e.g., `X-User-ID`).
+
+*Note: Future iterations plan to replace this mocked authentication with standard OAuth2 flows.*
+
+### 4.3 Module Federation Integration
+To support embedding within a shell application, the container exposes its core functionality via a specific route configuration (`./routes`), which is mapped to `remote.routes.ts`. This allows internal navigation when loaded as a remote.
+
+### 4.4 Dockerization
+The frontend application must be packaged and run inside a Docker container without relying on Docker Compose, aligning with the project's strategy for eventual Kubernetes migration.
+
+## 5. Development Guidelines
+
+- Run tests using `ng test --watch=false`.
+- Ensure any modifications to the MFE structure or routing are reflected in this PRD and the native federation configuration.
+- The UI should remain stateless where possible, deferring state persistence to the backend database.
