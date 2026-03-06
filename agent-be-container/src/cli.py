@@ -77,7 +77,7 @@ def parse(ctx, config, secrets):
 @shared_options
 def start(ctx, config, secrets):
     """Start the service"""
-    from .main import app_start
+    from . import app_start
 
     yaml = YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)

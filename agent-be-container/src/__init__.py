@@ -94,7 +94,7 @@ def app_start(config: ServiceConfig):
 
     web.run_app(
         app,
-        host=app[keys.config].webservice.url.host,
+        host=str(app[keys.config].webservice.url.host),
         port=app[keys.config].webservice.url.port,
         # TODO: Review the custom logging and replace into config
         access_log_format='%a "%r" %s %b "%{Referer}i" "%{User-Agent}i"',

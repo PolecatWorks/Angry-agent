@@ -1,6 +1,12 @@
 ---
 image:
-  tag: latest
+  repository: ghcr.io/polecatworks/angry-agent-be/dev
+  pullPolicy: Always
+configs:
+  persistence:
+    db:
+      connection:
+        url: postgresql://cnpg-db0-cluster-rw.dbs:5432/angry_agent
 
 volumes:
   - name: configs
@@ -13,13 +19,12 @@ volumes:
     projected:
       sources:
         - secret:
-            # optional: true
             name: db0-angry-agent-user
             items:
               - key: username
-                path: persistence/db/connections/username
+                path: persistence/db/connection/username
               - key: password
-                path: persistence/db/connections/password
+                path: persistence/db/connection/password
               # - key: gcp_llm_key
               #   path: aiclient/google_api_key
               # - key: CLIENTID
