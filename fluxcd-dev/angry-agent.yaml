@@ -61,6 +61,8 @@ spec:
         db:
           connection:
             url: postgresql://cnpg-db0-cluster-rw.dbs:5432/angry_agent
+      aiclient:
+        ollama_base_url: http://ollama.ollama:11434
     volumes:
       - name: configs
         configMap:
@@ -72,6 +74,6 @@ spec:
                 name: db0-angry-agent-user
                 items:
                   - key: username
-                    path: persistence/db/connections/username
+                    path: persistence/db/connection/username
                   - key: password
-                    path: persistence/db/connections/password
+                    path: persistence/db/connection/password
