@@ -10,8 +10,10 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 COPY README.md ./
 
-# Copy application source
+# Copy application source and migrations
 COPY src ./src
+COPY migrations ./migrations
+COPY yoyo.ini ./yoyo.ini
 
 # Create virtual environment
 RUN python -m venv /opt/venv
@@ -56,6 +58,8 @@ EXPOSE 8080 8079
 COPY --from=test /app/tests/.test_success /app/tests/.test_success
 COPY --from=build /opt/venv /opt/venv
 COPY --from=build /app/src ./src
+COPY --from=build /app/migrations ./migrations
+COPY --from=build /app/yoyo.ini ./yoyo.ini
 
 # Setup environment variables
 ENV VIRTUAL_ENV=/opt/venv

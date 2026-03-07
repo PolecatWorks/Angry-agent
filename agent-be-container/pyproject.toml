@@ -24,6 +24,7 @@ langchain-openai = "^1.1.10"
 httpx = "^0.28.1"
 psycopg = {extras = ["binary"], version = "^3.3.3"}
 langchain-ollama = "^1.0.1"
+yoyo-migrations = "^8.2.0"
 
 [build-system]
 requires = ["poetry-core"]
