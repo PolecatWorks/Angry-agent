@@ -83,8 +83,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          yq e '(. | select(.metadata.name == "mfe-angry-agent") | .spec.values.image.tag) = "sha-" + env(UI_SHA)' -i fluxcd-dev/angry-agent.yaml
-          yq e '(. | select(.metadata.name == "angry-agent") | .spec.values.image.tag) = "sha-" + env(BACKEND_SHA)' -i fluxcd-dev/angry-agent.yaml
+          yq e '(. | select(.kind == "HelmRelease" and .metadata.name == "mfe-angry-agent") | .spec.values.image.tag) = "sha-" + env(UI_SHA)' -i fluxcd-dev/angry-agent.yaml
+          yq e '(. | select(.kind == "HelmRelease" and .metadata.name == "angry-agent") | .spec.values.image.tag) = "sha-" + env(BACKEND_SHA)' -i fluxcd-dev/angry-agent.yaml
 
           git add fluxcd-dev/angry-agent.yaml
           if git diff --staged --quiet; then
