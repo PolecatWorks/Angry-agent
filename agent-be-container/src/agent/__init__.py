@@ -6,6 +6,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_core.language_models import BaseChatModel
 import httpx
 from src.config import LangchainConfig
+from datetime import datetime, timezone
 
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
@@ -34,12 +35,18 @@ def route_intent(state: AgentState) -> Literal["hello", "echo", "image", "llm"]:
     return "llm"
 
 async def hello_node(state: AgentState):
-    return {"messages": [AIMessage(content="Hello there!")]}
+    return {"messages": [AIMessage(
+        content="Hello there!",
+        additional_kwargs={"timestamp": datetime.now(timezone.utc).isoformat()}
+    )]}
 
 async def image_node(state: AgentState):
     return {"messages": [AIMessage(
         content="Here is your image:",
-        additional_kwargs={"image_url": "https://picsum.photos/400/300"}
+        additional_kwargs={
+            "image_url": "https://picsum.photos/400/300",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
     )]}
 
 async def echo_node(state: AgentState):
@@ -51,7 +58,10 @@ async def echo_node(state: AgentState):
 
     # Only reply to HumanMessages
     if isinstance(last_message, HumanMessage):
-        return {"messages": [AIMessage(content=f"Echo: {last_message.content}")]}
+        return {"messages": [AIMessage(
+            content=f"Echo: {last_message.content}",
+            additional_kwargs={"timestamp": datetime.now(timezone.utc).isoformat()}
+        )]}
     return {}
 
 
@@ -60,6 +70,10 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
 
     async def llm_node(state: AgentState):
         response = await llm.ainvoke(state.messages)
+        # Add timestamp to the AI response
+        if isinstance(response, AIMessage):
+            response.additional_kwargs = response.additional_kwargs or {}
+            response.additional_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
         return {"messages": [response]}
 
     builder.add_node("initial", initial_node)
