@@ -38,6 +38,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     durationSubscription?: Subscription;
     pollCount: number = 0;
     pollingError: string | null = null;
+    serverOffset: number = 0;
 
     @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
@@ -101,10 +102,14 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 this.pollCount = 0;
                 this.pollingError = null;
 
+                if (res.thread?.current_server_time) {
+                    this.serverOffset = Date.now() - new Date(res.thread.current_server_time).getTime();
+                }
+
                 if (this.messages.length > 0 && this.messages[this.messages.length - 1].type === 'human') {
                     const lastHumanMsg = this.messages[this.messages.length - 1];
-                    this.requestStartTime = lastHumanMsg.created_at ? new Date(lastHumanMsg.created_at).getTime() : Date.now();
-                    this.stepStartTime = this.lastStatusUpdatedAtStr ? new Date(this.lastStatusUpdatedAtStr).getTime() : Date.now();
+                    this.requestStartTime = lastHumanMsg.created_at ? new Date(lastHumanMsg.created_at).getTime() + this.serverOffset : Date.now();
+                    this.stepStartTime = this.lastStatusUpdatedAtStr ? new Date(this.lastStatusUpdatedAtStr).getTime() + this.serverOffset : Date.now();
                     this.startPolling(threadId);
                 }
 
@@ -212,12 +217,16 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 this.pollingError = null;
                 this.currentStatusMsg = res.thread?.status_msg || null;
 
+                if (res.thread?.current_server_time) {
+                    this.serverOffset = Date.now() - new Date(res.thread.current_server_time).getTime();
+                }
+
                 const newUpdatedAtStr = res.thread?.status_updated_at || null;
 
                 // If the updated at timestamp changed, reset our local parsing
                 if (newUpdatedAtStr !== this.lastStatusUpdatedAtStr) {
                     this.lastStatusUpdatedAtStr = newUpdatedAtStr;
-                    this.stepStartTime = newUpdatedAtStr ? new Date(newUpdatedAtStr).getTime() : Date.now();
+                    this.stepStartTime = newUpdatedAtStr ? new Date(newUpdatedAtStr).getTime() + this.serverOffset : Date.now();
                 }
 
                 const messages = res.messages;
