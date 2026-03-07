@@ -1,0 +1,94 @@
+name: Update FluxCD
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'agent-ui-container/**'
+      - 'agent-be-container/**'
+      - '.github/workflows/agent-ui-docker-publish.yml'
+      - '.github/workflows/agent-be-docker-publish.yml'
+
+jobs:
+  update-fluxcd:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Wait for Agent-UI Docker Workflow (Indicator of CI Completion)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflowId = 'agent-ui-docker-publish.yml';
+            const maxRetries = 60; // Wait up to 30 minutes (30s interval)
+            const intervalSeconds = 30;
+            const commitSha = context.sha;
+
+            console.log(`Waiting for workflow ${workflowId} on commit ${commitSha}...`);
+
+            for (let i = 0; i < maxRetries; i++) {
+              try {
+                const runs = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: workflowId,
+                  head_sha: commitSha,
+                });
+
+                if (runs.data.total_count === 0) {
+                  console.log('Workflow run not found yet. Waiting...');
+                } else {
+                  const run = runs.data.workflow_runs[0];
+                  console.log(`Found workflow run: ${run.id} (Status: ${run.status}, Conclusion: ${run.conclusion})`);
+
+                  if (run.status === 'completed') {
+                    if (run.conclusion === 'success') {
+                      console.log('CI completed successfully.');
+                      return;
+                    } else {
+                      core.setFailed(`CI workflow failed with conclusion: ${run.conclusion}`);
+                      return;
+                    }
+                  }
+                }
+              } catch (error) {
+                console.log(`Error checking workflow status: ${error.message}. Retrying...`);
+              }
+              await new Promise(r => setTimeout(r, intervalSeconds * 1000));
+            }
+            core.setFailed('Timeout waiting for CI workflow to complete.');
+
+      - name: Determine Content SHAs
+        run: |
+          UI_SHA=$(git log -1 --format=%H -- agent-ui-container/ .github/workflows/agent-ui-docker-publish.yml)
+          echo "Determined UI content SHA: $UI_SHA"
+          echo "UI_SHA=$UI_SHA" >> $GITHUB_ENV
+
+          BACKEND_SHA=$(git log -1 --format=%H -- agent-be-container/ .github/workflows/agent-be-docker-publish.yml)
+          echo "Determined Backend content SHA: $BACKEND_SHA"
+          echo "BACKEND_SHA=$BACKEND_SHA" >> $GITHUB_ENV
+
+      - name: Update fluxcd-dev tags
+        env:
+          PAT: ${{ secrets.PAT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          yq e '(. | select(.metadata.name == "mfe-angry-agent") | .spec.values.image.tag) = "sha-" + env(UI_SHA)' -i fluxcd-dev/angry-agent.yaml
+          yq e '(. | select(.metadata.name == "angry-agent") | .spec.values.image.tag) = "sha-" + env(BACKEND_SHA)' -i fluxcd-dev/angry-agent.yaml
+
+          git add fluxcd-dev/angry-agent.yaml
+          if git diff --staged --quiet; then
+            echo "No changes to commit for fluxcd-dev tags."
+          else
+            git commit -m "Update fluxcd-dev tags for UI and BE [skip ci]"
+            git pull --rebase origin main
+            git push https://x-access-token:$PAT@github.com/${{ github.repository }}.git HEAD:main
+          fi
