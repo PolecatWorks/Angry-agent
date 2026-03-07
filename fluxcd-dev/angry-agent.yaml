@@ -37,9 +37,6 @@ spec:
   ref:
     semver: ">= 0.1.x-0"
     semverFilter: .*-main
-  values:
-    image:
-      tag: sha-baad87d6ccdc0a44632c5bfe6bc96501f37569c3
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
