@@ -10,7 +10,7 @@ from aiohttp import web
 from langchain_core.messages import HumanMessage
 from .agent import create_agent
 from .agent.handler import LLMHandler
-from .database import init_db_pool, close_db_pool, get_db_pool, create_tables
+from .database import init_db_pool, close_db_pool, get_db_pool
 from . import keys
 from datetime import datetime, timezone
 
@@ -234,10 +234,20 @@ async def on_startup(app):
     config: ServiceConfig = app[keys.config]
     logger.info("Starting up and connecting to DB...")
     try:
-        pool = await init_db_pool(config.persistence.db)
         if config.persistence.db.automigrate:
-            async with pool.acquire() as conn:
-                await create_tables(conn)
+            logger.info("Running database migrations...")
+            from yoyo import read_migrations, get_backend
+            import os
+
+            backend = get_backend(config.persistence.db.connection.dsn)
+            migrations_dir = os.path.join(os.path.dirname(__file__), "..", "migrations")
+            migrations = read_migrations(migrations_dir)
+
+            with backend.lock():
+                backend.apply_migrations(backend.to_apply(migrations))
+            logger.info("Database migrations applied.")
+
+        pool = await init_db_pool(config.persistence.db)
 
         # Initialize LLM
         logger.info("Initializing LLM")

@@ -8,26 +8,8 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
 
-from src.database import create_tables, init_db_pool, close_db_pool, get_db_pool
+from src.database import init_db_pool, close_db_pool, get_db_pool
 from src.config import DbOptionsConfig, DbConnectionConfig
-
-@pytest.mark.asyncio
-async def test_create_tables():
-    """Test SQL for creating threads table"""
-    mock_conn = AsyncMock()
-    await create_tables(mock_conn)
-
-    # Verify execute was called
-    assert mock_conn.execute.called
-
-    # Get the SQL executed
-    args, _ = mock_conn.execute.call_args
-    sql = args[0]
-
-    assert "CREATE TABLE IF NOT EXISTS threads" in sql
-    assert "thread_id TEXT PRIMARY KEY" in sql
-    assert "user_id TEXT NOT NULL" in sql
-    assert "title TEXT" in sql
 
 
 class TestDatabasePoolLifecycle:

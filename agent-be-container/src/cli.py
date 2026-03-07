@@ -95,6 +95,35 @@ def start(ctx, config, secrets):
     app_start(configObj)
 
 
+@cli.command()
+@shared_options
+def migrate(ctx, config, secrets):
+    """Run database schema migrations"""
+    yaml = YAML()
+    yaml.indent(mapping=2, sequence=4, offset=2)
+
+    configObj: ServiceConfig = ServiceConfig.from_yaml_and_secrets_dir(config.name, secrets)
+
+    # Load logging configuration from YAML file
+    logging.config.dictConfig(configObj.logging)
+
+    from yoyo import read_migrations, get_backend
+    import os
+
+    logging.getLogger(__name__).info("Running database migrations from CLI...")
+    backend = get_backend(configObj.persistence.db.connection.dsn)
+
+    # Check migrations directory
+    migrations_dir = os.path.join(os.getcwd(), "migrations")
+    if not os.path.exists(migrations_dir):
+        migrations_dir = os.path.join(os.path.dirname(__file__), "..", "migrations")
+
+    migrations = read_migrations(migrations_dir)
+    with backend.lock():
+        backend.apply_migrations(backend.to_apply(migrations))
+    logging.getLogger(__name__).info("Database migrations applied successfully.")
+
+
 # ------------- CLI commands above here -------------
 
 if __name__ == "__main__":

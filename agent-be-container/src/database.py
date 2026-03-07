@@ -23,28 +23,6 @@ async def close_db_pool():
         await pool.close()
         pool = None
 
-async def create_tables(conn: asyncpg.Connection):
-    """Create required database tables"""
-    await conn.execute("""
-        CREATE TABLE IF NOT EXISTS threads (
-            thread_id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            title TEXT,
-            color TEXT,
-            status_msg TEXT,
-            status_updated_at TIMESTAMP WITH TIME ZONE,
-            locked_until TIMESTAMP WITH TIME ZONE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-        CREATE INDEX IF NOT EXISTS idx_threads_user_id ON threads(user_id);
-
-        -- Safe migration for existing tables
-        ALTER TABLE threads ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP WITH TIME ZONE;
-        ALTER TABLE threads ADD COLUMN IF NOT EXISTS status_msg TEXT;
-        ALTER TABLE threads ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMP WITH TIME ZONE;
-    """)
-
 async def get_db_pool() -> asyncpg.Pool:
     """Get the database pool, raising an error if not initialized"""
     if pool is None:
