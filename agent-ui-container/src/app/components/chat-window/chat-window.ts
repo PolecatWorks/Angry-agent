@@ -102,8 +102,9 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 this.pollingError = null;
 
                 if (this.messages.length > 0 && this.messages[this.messages.length - 1].type === 'human') {
-                    this.requestStartTime = Date.now();
-                    this.stepStartTime = Date.now();
+                    const lastHumanMsg = this.messages[this.messages.length - 1];
+                    this.requestStartTime = lastHumanMsg.created_at ? new Date(lastHumanMsg.created_at).getTime() : Date.now();
+                    this.stepStartTime = this.lastStatusUpdatedAtStr ? new Date(this.lastStatusUpdatedAtStr).getTime() : Date.now();
                     this.startPolling(threadId);
                 }
 
@@ -216,7 +217,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 // If the updated at timestamp changed, reset our local parsing
                 if (newUpdatedAtStr !== this.lastStatusUpdatedAtStr) {
                     this.lastStatusUpdatedAtStr = newUpdatedAtStr;
-                    this.stepStartTime = Date.now();
+                    this.stepStartTime = newUpdatedAtStr ? new Date(newUpdatedAtStr).getTime() : Date.now();
                 }
 
                 const messages = res.messages;

@@ -12,6 +12,7 @@ from .agent import create_agent
 from .agent.handler import LLMHandler
 from .database import init_db_pool, close_db_pool, get_db_pool, create_tables
 from . import keys
+from datetime import datetime
 
 
 from .config import ServiceConfig
@@ -143,19 +144,40 @@ async def get_history(request):
     max_tokens = getattr(config.aiclient, "context_length", None)
 
     if state.values and "messages" in state.values:
+        last_human_timestamp = None
         for m in state.values["messages"]:
             msg_dict = {"type": m.type, "content": m.content}
+            msg_timestamp = None
+
+            if hasattr(m, 'additional_kwargs') and m.additional_kwargs:
+                if "timestamp" in m.additional_kwargs:
+                    msg_timestamp = m.additional_kwargs["timestamp"]
+                    msg_dict["created_at"] = msg_timestamp
+                # Expose remaining kwargs directly or a specific subset
+                # Here we add additional_kwargs to the dict so frontend can access image_url
+                msg_dict["additional_kwargs"] = m.additional_kwargs
+
+            if m.type == "human" and msg_timestamp:
+                try:
+                    # Parse ISO format, handling 'Z' suffix manually if from JS (though it's in Python here)
+                    last_human_timestamp = datetime.fromisoformat(msg_timestamp.replace('Z', '+00:00'))
+                except ValueError:
+                    pass
+            elif m.type in ("ai", "error") and msg_timestamp and last_human_timestamp:
+                try:
+                    ai_timestamp = datetime.fromisoformat(msg_timestamp.replace('Z', '+00:00'))
+                    duration_sec = (ai_timestamp - last_human_timestamp).total_seconds()
+                    if duration_sec > 0:
+                        msg_dict["duration"] = f"{int(duration_sec)}s"
+                except ValueError:
+                    pass
+
             if hasattr(m, 'usage_metadata') and m.usage_metadata:
                 usage = dict(m.usage_metadata)
                 if max_tokens:
                     usage["max_tokens"] = max_tokens
                 msg_dict["usage_metadata"] = usage
-            if hasattr(m, 'additional_kwargs') and m.additional_kwargs:
-                if "timestamp" in m.additional_kwargs:
-                    msg_dict["created_at"] = m.additional_kwargs["timestamp"]
-                # Expose remaining kwargs directly or a specific subset
-                # Here we add additional_kwargs to the dict so frontend can access image_url
-                msg_dict["additional_kwargs"] = m.additional_kwargs
+
             messages_list.append(msg_dict)
     return web.json_response({
             "thread": {
