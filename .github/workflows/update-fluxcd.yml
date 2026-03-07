@@ -93,7 +93,7 @@ jobs:
             BRANCH_NAME="update-fluxcd-${GITHUB_SHA}"
             git checkout -b $BRANCH_NAME
             git commit -m "chore: update fluxcd-dev tags for UI and BE"
-            git push https://x-access-token:$PAT@github.com/${{ github.repository }}.git $BRANCH_NAME
+            git push --force https://x-access-token:$PAT@github.com/${{ github.repository }}.git $BRANCH_NAME
             gh pr create --title "chore: update fluxcd-dev tags" --body "Automated PR to update FluxCD tags for UI and Backend based on new image builds." --base main --head $BRANCH_NAME
             gh pr merge $BRANCH_NAME --auto --rebase
           fi
