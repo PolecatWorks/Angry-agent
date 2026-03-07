@@ -54,3 +54,17 @@ make agent-be-dev
 ```bash
 make agent-ui-dev
 ```
+
+## GitHub Actions & Continuous Deployment
+
+This repository uses GitHub Actions to build and publish Docker images when code is merged to `main`.
+
+A deployment workflow (`update-fluxcd.yml`) automatically updates the image tags in the `fluxcd-dev/` directory to deploy the new images. In order to bypass branch protections and commit directly to the `main` branch, it requires a Personal Access Token (PAT).
+
+### Setting up the PAT Secret
+1. Create a Personal Access Token (PAT) in GitHub:
+   - **Classic Token:** Requires the `repo` scope.
+   - **Fine-grained Token (Recommended):** Requires `Contents: Read and write` repository permissions.
+2. Go to your repository settings on GitHub.
+3. Navigate to **Secrets and variables > Actions**.
+4. Create a new repository secret named `PAT` and paste the token value.

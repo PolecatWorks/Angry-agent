@@ -266,23 +266,6 @@ jobs:
               body: `🚀 Agent-BE Docker image published for testing!\n\n**Image Name:** \`${process.env.REGISTRY}/${process.env.IMAGE_NAME_LOWERCASE}:pr-${context.issue.number}\``
             })
 
-      - name: Update fluxcd-dev tag
-        if: github.ref_name == 'main'
-        env:
-          PAT: ${{ secrets.PAT }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          yq e '(. | select(.metadata.name == "angry-agent") | .spec.values.image.tag) = "sha-" + env(BACKEND_SHA)' -i fluxcd-dev/angry-agent.yaml
-          git add fluxcd-dev/angry-agent.yaml
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update angry-agent image tag to sha-$BACKEND_SHA [skip ci]"
-            git pull --rebase origin main
-            git push https://x-access-token:$PAT@github.com/${{ github.repository }}.git HEAD:main
-          fi
-
   ci-success:
     name: Agent-BE CI Success
     needs: [check-paths, merge]
