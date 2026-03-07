@@ -30,7 +30,9 @@ logging:
   root:
     level: INFO
     handlers: [console]
-
+  loggers:
+    src.hams: # The name of the logger you want to configure
+      level: INFO # The new minimum log level for this specific
 hams:
   url: http://0.0.0.0:8079
   prefix: hams
