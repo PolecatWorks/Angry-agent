@@ -58,7 +58,7 @@ spec:
       pullPolicy: Always
     configs:
       webservice:
-        url: http://0.0.0.0:8080/agent-be/api
+        url: http://0.0.0.0:8080/agent-be
       persistence:
         db:
           connection:
