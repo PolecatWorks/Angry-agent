@@ -21,10 +21,10 @@ ruamel-yaml = "^0.19.1"
 langchain-mcp-adapters = "^0.2.1"
 langchain-google-genai = "^4.2.1"
 langchain-openai = "^1.1.10"
-httpx = "^0.28.1"
 psycopg = {extras = ["binary"], version = "^3.3.3"}
 langchain-ollama = "^1.0.1"
 yoyo-migrations = "^8.2.0"
+setuptools = "^75.8.0"
 
 [build-system]
 requires = ["poetry-core"]
