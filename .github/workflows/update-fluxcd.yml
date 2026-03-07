@@ -78,6 +78,7 @@ jobs:
       - name: Update fluxcd-dev tags
         env:
           PAT: ${{ secrets.PAT }}
+          GH_TOKEN: ${{ secrets.PAT }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -89,7 +90,10 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit for fluxcd-dev tags."
           else
-            git commit -m "Update fluxcd-dev tags for UI and BE [skip ci]"
-            git pull --rebase origin main
-            git push https://x-access-token:$PAT@github.com/${{ github.repository }}.git HEAD:main
+            BRANCH_NAME="update-fluxcd-${GITHUB_SHA}"
+            git checkout -b $BRANCH_NAME
+            git commit -m "chore: update fluxcd-dev tags for UI and BE"
+            git push https://x-access-token:$PAT@github.com/${{ github.repository }}.git $BRANCH_NAME
+            gh pr create --title "chore: update fluxcd-dev tags" --body "Automated PR to update FluxCD tags for UI and Backend based on new image builds." --base main --head $BRANCH_NAME
+            gh pr merge $BRANCH_NAME --auto --rebase
           fi
