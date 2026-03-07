@@ -12,7 +12,7 @@ from .agent import create_agent
 from .agent.handler import LLMHandler
 from .database import init_db_pool, close_db_pool, get_db_pool, create_tables
 from . import keys
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 from .config import ServiceConfig
@@ -185,7 +185,8 @@ async def get_history(request):
                 "user_id": row["user_id"],
                 "color": row["color"],
                 "status_msg": row["status_msg"],
-                "status_updated_at": str(row["status_updated_at"]) if row["status_updated_at"] else None
+                "status_updated_at": str(row["status_updated_at"]) if row["status_updated_at"] else None,
+                "current_server_time": datetime.now(timezone.utc).isoformat()
             },
             "messages": messages_list
         })
