@@ -22,6 +22,7 @@ langchain-mcp-adapters = "^0.2.1"
 langchain-google-genai = "^4.2.1"
 langchain-openai = "^1.1.10"
 psycopg = {extras = ["binary"], version = "^3.3.3"}
+psycopg2-binary = "^2.9.9"
 langchain-ollama = "^1.0.1"
 yoyo-migrations = "^8.2.0"
 setuptools = "^75.8.0"
