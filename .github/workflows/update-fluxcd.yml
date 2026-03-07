@@ -4,10 +4,11 @@ on:
   push:
     branches: ["main"]
     paths:
-      - 'agent-ui-container/**'
-      - 'agent-be-container/**'
-      - '.github/workflows/agent-ui-docker-publish.yml'
-      - '.github/workflows/agent-be-docker-publish.yml'
+      - "agent-ui-container/**"
+      - "agent-be-container/**"
+      - ".github/workflows/agent-ui-docker-publish.yml"
+      - ".github/workflows/agent-be-docker-publish.yml"
+      - ".github/workflows/update-fluxcd.yml"
 
 jobs:
   update-fluxcd:
