@@ -227,28 +227,19 @@ async def update_thread(request):
         if not row or row["user_id"] != user_id:
              return web.json_response({"error": "Not found or access denied"}, status=404)
 
-        updates = []
-        values = []
-        idx = 1
+        color = data.get("color")
+        title = data.get("title")
 
-        if "color" in data:
-            updates.append(f"color = ${idx}")
-            values.append(data["color"])
-            idx += 1
+        # Require both fields for a full update (PUT semantic)
+        if color is None or title is None:
+            return web.json_response({"error": "Missing 'color' or 'title' in request body"}, status=400)
 
-        if "title" in data:
-            updates.append(f"title = ${idx}")
-            values.append(data["title"])
-            idx += 1
-
-        if not updates:
-            return web.json_response({"status": "no changes"})
-
-        updates.append(f"updated_at = NOW()")
-        values.append(thread_id)
-
-        query = f"UPDATE threads SET {', '.join(updates)} WHERE thread_id = ${idx}"
-        await conn.execute(query, *values)
+        query = """
+            UPDATE threads
+            SET color = $1, title = $2, updated_at = NOW()
+            WHERE thread_id = $3
+        """
+        await conn.execute(query, color, title, thread_id)
 
         return web.json_response({"status": "updated"})
 
@@ -309,7 +300,7 @@ def create_app_with_middleware(config: ServiceConfig):
     app.router.add_get(f"{path_prefix}/api/threads", list_threads)
     app.router.add_get(f"{path_prefix}/api/threads/{{thread_id}}/history", get_history)
     app.router.add_delete(f"{path_prefix}/api/threads/{{thread_id}}", delete_thread)
-    app.router.add_patch(f"{path_prefix}/api/threads/{{thread_id}}", update_thread)
+    app.router.add_put(f"{path_prefix}/api/threads/{{thread_id}}", update_thread)
 
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)

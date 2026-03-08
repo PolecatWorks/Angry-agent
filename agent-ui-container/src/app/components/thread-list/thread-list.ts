@@ -75,22 +75,20 @@ export class ThreadList implements OnInit {
           });
         }
       } else if (result.action === 'save') {
-        const updates: Partial<Thread> = {};
-        if (result.data.title !== thread.title) {
-          updates.title = result.data.title;
-        }
-        if (result.data.color !== thread.color) {
-          updates.color = result.data.color;
-        }
+        // We PUT the entire resource state required for the update
+        const updatedThread = {
+          title: result.data.title || '',
+          color: result.data.color || ''
+        };
 
-        if (Object.keys(updates).length > 0) {
-          this.chatService.updateThread(thread.thread_id, updates).subscribe({
-            next: () => {
-              this.chatService.refreshThreads();
-            },
-            error: (err) => console.error('Error updating thread', err)
-          });
-        }
+        // We can always perform the update since PUT implies replacing state
+        // and the user explicitly clicked "Save".
+        this.chatService.updateThread(thread.thread_id, updatedThread).subscribe({
+          next: () => {
+            this.chatService.refreshThreads();
+          },
+          error: (err) => console.error('Error updating thread', err)
+        });
       }
     });
   }
