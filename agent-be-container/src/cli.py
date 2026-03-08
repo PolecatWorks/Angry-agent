@@ -96,8 +96,9 @@ def start(ctx, config, secrets):
 
 
 @cli.command()
+@click.option("--action", type=click.Choice(["apply", "rollback", "list"]), default="apply", help="Migration action to perform.")
 @shared_options
-def migrate(ctx, config, secrets):
+def migrate(ctx, config, secrets, action):
     """Run database schema migrations"""
     yaml = YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
@@ -110,7 +111,6 @@ def migrate(ctx, config, secrets):
     from yoyo import read_migrations, get_backend
     import os
 
-    logging.getLogger(__name__).info("Running database migrations from CLI...")
     backend = get_backend(configObj.persistence.db.connection.dsn)
 
     # Check migrations directory
@@ -120,8 +120,36 @@ def migrate(ctx, config, secrets):
 
     migrations = read_migrations(migrations_dir)
     with backend.lock():
-        backend.apply_migrations(backend.to_apply(migrations))
-    logging.getLogger(__name__).info("Database migrations applied successfully.")
+        if action == "list":
+            applied = backend.to_rollback(migrations)
+            pending = backend.to_apply(migrations)
+            click.echo("--- Applied Migrations ---")
+            for m in applied:
+                click.echo(f"  {m.id}")
+            if not applied:
+                click.echo("  (None)")
+            click.echo("\n--- Pending Migrations ---")
+            for m in pending:
+                click.echo(f"  {m.id}")
+            if not pending:
+                click.echo("  (None)")
+        elif action == "rollback":
+            applied = backend.to_rollback(migrations)
+            if applied:
+                m = applied[-1] # Rollback the latest applied migration
+                logging.getLogger(__name__).info(f"Rolling back migration: {m.id}")
+                backend.rollback_migrations([m])
+                logging.getLogger(__name__).info("Database migration rolled back successfully.")
+            else:
+                click.echo("No applied migrations to rollback.")
+        else: # apply
+            pending = backend.to_apply(migrations)
+            if pending:
+                logging.getLogger(__name__).info(f"Applying {len(pending)} database migrations...")
+                backend.apply_migrations(pending)
+                logging.getLogger(__name__).info("Database migrations applied successfully.")
+            else:
+                click.echo("Database is up to date. No pending migrations to apply.")
 
 
 # ------------- CLI commands above here -------------
