@@ -100,9 +100,9 @@ export class ChatService {
     );
   }
 
-  updateThread(threadId: string, updates: Partial<Thread>): Observable<any> {
+  updateThread(threadId: string, thread: { title: string, color: string }): Observable<any> {
     return this.apiUrl$.pipe(
-      switchMap(apiUrl => this.http.patch(`${apiUrl}/threads/${threadId}`, updates, { headers: this.getHeaders() }))
+      switchMap(apiUrl => this.http.put(`${apiUrl}/threads/${threadId}`, thread, { headers: this.getHeaders() }))
     );
   }
 }
