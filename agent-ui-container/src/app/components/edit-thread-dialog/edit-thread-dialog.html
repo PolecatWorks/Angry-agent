@@ -1,0 +1,47 @@
+<h2 mat-dialog-title>Edit Chat</h2>
+<mat-dialog-content>
+  <div class="edit-dialog-content">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Thread Name</mat-label>
+      <input matInput [(ngModel)]="title" placeholder="Enter a custom name" />
+    </mat-form-field>
+
+    <div class="color-picker-section">
+      <p>Thread Color</p>
+      <div class="color-options">
+        <button
+          *ngFor="let color of colors"
+          mat-icon-button
+          [style.color]="color.value"
+          [class.selected]="color.value === selectedColor"
+          (click)="selectColor(color.value)"
+          [title]="color.name"
+        >
+          <mat-icon>
+            {{ color.value === selectedColor ? 'check_circle' : 'circle' }}
+          </mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          class="reset-btn"
+          [class.selected]="!selectedColor"
+          (click)="selectColor('')"
+          title="Reset Color"
+        >
+          <mat-icon>format_color_reset</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="delete-section">
+      <button mat-stroked-button color="warn" (click)="onDeleteClick()">
+        <mat-icon>delete</mat-icon>
+        Delete Thread
+      </button>
+    </div>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onNoClick()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="onSaveClick()" [disabled]="!title.trim()">Save</button>
+</mat-dialog-actions>

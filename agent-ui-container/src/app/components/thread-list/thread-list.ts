@@ -3,38 +3,31 @@ import { CommonModule } from '@angular/common';
 import { MatListModule } from '@angular/material/list';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ChatService, Thread } from '../../services/chat.service';
 import { AudioService } from '../../services/audio.service';
 import { Observable } from 'rxjs';
 import { SharedContextService } from 'mfe-shared';
+import { EditThreadDialog, EditThreadDialogData } from '../edit-thread-dialog/edit-thread-dialog';
 
 @Component({
   selector: 'app-thread-list',
   standalone: true,
-  imports: [CommonModule, MatListModule, MatButtonModule, MatIconModule, MatMenuModule, RouterModule],
+  imports: [CommonModule, MatListModule, MatButtonModule, MatIconModule, RouterModule, MatDialogModule],
   templateUrl: './thread-list.html',
   styleUrls: ['./thread-list.scss']
 })
 export class ThreadList implements OnInit {
   threads$: Observable<Thread[]>;
 
-  colors = [
-    { name: 'Default Blue', value: '#3f51b5' },
-    { name: 'Green', value: '#4caf50' },
-    { name: 'Purple', value: '#9c27b0' },
-    { name: 'Orange', value: '#ff9800' },
-    { name: 'Teal', value: '#009688' },
-    { name: 'Red', value: '#f44336' },
-  ];
-
   constructor(
     private chatService: ChatService,
     public audioService: AudioService,
     public sharedContext: SharedContextService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private dialog: MatDialog
   ) {
     this.threads$ = this.chatService.threads$;
     this.sharedContext.context$.subscribe((user: any) => {
@@ -54,33 +47,51 @@ export class ThreadList implements OnInit {
     this.router.navigate(['chat'], { relativeTo: this.route });
   }
 
-  deleteThread(event: Event, threadId: string) {
+  editThread(event: Event, thread: Thread) {
     event.stopPropagation();
     event.preventDefault();
 
-    if (confirm('Delete this chat?')) {
-      this.chatService.deleteThread(threadId).subscribe({
-        next: () => {
-          this.chatService.refreshThreads();
-          // If we are currently on this thread, navigate away
-          // We check for the threadId in the URL, simpler than traversing route tree
-          if (this.router.url.includes(threadId)) {
-            this.router.navigate(['chat'], { relativeTo: this.route });
-          }
-        },
-        error: (err) => console.error('Error deleting thread', err)
-      });
-    }
-  }
+    const dialogRef = this.dialog.open(EditThreadDialog, {
+      width: '400px',
+      data: {
+        title: thread.title,
+        color: thread.color
+      } as EditThreadDialogData
+    });
 
-  changeColor(event: Event, threadId: string, color: string) {
-    event.stopPropagation();
-    event.preventDefault();
-    this.chatService.updateThreadColor(threadId, color).subscribe({
-      next: () => {
-        this.chatService.refreshThreads();
-      },
-      error: (err) => console.error('Error updating color', err)
+    dialogRef.afterClosed().subscribe(result => {
+      if (!result) return;
+
+      if (result.action === 'delete') {
+        if (confirm('Are you sure you want to delete this chat?')) {
+          this.chatService.deleteThread(thread.thread_id).subscribe({
+            next: () => {
+              this.chatService.refreshThreads();
+              if (this.router.url.includes(thread.thread_id)) {
+                this.router.navigate(['chat'], { relativeTo: this.route });
+              }
+            },
+            error: (err) => console.error('Error deleting thread', err)
+          });
+        }
+      } else if (result.action === 'save') {
+        const updates: Partial<Thread> = {};
+        if (result.data.title !== thread.title) {
+          updates.title = result.data.title;
+        }
+        if (result.data.color !== thread.color) {
+          updates.color = result.data.color;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          this.chatService.updateThread(thread.thread_id, updates).subscribe({
+            next: () => {
+              this.chatService.refreshThreads();
+            },
+            error: (err) => console.error('Error updating thread', err)
+          });
+        }
+      }
     });
   }
 }

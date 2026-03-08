@@ -60,8 +60,8 @@ describe('ThreadList', () => {
     expect(chatServiceSpy.refreshThreads).toHaveBeenCalled();
   });
 
-  it('should delete thread', () => {
-    const threadId = '1';
+  it('should edit thread and handle delete result', () => {
+    const thread: Thread = { thread_id: '1', title: 'Test Thread', color: '#000000', user_id: 'u1' };
     const event = { stopPropagation: vi.fn(), preventDefault: vi.fn() } as any;
 
     // Setup confirm mock
@@ -69,12 +69,42 @@ describe('ThreadList', () => {
 
     chatServiceSpy.deleteThread = vi.fn().mockReturnValue(of({}));
 
-    component.deleteThread(event, threadId);
+    // Mock MatDialog
+    const mockDialogRef = {
+      afterClosed: vi.fn().mockReturnValue(of({ action: 'delete' }))
+    };
+    component['dialog'] = { open: vi.fn().mockReturnValue(mockDialogRef) } as any;
+
+    component.editThread(event, thread);
 
     expect(event.stopPropagation).toHaveBeenCalled();
-    expect(chatServiceSpy.deleteThread).toHaveBeenCalledWith(threadId);
+    expect(component['dialog'].open).toHaveBeenCalled();
+    expect(chatServiceSpy.deleteThread).toHaveBeenCalledWith(thread.thread_id);
     expect(chatServiceSpy.refreshThreads).toHaveBeenCalled();
 
     confirmSpy.mockRestore();
+  });
+
+  it('should edit thread and handle save result', () => {
+    const thread: Thread = { thread_id: '1', title: 'Test Thread', color: '#000000', user_id: 'u1' };
+    const event = { stopPropagation: vi.fn(), preventDefault: vi.fn() } as any;
+
+    chatServiceSpy.updateThread = vi.fn().mockReturnValue(of({}));
+
+    // Mock MatDialog
+    const mockDialogRef = {
+      afterClosed: vi.fn().mockReturnValue(of({
+        action: 'save',
+        data: { title: 'New Title', color: '#ffffff' }
+      }))
+    };
+    component['dialog'] = { open: vi.fn().mockReturnValue(mockDialogRef) } as any;
+
+    component.editThread(event, thread);
+
+    expect(event.stopPropagation).toHaveBeenCalled();
+    expect(component['dialog'].open).toHaveBeenCalled();
+    expect(chatServiceSpy.updateThread).toHaveBeenCalledWith(thread.thread_id, { title: 'New Title', color: '#ffffff' });
+    expect(chatServiceSpy.refreshThreads).toHaveBeenCalled();
   });
 });

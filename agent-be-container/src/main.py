@@ -211,14 +211,13 @@ async def delete_thread(request):
 
         return web.json_response({"status": "deleted"})
 
-async def update_thread_color(request):
+async def update_thread(request):
     config: ServiceConfig = request.app[keys.config]
     user_id = request["user_id"]
     thread_id = request.match_info["thread_id"]
 
     try:
         data = await request.json()
-        color = data.get("color")
     except:
         return web.json_response({"error": "Invalid JSON"}, status=400)
 
@@ -227,7 +226,30 @@ async def update_thread_color(request):
         row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
         if not row or row["user_id"] != user_id:
              return web.json_response({"error": "Not found or access denied"}, status=404)
-        await conn.execute("UPDATE threads SET color = $1, updated_at = NOW() WHERE thread_id = $2", color, thread_id)
+
+        updates = []
+        values = []
+        idx = 1
+
+        if "color" in data:
+            updates.append(f"color = ${idx}")
+            values.append(data["color"])
+            idx += 1
+
+        if "title" in data:
+            updates.append(f"title = ${idx}")
+            values.append(data["title"])
+            idx += 1
+
+        if not updates:
+            return web.json_response({"status": "no changes"})
+
+        updates.append(f"updated_at = NOW()")
+        values.append(thread_id)
+
+        query = f"UPDATE threads SET {', '.join(updates)} WHERE thread_id = ${idx}"
+        await conn.execute(query, *values)
+
         return web.json_response({"status": "updated"})
 
 async def on_startup(app):
@@ -287,7 +309,7 @@ def create_app_with_middleware(config: ServiceConfig):
     app.router.add_get(f"{path_prefix}/api/threads", list_threads)
     app.router.add_get(f"{path_prefix}/api/threads/{{thread_id}}/history", get_history)
     app.router.add_delete(f"{path_prefix}/api/threads/{{thread_id}}", delete_thread)
-    app.router.add_patch(f"{path_prefix}/api/threads/{{thread_id}}/color", update_thread_color)
+    app.router.add_patch(f"{path_prefix}/api/threads/{{thread_id}}", update_thread)
 
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
