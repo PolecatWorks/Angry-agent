@@ -42,6 +42,75 @@ Access the application at `http://localhost:4200`.
 - **Persistent History**: Chat history is stored in PostgreSQL.
 - **LangGraph Agent**: Uses LangGraph with Postgres Checkpointing.
 
+## Data Persistence Architecture
+
+The application uses PostgreSQL to store two different scopes of data: Application Metadata and LangGraph State (which includes chat messages).
+
+```mermaid
+erDiagram
+    %% Application metadata
+    THREADS {
+        string thread_id PK
+        string user_id "Owner of the thread"
+        string title "Thread display name"
+        string color "UI color theme"
+        string status_msg "Current agent status"
+        timestamp status_updated_at
+        timestamp locked_until "Concurrency lock"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Managed entirely by LangGraph Checkpointer
+    CHECKPOINTS {
+        string thread_id PK, FK
+        string checkpoint_ns PK
+        string checkpoint_id PK "State version ID"
+        string parent_checkpoint_id
+        jsonb type
+        jsonb checkpoint
+        bytea metadata
+    }
+
+    CHECKPOINT_BLOBS {
+        string thread_id PK, FK
+        string checkpoint_ns PK
+        string channel PK
+        string version PK
+        string type
+        bytea blob "Serialized channel data (e.g. Chat Messages)"
+    }
+
+    CHECKPOINT_WRITES {
+        string thread_id PK, FK
+        string checkpoint_ns PK
+        string checkpoint_id PK, FK
+        string task_id PK
+        string idx PK
+        string channel
+        string type
+        bytea blob "Pending task writes"
+    }
+
+    THREADS ||--o{ CHECKPOINTS : "contains state history"
+    CHECKPOINTS ||--o{ CHECKPOINT_BLOBS : "stores large state channels"
+    CHECKPOINTS ||--o{ CHECKPOINT_WRITES : "stores pending writes"
+```
+
+### 1. Application Metadata (`threads` table)
+Managed natively by the backend application (see `agent-be-container/migrations/001_initial_schema.sql`).
+It tracks the *existence* and UI-level metadata of a chat session.
+- **`thread_id`**: The unique identifier for a chat. Used by LangGraph as the thread identifier.
+- **`user_id`**: Associates the thread with a specific user for isolation.
+- **Core Data**: Title, UI color theme, current agent running status messages, and concurrency locks (`locked_until`).
+
+### 2. Agent State & Messages (`checkpoints_*` tables)
+Managed automatically by LangGraph's internal `AsyncPostgresSaver`.
+It persists the *State* of the AI agent at each node transition, including the entire conversation history.
+- **`checkpoints`**: Stores the metadata and version controlling of the graph state at each step.
+- **`checkpoint_blobs`**: Stores the actual serialized state channels. **This is where the actual Chat Messages are physically stored** as serialized binary blobs, linked directly to the `thread_id`.
+- **`checkpoint_writes`**: Used by LangGraph for internal task management and pending state writes during complex graph executions.
+
 ## Development (Local)
 
 **Backend:**
