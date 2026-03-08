@@ -1,0 +1,7 @@
+
+> agent-ui@0.0.0 start
+> ng serve
+
+ ERRR  Could not find folder containing dep mfe-shared
+An unhandled exception occurred: invalid path mapping detected: mfe-shared: node_modules/mfe-shared. Please verify that the path exists.
+See "/tmp/ng-J9i7cZ/angular-errors.log" for further details.

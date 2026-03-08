@@ -1,0 +1,42 @@
+.edit-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 300px;
+  padding-top: 8px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.color-picker-section p {
+  margin: 0 0 8px 0;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.color-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  button {
+    transition: transform 0.2s;
+    &.selected {
+      transform: scale(1.1);
+    }
+  }
+
+  .reset-btn {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.delete-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+  display: flex;
+  justify-content: flex-start;
+}
