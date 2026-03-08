@@ -198,13 +198,12 @@ async def delete_thread(request):
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        # Check ownership
-        row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
-        if not row or row["user_id"] != user_id:
-             return web.json_response({"error": "Not found or access denied"}, status=404)
+        # Delete thread metadata atomically checking ownership
+        result = await conn.execute("DELETE FROM threads WHERE thread_id = $1 AND user_id = $2", thread_id, user_id)
 
-        # Delete thread metadata
-        await conn.execute("DELETE FROM threads WHERE thread_id = $1", thread_id)
+        # conn.execute returns a string like 'DELETE 1' or 'DELETE 0'
+        if result == "DELETE 0":
+             return web.json_response({"error": "Not found or access denied"}, status=404)
 
         # Note: We are not cleaning up checkpoints in Postgres for now as it requires complex query on bytea/blob
         # In a real app we'd want to clean that up too.
@@ -221,25 +220,25 @@ async def update_thread(request):
     except:
         return web.json_response({"error": "Invalid JSON"}, status=400)
 
+    color = data.get("color")
+    title = data.get("title")
+
+    # Require both fields for a full update (PUT semantic)
+    if color is None or title is None:
+        return web.json_response({"error": "Missing 'color' or 'title' in request body"}, status=400)
+
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
-        if not row or row["user_id"] != user_id:
-             return web.json_response({"error": "Not found or access denied"}, status=404)
-
-        color = data.get("color")
-        title = data.get("title")
-
-        # Require both fields for a full update (PUT semantic)
-        if color is None or title is None:
-            return web.json_response({"error": "Missing 'color' or 'title' in request body"}, status=400)
-
         query = """
             UPDATE threads
             SET color = $1, title = $2, updated_at = NOW()
-            WHERE thread_id = $3
+            WHERE thread_id = $3 AND user_id = $4
         """
-        await conn.execute(query, color, title, thread_id)
+        result = await conn.execute(query, color, title, thread_id, user_id)
+
+        # conn.execute returns a string like 'UPDATE 1' or 'UPDATE 0'
+        if result == "UPDATE 0":
+            return web.json_response({"error": "Not found or access denied"}, status=404)
 
         return web.json_response({"status": "updated"})
 
