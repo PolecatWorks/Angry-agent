@@ -37,6 +37,7 @@ When working within this repository as an automated agent, please follow the gui
 - **LLM:** Currently uses `langchain-google-genai` (configurable).
 - **Execution Model:** LangGraph models and graphs **must be constructed on application startup** (e.g., via a handler class) and executed on API calls. Do not construct the graph per request.
 - **System Prompts:** Configurable via `ServiceConfig` and passed to the agent handler at startup.
+- **Atomic Operations:** When verifying access or constraints before modifying data (e.g., checking if a user owns a row before updating or deleting it), you must incorporate those criteria directly into the `UPDATE` or `DELETE` SQL statement (e.g., `WHERE id = $1 AND user_id = $2`). Avoid read-then-write anti-patterns (`SELECT` followed by `UPDATE`) to prevent race conditions. Do not use application-level locking for backend operations, as this can lead to database deadlocks. Write clean, atomic, and correct queries for every write operation.
 
 ## 5. General Development Principles
 
