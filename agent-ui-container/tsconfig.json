@@ -15,7 +15,6 @@
     "target": "ES2022",
     "module": "preserve",
     "baseUrl": "./",
-    "preserveSymlinks": true,
     "paths": {
       "mfe-shared": [
         "node_modules/mfe-shared"
