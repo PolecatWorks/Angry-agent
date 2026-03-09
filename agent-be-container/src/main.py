@@ -298,6 +298,7 @@ def create_app_with_middleware(config: ServiceConfig):
     app.router.add_post(f"{path_prefix}/api/chat", chat_endpoint)
     app.router.add_get(f"{path_prefix}/api/threads", list_threads)
     app.router.add_get(f"{path_prefix}/api/threads/{{thread_id}}/history", get_history)
+
     app.router.add_delete(f"{path_prefix}/api/threads/{{thread_id}}", delete_thread)
     app.router.add_put(f"{path_prefix}/api/threads/{{thread_id}}", update_thread)
 
