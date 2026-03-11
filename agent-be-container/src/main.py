@@ -6,6 +6,7 @@ warnings.filterwarnings("ignore", message=".*Core Pydantic V1 functionality isn'
 import logging
 import uuid
 import json
+import jwt
 from aiohttp import web
 from langchain_core.messages import HumanMessage
 from .agent import create_agent
@@ -30,18 +31,36 @@ async def auth_middleware(app, handler):
             response = web.Response()
             response.headers["Access-Control-Allow-Origin"] = "*"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE, PATCH"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-User-ID"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-User-ID, Authorization"
             return response
 
         # Allow health check without auth (handle prefixed case as well)
         if request.path.endswith("/health"):
             return await handler(request)
 
-        # Default to a test user if header matches request from single-user UI
-        # or just allow it for now since we are removing login.
-        user_id = request.headers.get("X-User-ID")
+        user_id = None
+
+        # Try extracting user_id from Authorization Header (JWT)
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            token = auth_header[7:] # remove 'Bearer '
+            try:
+                decoded_payload = jwt.decode(token, options={"verify_signature": False})
+                # Check standard claims
+                user_id = decoded_payload.get("sub") or decoded_payload.get("user_id") or decoded_payload.get("preferred_username")
+                if not user_id:
+                    # If standard claims are missing, serialize payload as a fallback identifier or fallback to default
+                    user_id = "default-user"
+                    logger.warning(f"JWT decoded but no 'sub' or 'user_id' claim found. Payload: {decoded_payload}")
+            except Exception as e:
+                logger.error(f"Failed to decode JWT: {e}")
+
+        # Fallback to X-User-ID header
         if not user_id:
-             # Fallback for single user mode if header is missing (though frontend should send it)
+            user_id = request.headers.get("X-User-ID")
+
+        if not user_id:
+             # Fallback for single user mode if header is missing
              user_id = "default-user"
 
         request["user_id"] = user_id
@@ -83,7 +102,10 @@ async def chat_endpoint(request):
         row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
         if row:
             if row["user_id"] != user_id:
-                return web.json_response({"error": "Thread access denied"}, status=403)
+                # Check thread_access table for additional users
+                access_row = await conn.fetchrow("SELECT 1 FROM thread_access WHERE thread_id = $1 AND user_id = $2", thread_id, user_id)
+                if not access_row:
+                    return web.json_response({"error": "Thread access denied"}, status=403)
         else:
             await conn.execute(
                 "INSERT INTO threads (thread_id, user_id, title) VALUES ($1, $2, $3)",
@@ -120,7 +142,14 @@ async def list_threads(request):
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT thread_id, title, color, created_at FROM threads WHERE user_id = $1 ORDER BY created_at DESC", user_id)
+        query = """
+            SELECT DISTINCT t.thread_id, t.title, t.color, t.created_at
+            FROM threads t
+            LEFT JOIN thread_access ta ON t.thread_id = ta.thread_id
+            WHERE t.user_id = $1 OR ta.user_id = $1
+            ORDER BY t.created_at DESC
+        """
+        rows = await conn.fetch(query, user_id)
         threads = [dict(r) for r in rows]
         for t in threads:
             if t.get("created_at"): t["created_at"] = str(t["created_at"])
@@ -135,8 +164,13 @@ async def get_history(request):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT user_id, color, status_msg, status_updated_at FROM threads WHERE thread_id = $1", thread_id)
-        if not row or row["user_id"] != user_id:
+        if not row:
             return web.json_response({"error": "Not found"}, status=404)
+
+        if row["user_id"] != user_id:
+            access_row = await conn.fetchrow("SELECT 1 FROM thread_access WHERE thread_id = $1 AND user_id = $2", thread_id, user_id)
+            if not access_row:
+                return web.json_response({"error": "Not found or access denied"}, status=404)
 
     llm_handler: LLMHandler = request.app["llm_handler"]
     state = await llm_handler.get_thread_state(thread_id)
