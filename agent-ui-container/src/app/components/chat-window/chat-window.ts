@@ -11,13 +11,14 @@ import { AudioService } from '../../services/audio.service';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { MermaidRenderer } from '../mermaid-renderer/mermaid-renderer';
 
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 @Component({
     selector: 'app-chat-window',
     standalone: true,
-    imports: [CommonModule, FormsModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule, MarkdownPipe],
+    imports: [CommonModule, FormsModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule, MarkdownPipe, MermaidRenderer],
     templateUrl: './chat-window.html',
     styleUrls: ['./chat-window.scss']
 })

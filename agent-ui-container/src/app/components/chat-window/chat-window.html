@@ -25,6 +25,10 @@
                     <img [src]="msg.additional_kwargs?.image_url" alt="Generated Image" />
                 </div>
 
+                <div *ngFor="let diagram of msg.additional_kwargs?.mermaid_diagrams" class="mermaid-block">
+                    <app-mermaid-renderer [content]="diagram"></app-mermaid-renderer>
+                </div>
+
                 <div *ngIf="msg.usage_metadata || msg.duration" class="usage-metadata">
                     <small>
                         <span *ngIf="msg.usage_metadata">{{ msg.usage_metadata.total_tokens }}<ng-container
