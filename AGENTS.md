@@ -44,6 +44,7 @@ When working within this repository as an automated agent, please follow the gui
 - **Testing:** Always ensure tests are passing (`make agent-be-test` / `ng test --watch=false`) before proposing a change. Attempt to write tests for new functionality.
 - **Documentation:** Inline documentation, especially for Python, is highly encouraged. Keep the README files up to date.
 - **Verification:** Always verify your work after modifying files by reading them back to ensure correctness.
+- **Imports:** Prefer placing all imports at the top of the file rather than inside functions. This ensures missing or incorrect imports are caught when the module is parsed rather than during runtime execution.
 
 ## 6. Pre-commit Checks
 

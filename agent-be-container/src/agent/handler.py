@@ -4,6 +4,12 @@ from . import create_agent
 from typing import Optional
 from contextlib import AsyncExitStack
 import asyncio
+import uuid
+from datetime import datetime, timezone
+from psycopg_pool import AsyncConnectionPool
+from psycopg.rows import dict_row
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
+from ..database import get_db_pool
 
 from langchain_core.messages import (
     HumanMessage,
@@ -16,7 +22,6 @@ class LLMHandler:
     def __init__(self, db_dsn: str, llm=None):
         self.db_dsn = db_dsn
         if llm is None:
-            from langchain_core.language_models.fake_chat_models import FakeListChatModel
             llm = FakeListChatModel(responses=["I am a placeholder LLM. Please configure a real model."])
         self.llm = llm
         self.checkpointer: Optional[AsyncPostgresSaver] = None
@@ -28,9 +33,6 @@ class LLMHandler:
         """Initializes the checkpointer and compiles the agent exactly once."""
         logger.info("Initializing LLMHandler checkpointer and compiling LangGraph agent.")
         
-        from psycopg_pool import AsyncConnectionPool
-        from psycopg.rows import dict_row
-
         pool_kwargs = {
             "autocommit": True,
             "prepare_threshold": 0,
@@ -68,8 +70,6 @@ class LLMHandler:
 
         agent_config = {"configurable": {"thread_id": thread_id}}
 
-        import uuid
-        from datetime import datetime, timezone
         msg = HumanMessage(
             content=message,
             id=str(uuid.uuid4()),
@@ -77,7 +77,6 @@ class LLMHandler:
         )
 
         async def _run_graph():
-            from ..database import get_db_pool
 
             async def _set_status(status_msg: str | None):
                 try:
