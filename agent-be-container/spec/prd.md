@@ -36,9 +36,10 @@ The backend securely manages and isolates the state of individual users.
 - Authentication currently relies on a mocked header (e.g., `X-User-ID`), but the architecture supports future integration with standard OAuth2 flows.
 - LangGraph integrates directly with a PostgreSQL backend to manage check-pointing. Chat history and current agent state are preserved across requests based on the user's session identifier.
 
-### 4.4 Intent Routing Logic
-The backend includes specific routing mechanisms for processing incoming user messages before passing them to the LLM.
-- For example, messages containing simple greetings (like 'hello') can be intercepted and handled directly, while more complex queries are routed to the language model.
+### 4.4 Intent Routing Logic & Post-Processing
+The backend includes specific routing and post-processing mechanisms for processing messages.
+- **Intent Routing**: Messages containing simple greetings (like 'hello') can be intercepted and handled directly. Specific keywords (e.g., 'draw', 'picture', 'image') are routed to an `image_node`.
+- **Mermaid Post-Processing**: All LLM responses are post-processed to extract Mermaid diagrams enclosed in markdown code blocks (` ```mermaid ... ``` `). These diagrams are extracted into the `mermaid_diagrams` list within the message's `additional_kwargs` for frontend visualization.
 
 ## 5. API Interface Expectations
 - Specific keywords (e.g., 'draw', 'picture', 'image') are intercepted and routed to an `image_node` which currently returns a placeholder image via `additional_kwargs`.

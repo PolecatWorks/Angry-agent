@@ -7,9 +7,32 @@ from langchain_core.language_models import BaseChatModel
 import httpx
 from src.config import LangchainConfig
 from datetime import datetime, timezone
+import re
 
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
+
+def extract_mermaid(text: str) -> List[str]:
+    """Extracts all mermaid diagrams from markdown code blocks."""
+    pattern = r"```mermaid\s*\n(.*?)\n\s*```"
+    return re.findall(pattern, text, re.DOTALL)
+
+async def post_process_node(state: AgentState):
+    """Processes the last AI message to extract metadata like diagrams."""
+    messages = state.messages
+    if not messages:
+        return {}
+    
+    last_msg = messages[-1]
+    if isinstance(last_msg, AIMessage):
+        mermaid_diagrams = extract_mermaid(last_msg.content)
+        if mermaid_diagrams:
+            # Update additional_kwargs with extracted diagrams
+            last_msg.additional_kwargs = last_msg.additional_kwargs or {}
+            last_msg.additional_kwargs["mermaid_diagrams"] = mermaid_diagrams
+            # Return the message with updated metadata to replace the old one (via ID matching in add_messages)
+            return {"messages": [last_msg]}
+    return {}
 
 async def initial_node(state: AgentState):
     # Placeholder for any initial setup or logging
@@ -82,6 +105,7 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
     builder.add_node("echo", echo_node)
     builder.add_node("image", image_node)
     builder.add_node("llm", llm_node)
+    builder.add_node("post_process", post_process_node)
 
     builder.add_edge(START, "initial")
     builder.add_edge("initial", "intent")
@@ -99,8 +123,9 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
 
     builder.add_edge("hello", END)
     builder.add_edge("image", END)
-    builder.add_edge("llm", END)
-    builder.add_edge("echo", END)
+    builder.add_edge("llm", "post_process")
+    builder.add_edge("echo", "post_process")
+    builder.add_edge("post_process", END)
 
     return builder.compile(checkpointer=checkpointer)
 

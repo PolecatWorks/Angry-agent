@@ -23,7 +23,11 @@ The `agent-ui-container` is the frontend application of the AI Agent application
 ## 4. Features & Functionality
 
 ### 4.1 Chat Interface
-The primary interface is a chat window that allows users to send messages to the backend AI agent and view responses. The history of the chat is fetched from and persisted by the backend. The interface also supports rendering rich media, such as full-width image blocks returned by the AI agent via `additional_kwargs` in the message payload.
+The primary interface is a chat window that allows users to send messages to the backend AI agent and view responses. The history of the chat is fetched from and persisted by the backend. 
+
+The interface supports rendering rich media:
+- **Image Blocks**: Renders full-width images via `image_url` metadata.
+- **Mermaid Diagrams**: Renders interactive Mermaid diagrams using the `MermaidShow` component from the `mfe1` remote. Diagrams are dynamically loaded for any message containing `mermaid_diagrams` metadata.
 
 ### 4.2 Multi-User Isolation
 Chats are isolated by a `User ID`. Currently, this is handled via a mocked login screen that captures the user ID and passes it to the backend via an HTTP header (e.g., `X-User-ID`).

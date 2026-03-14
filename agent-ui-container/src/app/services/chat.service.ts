@@ -33,6 +33,7 @@ export interface Message {
   };
   additional_kwargs?: {
     image_url?: string;
+    mermaid_diagrams?: string[];
     [key: string]: any;
   };
 }
