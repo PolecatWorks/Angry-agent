@@ -27,9 +27,24 @@ class LLMHandler:
     async def initialize(self):
         """Initializes the checkpointer and compiles the agent exactly once."""
         logger.info("Initializing LLMHandler checkpointer and compiling LangGraph agent.")
-        self.checkpointer = await self._exit_stack.enter_async_context(
-            AsyncPostgresSaver.from_conn_string(self.db_dsn)
+        
+        from psycopg_pool import AsyncConnectionPool
+        from psycopg.rows import dict_row
+
+        pool_kwargs = {
+            "autocommit": True,
+            "prepare_threshold": 0,
+            "row_factory": dict_row,
+        }
+        
+        pool = AsyncConnectionPool(
+            conninfo=self.db_dsn,
+            max_size=20,
+            kwargs=pool_kwargs,
+            check=AsyncConnectionPool.check_connection
         )
+        await self._exit_stack.enter_async_context(pool)
+        self.checkpointer = AsyncPostgresSaver(pool)
         await self.checkpointer.setup()
         self.agent = create_agent(self.llm, self.checkpointer)
 
