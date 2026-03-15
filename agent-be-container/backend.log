@@ -1,5 +1,0 @@
-Please run via cli.py to support full configuration
-Failed to start with default config: 1 validation error for ServiceConfig
-hams
-  Field required [type=missing, input_value={'aiclient': {'context_le...: 'mysecretpassword'}}}}, input_type=dict]
-    For further information visit https://errors.pydantic.dev/2.12/v/missing
