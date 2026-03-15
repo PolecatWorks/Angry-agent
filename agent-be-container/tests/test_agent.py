@@ -2,21 +2,24 @@
 Tests for the agent conversation flow
 """
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 import sys
 import os
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
+from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.memory import MemorySaver
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
 
 from agent import create_agent
-
 @pytest.fixture
 def mock_llm():
-    return FakeListChatModel(responses=["LLM Response"])
+    llm = MagicMock(spec=BaseChatModel)
+    llm.bind_tools.return_value = llm
+    llm.ainvoke = AsyncMock(return_value=AIMessage(content="LLM Response"))
+    return llm
 
 
 @pytest.mark.asyncio
@@ -69,3 +72,33 @@ async def test_conversation_flow(mock_llm):
     # 2. Regular message
     result = await agent.ainvoke({"messages": [HumanMessage(content="How are you?")]}, config=config)
     assert result["messages"][-1].content == "LLM Response"
+
+@pytest.mark.asyncio
+async def test_mfe_tool_call(mock_llm):
+    tool_call = {
+        "name": "get_mfe_content",
+        "args": {},
+        "id": "call_123",
+        "type": "tool_call"
+    }
+    mock_llm.ainvoke.side_effect = [
+        AIMessage(content="", tool_calls=[tool_call]),
+        AIMessage(content="Here is the MFE content you requested.")
+    ]
+    
+    checkpointer = MemorySaver()
+    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    config = {"configurable": {"thread_id": "test-mfe"}}
+
+    input_msg = HumanMessage(content="Show me some JSON")
+    result = await agent.ainvoke({"messages": [input_msg]}, config=config)
+    messages = result["messages"]
+    
+    # Final message should be the AI response summarizing the tool output
+    # And it should have the mfe_contents in metadata
+    assert messages[-1].content == "Here is the MFE content you requested."
+    assert "mfe_contents" in messages[-1].additional_kwargs
+    mfe = messages[-1].additional_kwargs["mfe_contents"][0]
+    assert mfe["mfe"] == "mfe1"
+    assert mfe["component"] == "./JsonShowWrapper"
+    assert "content" in mfe

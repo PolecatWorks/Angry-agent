@@ -21,12 +21,16 @@
             <div class="message-content markdown-body">
                 <div [innerHTML]="msg.content | markdown"></div>
 
-                <div *ngIf="msg.additional_kwargs?.image_url" class="image-block">
-                    <img [src]="msg.additional_kwargs?.image_url" alt="Generated Image" />
+                <div *ngIf="msg.additional_kwargs?.['image_url']" class="image-block">
+                    <img [src]="msg.additional_kwargs?.['image_url']" alt="Generated Image" />
                 </div>
 
-                <div *ngFor="let diagram of msg.additional_kwargs?.mermaid_diagrams" class="mermaid-block">
+                <div *ngFor="let diagram of msg.additional_kwargs?.['mermaid_diagrams']" class="mermaid-block">
                     <app-mermaid-renderer [content]="diagram"></app-mermaid-renderer>
+                </div>
+                
+                <div *ngFor="let mfe of msg.additional_kwargs?.['mfe_contents']" class="mfe-block">
+                    <app-mfe-renderer [mfe]="mfe.mfe" [component]="mfe.component" [data]="mfe.content"></app-mfe-renderer>
                 </div>
 
                 <div *ngIf="msg.usage_metadata || msg.duration" class="usage-metadata">
