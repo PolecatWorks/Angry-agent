@@ -180,6 +180,26 @@ async def get_history(request):
     if state.values and "messages" in state.values:
         last_human_timestamp = None
         for m in state.values["messages"]:
+            # Skip ToolMessages - they are for the agent, not the user
+            if m.type == "tool":
+                continue
+            
+            # Skip intermediate AI messages that only contain tool calls with no user-facing content
+            if m.type == "ai" and hasattr(m, 'tool_calls') and m.tool_calls and not m.content:
+                # Exception: if it somehow has MFE content (though usually added in post-processing to content-full messages)
+                if not (hasattr(m, 'additional_kwargs') and m.additional_kwargs and "mfe_contents" in m.additional_kwargs):
+                    continue
+
+            # Skip messages with empty content AND no special rendering metadata (like diagrams or MFEs)
+            # This handles the case where post-processing cleared the content to show only the MFE
+            is_empty = not m.content or not m.content.strip()
+            has_rich_content = False
+            if hasattr(m, 'additional_kwargs') and m.additional_kwargs:
+                has_rich_content = any(k in m.additional_kwargs for k in ["image_url", "mermaid_diagrams", "mfe_contents"])
+            
+            if is_empty and not has_rich_content:
+                continue
+
             msg_dict = {"type": m.type, "content": m.content}
             msg_timestamp = None
 
@@ -187,13 +207,10 @@ async def get_history(request):
                 if "timestamp" in m.additional_kwargs:
                     msg_timestamp = m.additional_kwargs["timestamp"]
                     msg_dict["created_at"] = msg_timestamp
-                # Expose remaining kwargs directly or a specific subset
-                # Here we add additional_kwargs to the dict so frontend can access image_url
                 msg_dict["additional_kwargs"] = m.additional_kwargs
 
             if m.type == "human" and msg_timestamp:
                 try:
-                    # Parse ISO format, handling 'Z' suffix manually if from JS (though it's in Python here)
                     last_human_timestamp = datetime.fromisoformat(msg_timestamp.replace('Z', '+00:00'))
                 except ValueError:
                     pass

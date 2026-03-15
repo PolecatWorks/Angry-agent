@@ -12,6 +12,15 @@ import json
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 from langgraph.prebuilt import ToolNode, tools_condition
 from .tools import get_tools
+import logging
+import uuid
+
+logger = logging.getLogger(__name__)
+
+SYSTEM_MESSAGE = """You are a helpful AI assistant.
+You have access to a tool `get_mfe_content` that returns structured data to be displayed in a beautiful Micro-Frontend (MFE) component.
+Whenever the user asks to see structured data, JSON examples, or mentions MFEs, you MUST use the `get_mfe_content` tool.
+Do not just output the JSON as text; using the tool ensures the user gets a premium visual experience."""
 
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
@@ -36,34 +45,47 @@ async def post_process_node(state: AgentState):
             last_msg.additional_kwargs["mermaid_diagrams"] = mermaid_diagrams
         
         # 2. Extract Tool Outputs for MFE rendering
-        # We look back in history for ToolMessages that might contain MFE content
         mfe_contents = []
-        # Only look back at tool messages since the previous AI message 
-        # (or just look at all tool messages in the immediate history)
+        # We look back in history for ToolMessages
         for m in reversed(messages[:-1]):
             if isinstance(m, ToolMessage):
-                try:
-                    data = json.loads(m.content)
-                    if isinstance(data, dict) and "mfe" in data:
-                        mfe_contents.append(data)
-                except:
-                    # Not JSON or not MFE content, skip
-                    pass
+                logger.info(f"Checking ToolMessage with content: {str(m.content)[:100]}...")
+                content_obj = None
+                if isinstance(m.content, dict):
+                    content_obj = m.content
+                elif isinstance(m.content, str):
+                    # Clean up content if it's wrapped in triple backticks
+                    cleaned_content = m.content.strip()
+                    if cleaned_content.startswith("```json"):
+                        cleaned_content = cleaned_content[7:-3].strip()
+                    elif cleaned_content.startswith("```"):
+                        cleaned_content = cleaned_content[3:-3].strip()
+                    try:
+                        content_obj = json.loads(cleaned_content)
+                    except:
+                        pass
+                
+                if content_obj and isinstance(content_obj, dict) and "mfe" in content_obj:
+                    logger.info(f"Extracted MFE content: {content_obj.get('mfe')}")
+                    mfe_contents.append(content_obj)
+                else:
+                    logger.warning(f"ToolMessage content was not valid MFE dict: {type(content_obj)}")
             elif isinstance(m, HumanMessage):
-                # Stop looking back once we hit a human message
                 break
         
         if mfe_contents:
+            logger.info(f"Adding {len(mfe_contents)} MFE blocks to message metadata and suppressing text content")
             last_msg.additional_kwargs = last_msg.additional_kwargs or {}
-            # For simplicity, we just take the first one found or store them as a list
-            # The prompt says "returns a reference to a mfe", so list is better if multiple tools called
             last_msg.additional_kwargs["mfe_contents"] = mfe_contents
+            # Suppress intermediate/boilerplate text if showing an MFE
+            last_msg.content = ""
 
         return {"messages": [last_msg]}
     return {}
 
 async def initial_node(state: AgentState):
-    # Placeholder for any initial setup or logging
+    """Initial setup node."""
+    logger.info("Initializing agent state")
     return {}
 
 async def intent_node(state: AgentState):
@@ -124,6 +146,36 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
 
     async def llm_node(state: AgentState):
         response = await llm_with_tools.ainvoke(state.messages)
+        
+        # Fallback for models that return tool call JSON in content instead of tool_calls field
+        if isinstance(response, AIMessage) and not response.tool_calls:
+            content = response.content.strip()
+            # Basic heuristic for a JSON-formatted tool call in content
+            if content.startswith("{") and '"name":' in content:
+                try:
+                    # Strip any markdown code block markers if present
+                    json_str = content
+                    if json_str.startswith("```json"):
+                        json_str = json_str[7:-3].strip()
+                    elif json_str.startswith("```"):
+                        json_str = json_str[3:-3].strip()
+                        
+                    tool_data = json.loads(json_str)
+                    if isinstance(tool_data, dict) and "name" in tool_data and ("arguments" in tool_data or "args" in tool_data):
+                        logger.warning(f"Detected hallucinated tool call in AI content: {tool_data['name']}. Converting to native tool_call.")
+                        response.tool_calls = [
+                            {
+                                "name": tool_data["name"],
+                                "args": tool_data.get("arguments") or tool_data.get("args") or {},
+                                "id": f"call_{uuid.uuid4().hex[:12]}",
+                                "type": "tool_call"
+                            }
+                        ]
+                        # Clear content to avoid doubles
+                        response.content = ""
+                except Exception as e:
+                    logger.debug(f"Failed to parse potential tool call JSON from content: {e}")
+
         # Add timestamp to the AI response
         if isinstance(response, AIMessage):
             response.additional_kwargs = response.additional_kwargs or {}
@@ -180,6 +232,7 @@ def llm_model(config: LangchainConfig):
             model = ChatGoogleGenerativeAI(
                 model=config.model,
                 google_api_key=config.google_api_key.get_secret_value() if config.google_api_key else None,
+                system_instruction=SYSTEM_MESSAGE,
                 # http_client=httpx_client,
             )
         case "azure_openai":
