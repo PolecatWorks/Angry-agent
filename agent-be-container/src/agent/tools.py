@@ -4,10 +4,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 @tool
-def get_mfe_content():
+def get_mfe_content(demo_type: str = "json"):
     """
     Returns a reference to a Micro-Frontend component and some content to be injected into it.
     This tool is used to display interactive or structured content in the UI via an MFE.
+    Args:
+        demo_type: The type of demonstration to show (e.g., 'json', 'chart', 'stats').
     """
     logger.info("Tool get_mfe_content called")
     return {
