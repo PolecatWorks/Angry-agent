@@ -101,3 +101,35 @@ async def test_mfe_tool_call(mock_llm):
     assert mfe["mfe"] == "mfe1"
     assert mfe["component"] == "./JsonShowWrapper"
     assert "content" in mfe
+
+@pytest.mark.asyncio
+async def test_data_viz_tool_call(mock_llm):
+    tool_call = {
+        "name": "generate_data_visualization",
+        "args": {
+            "title": "Sales Performance",
+            "datasets": [{"label": "Direct", "values": [{"x": 1, "y": 100}]}],
+            "x_axis_type": "linear"
+        },
+        "id": "call_456",
+        "type": "tool_call"
+    }
+    mock_llm.ainvoke.side_effect = [
+        AIMessage(content="", tool_calls=[tool_call]),
+        AIMessage(content="Here is the chart.")
+    ]
+    
+    checkpointer = MemorySaver()
+    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    config = {"configurable": {"thread_id": "test-data-viz"}}
+
+    input_msg = HumanMessage(content="Show me a chart of sales")
+    result = await agent.ainvoke({"messages": [input_msg]}, config=config)
+    messages = result["messages"]
+    
+    assert messages[-1].content == "" 
+    assert "mfe_contents" in messages[-1].additional_kwargs
+    mfe = messages[-1].additional_kwargs["mfe_contents"][0]
+    assert mfe["mfe"] == "mfe1"
+    assert mfe["component"] == "./DataShowWrapper"
+    assert mfe["content"]["title"] == "Sales Performance"
