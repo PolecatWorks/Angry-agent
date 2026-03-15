@@ -40,6 +40,7 @@ The backend securely manages and isolates the state of individual users.
 The backend includes specific routing and post-processing mechanisms for processing messages.
 - **Intent Routing**: Messages containing simple greetings (like 'hello') can be intercepted and handled directly. Specific keywords (e.g., 'draw', 'picture', 'image') are routed to an `image_node`.
 - **Mermaid Post-Processing**: All LLM responses are post-processed to extract Mermaid diagrams enclosed in markdown code blocks (` ```mermaid ... ``` `). These diagrams are extracted into the `mermaid_diagrams` list within the message's `additional_kwargs` for frontend visualization.
+- **MFE Tool Support**: The agent has access to tools that can return a reference to a specific Micro-Frontend component and structured content (data) to be injected into it. The backend extracts these tool outputs and passes them to the frontend in the `mfe_contents` list within `additional_kwargs`.
 
 ## 5. API Interface Expectations
 - Specific keywords (e.g., 'draw', 'picture', 'image') are intercepted and routed to an `image_node` which currently returns a placeholder image via `additional_kwargs`.

@@ -12,13 +12,14 @@ import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { MermaidRenderer } from '../mermaid-renderer/mermaid-renderer';
+import { MfeRenderer } from '../mfe-renderer/mfe-renderer';
 
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 @Component({
     selector: 'app-chat-window',
     standalone: true,
-    imports: [CommonModule, FormsModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule, MarkdownPipe, MermaidRenderer],
+    imports: [CommonModule, FormsModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule, MarkdownPipe, MermaidRenderer, MfeRenderer],
     templateUrl: './chat-window.html',
     styleUrls: ['./chat-window.scss']
 })

@@ -3,7 +3,9 @@ import sys
 import os
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
+from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.memory import MemorySaver
+from unittest.mock import MagicMock, AsyncMock
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
@@ -36,7 +38,9 @@ pie title Pets
 async def test_mermaid_post_processing():
     # Setup LLM to return mermaid content
     mermaid_content = "```mermaid\ngraph TD; A-->B\n```"
-    mock_llm = FakeListChatModel(responses=[mermaid_content])
+    mock_llm = MagicMock(spec=BaseChatModel)
+    mock_llm.bind_tools.return_value = mock_llm
+    mock_llm.ainvoke = AsyncMock(return_value=AIMessage(content=mermaid_content))
     
     checkpointer = MemorySaver()
     agent = create_agent(llm=mock_llm, checkpointer=checkpointer)

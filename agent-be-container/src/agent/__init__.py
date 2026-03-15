@@ -8,6 +8,10 @@ import httpx
 from src.config import LangchainConfig
 from datetime import datetime, timezone
 import re
+import json
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
+from langgraph.prebuilt import ToolNode, tools_condition
+from .tools import get_tools
 
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
@@ -25,13 +29,37 @@ async def post_process_node(state: AgentState):
     
     last_msg = messages[-1]
     if isinstance(last_msg, AIMessage):
+        # 1. Extract Mermaid Diagrams
         mermaid_diagrams = extract_mermaid(last_msg.content)
         if mermaid_diagrams:
-            # Update additional_kwargs with extracted diagrams
             last_msg.additional_kwargs = last_msg.additional_kwargs or {}
             last_msg.additional_kwargs["mermaid_diagrams"] = mermaid_diagrams
-            # Return the message with updated metadata to replace the old one (via ID matching in add_messages)
-            return {"messages": [last_msg]}
+        
+        # 2. Extract Tool Outputs for MFE rendering
+        # We look back in history for ToolMessages that might contain MFE content
+        mfe_contents = []
+        # Only look back at tool messages since the previous AI message 
+        # (or just look at all tool messages in the immediate history)
+        for m in reversed(messages[:-1]):
+            if isinstance(m, ToolMessage):
+                try:
+                    data = json.loads(m.content)
+                    if isinstance(data, dict) and "mfe" in data:
+                        mfe_contents.append(data)
+                except:
+                    # Not JSON or not MFE content, skip
+                    pass
+            elif isinstance(m, HumanMessage):
+                # Stop looking back once we hit a human message
+                break
+        
+        if mfe_contents:
+            last_msg.additional_kwargs = last_msg.additional_kwargs or {}
+            # For simplicity, we just take the first one found or store them as a list
+            # The prompt says "returns a reference to a mfe", so list is better if multiple tools called
+            last_msg.additional_kwargs["mfe_contents"] = mfe_contents
+
+        return {"messages": [last_msg]}
     return {}
 
 async def initial_node(state: AgentState):
@@ -90,9 +118,12 @@ async def echo_node(state: AgentState):
 
 def create_agent(llm: BaseChatModel, checkpointer=None):
     builder = StateGraph(AgentState)
+    
+    tools = get_tools()
+    llm_with_tools = llm.bind_tools(tools)
 
     async def llm_node(state: AgentState):
-        response = await llm.ainvoke(state.messages)
+        response = await llm_with_tools.ainvoke(state.messages)
         # Add timestamp to the AI response
         if isinstance(response, AIMessage):
             response.additional_kwargs = response.additional_kwargs or {}
@@ -105,6 +136,7 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
     builder.add_node("echo", echo_node)
     builder.add_node("image", image_node)
     builder.add_node("llm", llm_node)
+    builder.add_node("tools", ToolNode(tools))
     builder.add_node("post_process", post_process_node)
 
     builder.add_edge(START, "initial")
@@ -121,11 +153,20 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
         }
     )
 
+    builder.add_conditional_edges(
+        "llm",
+        tools_condition,
+        {
+            "tools": "tools",
+            END: "post_process",
+        }
+    )
+
+    builder.add_edge("tools", "llm")
     builder.add_edge("hello", END)
     builder.add_edge("image", END)
-    builder.add_edge("llm", "post_process")
-    builder.add_edge("echo", "post_process")
     builder.add_edge("post_process", END)
+    builder.add_edge("echo", "post_process")
 
     return builder.compile(checkpointer=checkpointer)
 
