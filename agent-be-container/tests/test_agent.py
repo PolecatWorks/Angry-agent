@@ -94,9 +94,8 @@ async def test_mfe_tool_call(mock_llm):
     result = await agent.ainvoke({"messages": [input_msg]}, config=config)
     messages = result["messages"]
     
-    # Final message should be the AI response summarizing the tool output
-    # And it should have the mfe_contents in metadata
-    assert messages[-1].content == "Here is the MFE content you requested."
+    # Final message content should be cleared because MFE contents are present
+    assert messages[-1].content == ""
     assert "mfe_contents" in messages[-1].additional_kwargs
     mfe = messages[-1].additional_kwargs["mfe_contents"][0]
     assert mfe["mfe"] == "mfe1"
