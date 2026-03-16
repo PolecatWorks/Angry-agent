@@ -44,9 +44,9 @@ async def test_visualize_graph_tool_execution():
     # Mermaid draw usually requires at least some edges
     result = vg_tool.invoke({})
     
-    assert "```mermaid" in result
-    assert "graph TD" in result or "flowchart TD" in result
-    assert "```" in result
+    assert result.mfe == "mfe1"
+    assert result.component == "./MermaidShowWrapper"
+    assert "graph TD" in result.content["content"] or "flowchart TD" in result.content["content"]
 
 @pytest.mark.asyncio
 async def test_agent_uses_visualize_graph_tool():
@@ -76,8 +76,11 @@ async def test_agent_uses_visualize_graph_tool():
     result = await agent.ainvoke({"messages": [HumanMessage(content="Show me your graph")]}, config=config)
     
     # Check that visualize_graph was called (implicitly by checking result)
-    # The post_process node should have extracted the mermaid diagram
+    # The post_process node should have extracted the MFE content
     last_msg = result["messages"][-1]
-    assert "mermaid_diagrams" in last_msg.additional_kwargs
-    assert len(last_msg.additional_kwargs["mermaid_diagrams"]) > 0
-    assert "graph TD" in last_msg.additional_kwargs["mermaid_diagrams"][0] or "flowchart TD" in last_msg.additional_kwargs["mermaid_diagrams"][0]
+    assert "mfe_contents" in last_msg.additional_kwargs
+    assert len(last_msg.additional_kwargs["mfe_contents"]) > 0
+    mfe = last_msg.additional_kwargs["mfe_contents"][0]
+    assert mfe["mfe"] == "mfe1"
+    assert mfe["component"] == "./MermaidShowWrapper"
+    assert "graph TD" in mfe["content"]["content"] or "flowchart TD" in mfe["content"]["content"]
