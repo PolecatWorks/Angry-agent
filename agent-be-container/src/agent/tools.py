@@ -39,6 +39,9 @@ class MFEContent(BaseModel):
     component: str
     content: dict
 
+    def __str__(self):
+        return self.model_dump_json()
+
 
 @tool
 def generate_data_visualization(title: str, datasets: list, x_axis_type: str = "linear") -> MFEContent:
@@ -62,16 +65,16 @@ def generate_data_visualization(title: str, datasets: list, x_axis_type: str = "
             "datasets": datasets,
             "xType": x_axis_type
         }
-    ).model_dump()
+    )
 
 
 def get_tools(builder=None):
     """Returns a list of tools available for the agent."""
     tools = [get_mfe_content, generate_data_visualization]
-    
+
     if builder:
         @tool
-        def visualize_graph():
+        def visualize_graph() -> MFEContent:
             """
             Returns a mermaid diagram showing the internal structure and flow of this AI agent's LangGraph.
             Use this when the user asks 'how do you work?', 'show me your graph', or 'what is your architecture?'.
@@ -83,8 +86,15 @@ def get_tools(builder=None):
                 mermaid_code = builder.get_graph().draw_mermaid()
             else:
                 mermaid_code = builder.compile().get_graph().draw_mermaid()
-            return f"```mermaid\n{mermaid_code}\n```"
-        
+            
+            return MFEContent(
+                mfe="mfe1",
+                component="./MermaidShowWrapper",
+                content={
+                    "content": mermaid_code
+                }
+            )
+
         tools.append(visualize_graph)
-        
+
     return tools
