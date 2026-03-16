@@ -51,7 +51,7 @@ async def post_process_node(state: AgentState):
         # We look back in history for ToolMessages
         for m in reversed(messages[:-1]):
             if isinstance(m, ToolMessage):
-                logger.info(f"Checking ToolMessage with content: {str(m.content)[:100]}...")
+                logger.info(f"Checking ToolMessage with content type: {type(m.content)}")
                 
                 # Try to extract mermaid diagrams from tool output
                 if isinstance(m.content, str):
@@ -63,6 +63,12 @@ async def post_process_node(state: AgentState):
                 content_obj = None
                 if isinstance(m.content, dict):
                     content_obj = m.content
+                elif hasattr(m.content, "model_dump"):
+                    # Handle Pydantic v2 models
+                    content_obj = m.content.model_dump()
+                elif hasattr(m.content, "dict"):
+                    # Handle Pydantic v1 models
+                    content_obj = m.content.dict()
                 elif isinstance(m.content, str):
                     # Clean up content if it's wrapped in triple backticks
                     cleaned_content = m.content.strip()
