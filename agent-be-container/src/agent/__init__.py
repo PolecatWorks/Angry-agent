@@ -21,6 +21,7 @@ SYSTEM_MESSAGE = """You are a helpful AI assistant.
 You have access to tools that return structured data to be displayed in beautiful Micro-Frontend (MFE) components:
 1. `get_mfe_content`: Use this for general JSON data, lists, or structured stats.
 2. `generate_data_visualization`: Use this whenever the user asks for a chart, graph, trend, or data visualization. You MUST provide a title and one or more datasets with (x, y) values.
+3. `visualize_graph`: Returns a mermaid diagram showing the internal structure and flow of this AI agent's LangGraph. Use this when the user asks 'how do you work?', 'show me your graph', or 'what is your architecture?'.
 Whenever the user asks to see structured data, JSON examples, or mentions MFEs, you MUST use these tools instead of plain text to ensure the user gets a premium visual experience.
 
 You can also create beautiful diagrams and charts using Mermaid.js syntax. To do this, simply include a ```mermaid code block in your response. The application will automatically extract and render it beautifully.
@@ -42,18 +43,23 @@ async def post_process_node(state: AgentState):
 
     last_msg = messages[-1]
     if isinstance(last_msg, AIMessage):
-        # 1. Extract Mermaid Diagrams
+        # 1. Extract Mermaid Diagrams from AI content
         mermaid_diagrams = extract_mermaid(last_msg.content)
-        if mermaid_diagrams:
-            last_msg.additional_kwargs = last_msg.additional_kwargs or {}
-            last_msg.additional_kwargs["mermaid_diagrams"] = mermaid_diagrams
-
-        # 2. Extract Tool Outputs for MFE rendering
+        
+        # 2. Extract Tool Outputs for MFE rendering and Mermaid from ToolMessages in history
         mfe_contents = []
         # We look back in history for ToolMessages
         for m in reversed(messages[:-1]):
             if isinstance(m, ToolMessage):
                 logger.info(f"Checking ToolMessage with content: {str(m.content)[:100]}...")
+                
+                # Try to extract mermaid diagrams from tool output
+                if isinstance(m.content, str):
+                    tool_mermaid = extract_mermaid(m.content)
+                    if tool_mermaid:
+                        logger.info(f"Extracted {len(tool_mermaid)} mermaid diagrams from ToolMessage")
+                        mermaid_diagrams.extend(tool_mermaid)
+
                 content_obj = None
                 if isinstance(m.content, dict):
                     content_obj = m.content
@@ -72,10 +78,11 @@ async def post_process_node(state: AgentState):
                 if content_obj and isinstance(content_obj, dict) and "mfe" in content_obj:
                     logger.info(f"Extracted MFE content: {content_obj.get('mfe')}")
                     mfe_contents.append(content_obj)
-                else:
-                    logger.warning(f"ToolMessage content was not valid MFE dict: {type(content_obj)}")
             elif isinstance(m, HumanMessage):
                 break
+        if mermaid_diagrams:
+            last_msg.additional_kwargs = last_msg.additional_kwargs or {}
+            last_msg.additional_kwargs["mermaid_diagrams"] = mermaid_diagrams
 
         if mfe_contents:
             logger.info(f"Adding {len(mfe_contents)} MFE blocks to message metadata and suppressing text content")
@@ -146,8 +153,7 @@ async def echo_node(state: AgentState):
 
 def create_agent(llm: BaseChatModel, checkpointer=None):
     builder = StateGraph(AgentState)
-
-    tools = get_tools()
+    tools = get_tools(builder)
     llm_with_tools = llm.bind_tools(tools)
 
     async def llm_node(state: AgentState):
