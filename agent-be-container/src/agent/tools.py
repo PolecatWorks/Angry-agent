@@ -1,7 +1,12 @@
 from langchain_core.tools import tool
 import logging
 
+from pydantic import BaseModel
+
 logger = logging.getLogger(__name__)
+
+
+
 
 @tool
 def get_mfe_content(demo_type: str = "json"):
@@ -28,8 +33,15 @@ def get_mfe_content(demo_type: str = "json"):
         }
     }
 
+
+class MFEContent(BaseModel):
+    mfe: str
+    component: str
+    content: dict
+
+
 @tool
-def generate_data_visualization(title: str, datasets: list, x_axis_type: str = "linear"):
+def generate_data_visualization(title: str, datasets: list, x_axis_type: str = "linear") -> dict:
     """
     Generates a high-quality data visualization (line graph) in the UI.
     Use this tool when the user asks for charts, graphs, trends, or data comparisons.
@@ -52,6 +64,27 @@ def generate_data_visualization(title: str, datasets: list, x_axis_type: str = "
         }
     }
 
-def get_tools():
+
+def get_tools(builder=None):
     """Returns a list of tools available for the agent."""
-    return [get_mfe_content, generate_data_visualization]
+    tools = [get_mfe_content, generate_data_visualization]
+    
+    if builder:
+        @tool
+        def visualize_graph():
+            """
+            Returns a mermaid diagram showing the internal structure and flow of this AI agent's LangGraph.
+            Use this when the user asks 'how do you work?', 'show me your graph', or 'what is your architecture?'.
+            """
+            logger.info("Tool visualize_graph called")
+            # StateGraph builder doesn't have get_graph() in all versions;
+            # CompiledGraph does. If it's the builder, we compile it briefly to get the graph structure.
+            if hasattr(builder, 'get_graph'):
+                mermaid_code = builder.get_graph().draw_mermaid()
+            else:
+                mermaid_code = builder.compile().get_graph().draw_mermaid()
+            return f"```mermaid\n{mermaid_code}\n```"
+        
+        tools.append(visualize_graph)
+        
+    return tools

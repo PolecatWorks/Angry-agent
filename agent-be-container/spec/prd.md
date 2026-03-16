@@ -42,7 +42,8 @@ The backend includes specific routing and post-processing mechanisms for process
 - **MFE Tool Support**: The agent has access to tools that can return a reference to a specific Micro-Frontend component and structured content (data) to be injected into it. The backend extracts these tool outputs and passes them to the frontend in the `mfe_contents` list within `additional_kwargs`. 
     - `get_mfe_content`: For general JSON/structured data using `JsonShow`.
     - `generate_data_visualization`: For D3-based line graphs using `DataShow`. Supports titles, multiple datasets, and various X-axis scales.
-- **Mermaid Post-Processing**: All LLM responses are post-processed to extract Mermaid diagrams enclosed in markdown code blocks (` ```mermaid ... ``` `). These diagrams are extracted into the `mermaid_diagrams` list within the message's `additional_kwargs` for frontend visualization.
+    - `visualize_graph`: Returns a mermaid diagram showing the internal structure and flow of the agent's LangGraph.
+- **Mermaid Post-Processing**: All LLM responses and Tool outputs are post-processed to extract Mermaid diagrams enclosed in markdown code blocks (` ```mermaid ... ``` `). These diagrams are extracted into the `mermaid_diagrams` list within the message's `additional_kwargs` for frontend visualization.
 
 ## 5. API Interface Expectations
 - Specific keywords (e.g., 'draw', 'picture', 'image') are intercepted and routed to an `image_node` which currently returns a placeholder image via `additional_kwargs`.
