@@ -41,7 +41,7 @@ class MFEContent(BaseModel):
 
 
 @tool
-def generate_data_visualization(title: str, datasets: list, x_axis_type: str = "linear") -> dict:
+def generate_data_visualization(title: str, datasets: list, x_axis_type: str = "linear") -> MFEContent:
     """
     Generates a high-quality data visualization (line graph) in the UI.
     Use this tool when the user asks for charts, graphs, trends, or data comparisons.
@@ -54,15 +54,15 @@ def generate_data_visualization(title: str, datasets: list, x_axis_type: str = "
         x_axis_type: The scale type for the X axis ('linear', 'time', or 'band'). Defaults to 'linear'.
     """
     logger.info(f"Tool generate_data_visualization called: {title}")
-    return {
-        "mfe": "mfe1",
-        "component": "./DataShowWrapper",
-        "content": {
+    return MFEContent(
+        mfe="mfe1",
+        component="./DataShowWrapper",
+        content={
             "title": title,
             "datasets": datasets,
             "xType": x_axis_type
         }
-    }
+    ).model_dump()
 
 
 def get_tools(builder=None):
