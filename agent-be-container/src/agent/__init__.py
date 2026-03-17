@@ -82,6 +82,8 @@ async def post_process_node(state: AgentState):
     if not messages:
         return {}
 
+    logger.info(f"Messages: {messages}")
+
     last_msg = messages[-1]
     if not isinstance(last_msg, AIMessage):
         return {}
@@ -196,17 +198,15 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
         # Fallback for models that return tool call JSON in content instead of tool_calls field
         if isinstance(response, AIMessage) and not response.tool_calls:
             content = response.content.strip()
+            # Strip any markdown code block markers before checking
+            if content.startswith("```json"):
+                content = content[7:-3].strip()
+            elif content.startswith("```"):
+                content = content[3:-3].strip()
             # Basic heuristic for a JSON-formatted tool call in content
             if content.startswith("{") and '"name":' in content:
                 try:
-                    # Strip any markdown code block markers if present
-                    json_str = content
-                    if json_str.startswith("```json"):
-                        json_str = json_str[7:-3].strip()
-                    elif json_str.startswith("```"):
-                        json_str = json_str[3:-3].strip()
-
-                    tool_data = json.loads(json_str)
+                    tool_data = json.loads(content)
                     if isinstance(tool_data, dict) and "name" in tool_data and ("arguments" in tool_data or "args" in tool_data):
                         logger.warning(f"Detected hallucinated tool call in AI content: {tool_data['name']}. Converting to native tool_call.")
                         response.tool_calls = [
