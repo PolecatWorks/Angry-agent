@@ -39,7 +39,7 @@ The backend securely manages and isolates the state of individual users.
 ### 4.4 Intent Routing Logic & Post-Processing
 The backend includes specific routing and post-processing mechanisms for processing messages.
 - **Intent Routing**: Messages containing simple greetings (like 'hello') can be intercepted and handled directly. Specific keywords (e.g., 'draw', 'picture', 'image') are routed to an `image_node`.
-- **MFE Tool Support**: The agent has access to tools that can return a reference to a specific Micro-Frontend component and structured content (data) to be injected into it. The backend extracts these tool outputs and passes them to the frontend in the `mfe_contents` list within `additional_kwargs`. 
+- **MFE Tool Support**: The agent has access to tools that can return a reference to a specific Micro-Frontend component and structured content (data) to be injected into it. The backend post-processes tool outputs by validating them against the `MFEContent` Pydantic model (supporting dict, Pydantic instance, and JSON-string forms). Validated payloads are passed to the frontend in the `mfe_contents` list within `additional_kwargs`. The original AI message content is always preserved (never suppressed).
     - `get_mfe_content`: For general JSON/structured data using `JsonShow`.
     - `generate_data_visualization`: For D3-based line graphs using `DataShow`. Supports titles, multiple datasets, and various X-axis scales.
     - `visualize_graph`: Returns a mermaid diagram showing the internal structure and flow of the agent's LangGraph.
