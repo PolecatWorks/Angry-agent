@@ -11,7 +11,7 @@ import re
 import json
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
 from langgraph.prebuilt import ToolNode, tools_condition
-from .tools import get_tools
+from .tools import get_tools, MFEContent
 import logging
 import uuid
 
@@ -35,72 +35,93 @@ def extract_mermaid(text: str) -> List[str]:
     pattern = r"```mermaid\s*\n(.*?)\n\s*```"
     return re.findall(pattern, text, re.DOTALL)
 
+
+def _try_parse_mfe_content(content) -> MFEContent | None:
+    """Attempt to parse content as MFEContent using Pydantic validation.
+
+    Handles content in the following forms:
+    - dict (e.g. from tool returning a plain dict)
+    - Pydantic model instance (has model_dump)
+    - JSON string, optionally wrapped in markdown code fences
+    """
+    if isinstance(content, dict):
+        try:
+            return MFEContent.model_validate(content)
+        except Exception:
+            return None
+    elif hasattr(content, "model_dump"):
+        try:
+            return MFEContent.model_validate(content.model_dump())
+        except Exception:
+            return None
+    elif isinstance(content, str):
+        cleaned = content.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:-3].strip()
+        elif cleaned.startswith("```"):
+            cleaned = cleaned[3:-3].strip()
+        try:
+            return MFEContent.model_validate_json(cleaned)
+        except Exception:
+            return None
+    return None
+
+
 async def post_process_node(state: AgentState):
-    """Processes the last AI message to extract metadata like diagrams."""
+    """Post-processes messages after the LLM/tool loop.
+
+    Walks messages in reverse from the last message back to the most recent
+    HumanMessage (exclusive).  For each ToolMessage it inspects the content
+    to see if it can be validated as an MFEContent instance (via Pydantic).
+    Detected MFE payloads and mermaid diagrams are attached to the final
+    AIMessage's additional_kwargs.
+
+    Original message content is never suppressed or removed.
+    """
     messages = state.messages
     if not messages:
         return {}
 
     last_msg = messages[-1]
-    if isinstance(last_msg, AIMessage):
-        # 1. Extract Mermaid Diagrams from AI content
-        mermaid_diagrams = extract_mermaid(last_msg.content)
-        
-        # 2. Extract Tool Outputs for MFE rendering and Mermaid from ToolMessages in history
-        mfe_contents = []
-        # We look back in history for ToolMessages
-        for m in reversed(messages[:-1]):
-            if isinstance(m, ToolMessage):
-                logger.info(f"Checking ToolMessage with content type: {type(m.content)}")
-                
-                # Try to extract mermaid diagrams from tool output
-                if isinstance(m.content, str):
-                    tool_mermaid = extract_mermaid(m.content)
-                    if tool_mermaid:
-                        logger.info(f"Extracted {len(tool_mermaid)} mermaid diagrams from ToolMessage")
-                        mermaid_diagrams.extend(tool_mermaid)
+    if not isinstance(last_msg, AIMessage):
+        return {}
 
-                content_obj = None
-                if isinstance(m.content, dict):
-                    content_obj = m.content
-                elif hasattr(m.content, "model_dump"):
-                    # Handle Pydantic v2 models
-                    content_obj = m.content.model_dump()
-                elif hasattr(m.content, "dict"):
-                    # Handle Pydantic v1 models
-                    content_obj = m.content.dict()
-                elif isinstance(m.content, str):
-                    # Clean up content if it's wrapped in triple backticks
-                    cleaned_content = m.content.strip()
-                    if cleaned_content.startswith("```json"):
-                        cleaned_content = cleaned_content[7:-3].strip()
-                    elif cleaned_content.startswith("```"):
-                        cleaned_content = cleaned_content[3:-3].strip()
-                    try:
-                        content_obj = json.loads(cleaned_content)
-                    except:
-                        pass
+    # 1. Extract Mermaid Diagrams from the final AI content
+    mermaid_diagrams = extract_mermaid(last_msg.content)
 
-                if content_obj and isinstance(content_obj, dict) and "mfe" in content_obj:
-                    logger.info(f"Extracted MFE content: {content_obj.get('mfe')}")
-                    mfe_contents.append(content_obj)
-            elif isinstance(m, HumanMessage):
-                break
-        if mermaid_diagrams:
-            last_msg.additional_kwargs = last_msg.additional_kwargs or {}
-            last_msg.additional_kwargs["mermaid_diagrams"] = mermaid_diagrams
+    # 2. Walk backwards through prior messages to collect MFE / mermaid data
+    mfe_contents = []
+    for m in reversed(messages[:-1]):
+        if isinstance(m, HumanMessage):
+            break
 
-        if mfe_contents:
-            logger.info(f"Adding {len(mfe_contents)} MFE blocks to message metadata and suppressing text content")
-            last_msg.additional_kwargs = last_msg.additional_kwargs or {}
-            last_msg.additional_kwargs["mfe_contents"] = mfe_contents
-            # Suppress intermediate/boilerplate text if showing an MFE,
-            # but preserve it if it contains Mermaid diagrams
-            if not last_msg.additional_kwargs.get("mermaid_diagrams"):
-                last_msg.content = ""
+        if isinstance(m, ToolMessage):
+            logger.info(f"Inspecting ToolMessage (content type={type(m.content).__name__})")
 
-        return {"messages": [last_msg]}
-    return {}
+            # Extract mermaid diagrams from tool string output
+            if isinstance(m.content, str):
+                tool_mermaid = extract_mermaid(m.content)
+                if tool_mermaid:
+                    logger.info(f"Extracted {len(tool_mermaid)} mermaid diagrams from ToolMessage")
+                    mermaid_diagrams.extend(tool_mermaid)
+
+            # Try to parse as MFEContent via Pydantic validation
+            mfe = _try_parse_mfe_content(m.content)
+            if mfe:
+                logger.info(f"Detected MFEContent: mfe={mfe.mfe}, component={mfe.component}")
+                mfe_contents.append(mfe.model_dump())
+
+    # 3. Attach extracted metadata to the final AI message
+    if mermaid_diagrams:
+        last_msg.additional_kwargs = last_msg.additional_kwargs or {}
+        last_msg.additional_kwargs["mermaid_diagrams"] = mermaid_diagrams
+
+    if mfe_contents:
+        logger.info(f"Adding {len(mfe_contents)} MFE blocks to message metadata")
+        last_msg.additional_kwargs = last_msg.additional_kwargs or {}
+        last_msg.additional_kwargs["mfe_contents"] = mfe_contents
+
+    return {"messages": [last_msg]}
 
 async def initial_node(state: AgentState):
     """Initial setup node."""
@@ -159,6 +180,7 @@ async def echo_node(state: AgentState):
 
 def create_agent(llm: BaseChatModel, checkpointer=None):
     builder = StateGraph(AgentState)
+
     tools = get_tools(builder)
     llm_with_tools = llm.bind_tools(tools)
 

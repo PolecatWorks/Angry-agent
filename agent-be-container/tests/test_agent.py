@@ -94,8 +94,8 @@ async def test_mfe_tool_call(mock_llm):
     result = await agent.ainvoke({"messages": [input_msg]}, config=config)
     messages = result["messages"]
     
-    # Final message content should be cleared because MFE contents are present
-    assert messages[-1].content == ""
+    # Final message content should be preserved (not suppressed)
+    assert messages[-1].content == "Here is the MFE content you requested."
     assert "mfe_contents" in messages[-1].additional_kwargs
     mfe = messages[-1].additional_kwargs["mfe_contents"][0]
     assert mfe["mfe"] == "mfe1"
@@ -127,9 +127,69 @@ async def test_data_viz_tool_call(mock_llm):
     result = await agent.ainvoke({"messages": [input_msg]}, config=config)
     messages = result["messages"]
     
-    assert messages[-1].content == "" 
+    # Final message content should be preserved (not suppressed)
+    assert messages[-1].content == "Here is the chart."
     assert "mfe_contents" in messages[-1].additional_kwargs
     mfe = messages[-1].additional_kwargs["mfe_contents"][0]
     assert mfe["mfe"] == "mfe1"
     assert mfe["component"] == "./DataShowWrapper"
     assert mfe["content"]["title"] == "Sales Performance"
+
+
+@pytest.mark.asyncio
+async def test_mfe_content_detected_from_json_string(mock_llm):
+    """Verify MFEContent serialised as a JSON string in ToolMessage is detected."""
+    import json
+    mfe_json = json.dumps({"mfe": "mfe1", "component": "./JsonShowWrapper", "content": {"key": "val"}})
+    tool_call = {
+        "name": "get_mfe_content",
+        "args": {},
+        "id": "call_str_1",
+        "type": "tool_call"
+    }
+    mock_llm.ainvoke.side_effect = [
+        AIMessage(content="", tool_calls=[tool_call]),
+        AIMessage(content="Done.")
+    ]
+
+    checkpointer = MemorySaver()
+    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    config = {"configurable": {"thread_id": "test-mfe-str"}}
+
+    result = await agent.ainvoke({"messages": [HumanMessage(content="show json")]}, config=config)
+    messages = result["messages"]
+
+    assert messages[-1].content == "Done."
+    assert "mfe_contents" in messages[-1].additional_kwargs
+    mfe = messages[-1].additional_kwargs["mfe_contents"][0]
+    assert mfe["mfe"] == "mfe1"
+    assert mfe["component"] == "./JsonShowWrapper"
+
+
+@pytest.mark.asyncio
+async def test_non_mfe_tool_output_ignored(mock_llm):
+    """Tool output that does not match MFEContent schema should not appear in mfe_contents."""
+    # The get_mfe_content tool returns a valid MFE dict, but we override the
+    # mock to make the LLM call a hypothetical tool returning non-MFE data.
+    tool_call = {
+        "name": "get_mfe_content",
+        "args": {},
+        "id": "call_non_mfe",
+        "type": "tool_call"
+    }
+    mock_llm.ainvoke.side_effect = [
+        AIMessage(content="", tool_calls=[tool_call]),
+        AIMessage(content="No MFE here.")
+    ]
+
+    checkpointer = MemorySaver()
+    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    config = {"configurable": {"thread_id": "test-no-mfe"}}
+
+    result = await agent.ainvoke({"messages": [HumanMessage(content="show json")]}, config=config)
+    messages = result["messages"]
+
+    # get_mfe_content returns valid MFE, so it WILL be detected
+    assert "mfe_contents" in messages[-1].additional_kwargs
+    # Content preserved
+    assert messages[-1].content == "No MFE here."
