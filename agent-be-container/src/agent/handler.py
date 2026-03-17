@@ -19,11 +19,15 @@ from langchain_core.messages import (
 logger = logging.getLogger(__name__)
 
 class LLMHandler:
-    def __init__(self, db_dsn: str, llm=None):
+    def __init__(self, db_dsn: str, main_llm=None, packager_llm=None):
         self.db_dsn = db_dsn
-        if llm is None:
+        if main_llm is None:
             llm = FakeListChatModel(responses=["I am a placeholder LLM. Please configure a real model."])
-        self.llm = llm
+        self.main_llm = main_llm
+        if packager_llm is None:
+            llm = FakeListChatModel(responses=["I am a placeholder LLM. Please configure a real model."])
+        self.packager_llm = packager_llm
+
         self.checkpointer: Optional[AsyncPostgresSaver] = None
         self.agent = None
         self._exit_stack = AsyncExitStack()
@@ -32,13 +36,13 @@ class LLMHandler:
     async def initialize(self):
         """Initializes the checkpointer and compiles the agent exactly once."""
         logger.info("Initializing LLMHandler checkpointer and compiling LangGraph agent.")
-        
+
         pool_kwargs = {
             "autocommit": True,
             "prepare_threshold": 0,
             "row_factory": dict_row,
         }
-        
+
         pool = AsyncConnectionPool(
             conninfo=self.db_dsn,
             max_size=20,
@@ -48,7 +52,7 @@ class LLMHandler:
         await self._exit_stack.enter_async_context(pool)
         self.checkpointer = AsyncPostgresSaver(pool)
         await self.checkpointer.setup()
-        self.agent = create_agent(self.llm, self.checkpointer)
+        self.agent = create_agent(self.main_llm, self.packager_llm, self.checkpointer)
 
 
     async def chat(self, thread_id: str, message: str) -> str:

@@ -183,7 +183,7 @@ async def get_history(request):
             # Skip ToolMessages - they are for the agent, not the user
             if m.type == "tool":
                 continue
-            
+
             # Skip intermediate AI messages that only contain tool calls with no user-facing content
             if m.type == "ai" and hasattr(m, 'tool_calls') and m.tool_calls and not m.content:
                 # Exception: if it somehow has MFE content (though usually added in post-processing to content-full messages)
@@ -196,7 +196,7 @@ async def get_history(request):
             has_rich_content = False
             if hasattr(m, 'additional_kwargs') and m.additional_kwargs:
                 has_rich_content = any(k in m.additional_kwargs for k in ["image_url", "mermaid_diagrams", "mfe_contents"])
-            
+
             if is_empty and not has_rich_content:
                 continue
 
@@ -315,11 +315,12 @@ async def on_startup(app):
         # Initialize LLM
         logger.info("Initializing LLM")
         from .agent import llm_model
-        llm = llm_model(config.aiclient)
+        main_llm = llm_model(config.aiclient)
+        packager_llm = llm_model(config.aiclient)
 
         # Initialize LLM Handler
         logger.info("Initializing LLMHandler")
-        llm_handler = LLMHandler(db_dsn=config.persistence.db.connection.dsn, llm=llm)
+        llm_handler = LLMHandler(db_dsn=config.persistence.db.connection.dsn, main_llm=main_llm, packager_llm=packager_llm)
         await llm_handler.initialize()
         app["llm_handler"] = llm_handler
 
