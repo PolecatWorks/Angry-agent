@@ -19,13 +19,56 @@ def mock_llm():
     llm = MagicMock(spec=BaseChatModel)
     llm.bind_tools.return_value = llm
     llm.ainvoke = AsyncMock(return_value=AIMessage(content="LLM Response"))
+    # Mock with_structured_output for the packager_node
+    # It should return a mock that when ainvoked returns an MFEContainer
+    structured_mock = MagicMock()
+    from agent.structs import MFEContainer, MFEContent
+    
+    async def smart_packager_invoke(messages):
+        mfes = []
+        from langchain_core.messages import SystemMessage
+        for m in messages:
+            if isinstance(m, SystemMessage):
+                continue
+
+            # Check AIMessage tool_calls
+            if hasattr(m, "tool_calls") and m.tool_calls:
+                for tc in m.tool_calls:
+                    name = tc.get("name")
+                    if name == "generate_data_visualization":
+                        mfes.append(MFEContent(mfe="mfe1", component="./DataShowWrapper", content={"title": "Sales Performance"}))
+                    elif name in ["get_mfe_content", "generate_mfe_of_json"]:
+                         mfes.append(MFEContent(mfe="mfe1", component="./JsonShowWrapper", content={"key": "val"}))
+                    elif name == "generate_mfe_of_markdown":
+                         mfes.append(MFEContent(mfe="mfe1", component="./MarkdownShowWrapper", content={"markdown_content": "Content"}))
+            
+            # Check ToolMessage content or malformed AI content
+            if hasattr(m, "content") and isinstance(m.content, str) and m.content:
+                if '"component": "./DataShowWrapper"' in m.content or "generate_data_visualization" in m.content:
+                    mfes.append(MFEContent(mfe="mfe1", component="./DataShowWrapper", content={"title": "Sales Performance"}))
+                elif '"component": "./JsonShowWrapper"' in m.content or "get_mfe_content" in m.content or "generate_mfe_of_json" in m.content:
+                    mfes.append(MFEContent(mfe="mfe1", component="./JsonShowWrapper", content={"key": "val"}))
+                elif '"component": "./MarkdownShowWrapper"' in m.content or "generate_mfe_of_markdown" in m.content or "poem" in m.content.lower():
+                    mfes.append(MFEContent(mfe="mfe1", component="./MarkdownShowWrapper", content={"markdown_content": "Content"}))
+        
+        # Deduplicate
+        seen_components = set()
+        unique_mfes = []
+        for mfe in mfes:
+            if mfe.component not in seen_components:
+                unique_mfes.append(mfe)
+                seen_components.add(mfe.component)
+        return MFEContainer(mfes=unique_mfes)
+
+    structured_mock.ainvoke = AsyncMock(side_effect=smart_packager_invoke)
+    llm.with_structured_output.return_value = structured_mock
     return llm
 
 
 @pytest.mark.asyncio
 async def test_hello_intent(mock_llm):
     checkpointer = MemorySaver()
-    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": "test-hello"}}
 
     # Test Hello
@@ -37,7 +80,7 @@ async def test_hello_intent(mock_llm):
 @pytest.mark.asyncio
 async def test_image_intent(mock_llm):
     checkpointer = MemorySaver()
-    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": "test-image"}}
 
     # Test Image Route
@@ -51,7 +94,7 @@ async def test_image_intent(mock_llm):
 @pytest.mark.asyncio
 async def test_llm_intent(mock_llm):
     checkpointer = MemorySaver()
-    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": "test-llm"}}
 
     # Test LLM Route
@@ -63,7 +106,7 @@ async def test_llm_intent(mock_llm):
 @pytest.mark.asyncio
 async def test_conversation_flow(mock_llm):
     checkpointer = MemorySaver()
-    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": "test-flow"}}
 
     # 1. Hello
@@ -87,7 +130,7 @@ async def test_mfe_tool_call(mock_llm):
     ]
     
     checkpointer = MemorySaver()
-    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": "test-mfe"}}
 
     input_msg = HumanMessage(content="Show me some JSON")
@@ -120,7 +163,7 @@ async def test_data_viz_tool_call(mock_llm):
     ]
     
     checkpointer = MemorySaver()
-    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": "test-data-viz"}}
 
     input_msg = HumanMessage(content="Show me a chart of sales")
@@ -153,7 +196,7 @@ async def test_mfe_content_detected_from_json_string(mock_llm):
     ]
 
     checkpointer = MemorySaver()
-    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": "test-mfe-str"}}
 
     result = await agent.ainvoke({"messages": [HumanMessage(content="show json")]}, config=config)
@@ -183,7 +226,7 @@ async def test_non_mfe_tool_output_ignored(mock_llm):
     ]
 
     checkpointer = MemorySaver()
-    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": "test-no-mfe"}}
 
     result = await agent.ainvoke({"messages": [HumanMessage(content="show json")]}, config=config)

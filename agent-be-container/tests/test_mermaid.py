@@ -42,8 +42,14 @@ async def test_mermaid_post_processing():
     mock_llm.bind_tools.return_value = mock_llm
     mock_llm.ainvoke = AsyncMock(return_value=AIMessage(content=mermaid_content))
     
+    # Mock with_structured_output for the packager_node
+    structured_mock = MagicMock()
+    from agent.structs import MFEContainer
+    structured_mock.ainvoke = AsyncMock(return_value=MFEContainer(mfes=[]))
+    mock_llm.with_structured_output.return_value = structured_mock
+    
     checkpointer = MemorySaver()
-    agent = create_agent(llm=mock_llm, checkpointer=checkpointer)
+    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": "mermaid-test"}}
     
     # Invoke agent
