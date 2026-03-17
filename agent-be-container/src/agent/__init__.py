@@ -34,6 +34,7 @@ Your goal is to assist the user by providing information and visualizing that in
   5. `visualize_graph`: Returns a mermaid diagram of this AI agent's LangGraph.
 - If the user asks for a visualization, you MUST use the appropriate tool.
 - Do not describe what a tool *would* do; execute the tool to get the actual data.
+- NEVER output raw JSON blocks in your response; instead, invoke the corresponding tool using the system's tool-calling mechanism.
 
 ### MERMAID DIAGRAMS
 - You can also create beautiful diagrams using Mermaid.js syntax. To do this, simply include a ```mermaid code block in your response. The application will automatically extract and render it beautifully.
@@ -41,18 +42,19 @@ Your goal is to assist the user by providing information and visualizing that in
 
 ### EXAMPLES
 - User: "Write a short poem about space."
-- AI: Calls `generate_mfe_of_markdown`.
+- AI (Action): Calls `generate_mfe_of_markdown(markdown_content="# Space\\nInfinite and vast...")`
+- AI (Speech): "I've written a poem about space for you. You can see it below."
 
 ### WORKFLOW
 1. Analyze the user's request.
-2. If data is needed, call the relevant tools.
+2. If data visualization is needed, call the relevant tool immediately.
 3. Once you have the tool results, provide a brief summary of what you've prepared.
 4. Your final response should explain to the user what they are seeing in the MFEs.
 
 ### CONSTRAINTS
 - Do not hallucinate data that should come from a tool.
 - If a tool fails, explain the error and offer an alternative.
-- Never output raw JSON blocks in your conversational text; the system will handle the packaging.
+- Native tool calls are the ONLY way to make content visible in the UI.
 """
 
 PACKAGER_SYSTEM_PROMPT = """You are a UI Content Packager.
@@ -65,14 +67,13 @@ Your goal is to convert a conversation into a sequence of MFEContent objects.
 
 ### STEPS:
 1. Identify any helpful text descriptions the AI provided. Convert these into 'MarkdownShowWrapper' MFEs using mfe='mfe1'.
-2. Identify all ToolMessage results. These results contain JSON objects that define the MFE component and its content. Convert these directly into MFEContent objects.
-3. If an AI message contains a JSON block that appeared to be an attempt to call an MFE tool (but failed to use the platform's tool-calling mechanism), treat this intent as if it were a successful tool call and produce the corresponding MFEContent.
-4. Maintain the logical order of the explanation. Usually: [Context Markdown] -> [Tool Data MFE] -> [Closing Summary Markdown].
+2. Identify all ToolMessage results. Convert these into their respective MFE types based on the tool used, preserving the 'mfe' field from the tool result (usually 'mfe1').
+3. Maintain the logical order of the explanation. Usually: [Context Markdown] -> [Tool Data MFE] -> [Closing Summary Markdown].
 
 EXAMPLE:
-If the AI said: "Here is your poem:" followed by a `generate_mfe_of_markdown` tool call or its equivalent JSON, you should produce TWO MFEContent objects:
+If the AI said: "Here is your poem:" followed by a `generate_mfe_of_markdown` tool call, you should produce TWO MFEContent objects:
 - One for the text "Here is your poem:" (as 'MarkdownShowWrapper' from 'mfe1')
-- One for the poem itself (using 'MarkdownShowWrapper' from 'mfe1').
+- One for the actual tool result (from the `generate_mfe_of_markdown` result, also using 'mfe1').
 """
 
 
@@ -221,60 +222,20 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
     # This LLM is forced to output the Pydantic model. It is used for the packager to finalise the MFE output
     packager_llm_with_mfe_container_schema = packager_llm.with_structured_output(MFEContainer)
 
-    async def packager_node(state: AgentState):
+    async def packager_node(state: AgentState, llm=packager_llm_with_mfe_container_schema):
 
         for i, message in enumerate(state.messages):
             logger.info(f"Message {i}: {type(message)} {message}")
 
-        # Map tool names to functions for manual execution if needed
-        tools_map = {t.name: t for t in tools}
-        enhanced_history = []
-        for m in state.messages:
-            if not isinstance(m, (HumanMessage, AIMessage, ToolMessage)):
-                continue
-            
-            enhanced_history.append(m)
-
-            # Fallback detection for malformed tool calls in content
-            if isinstance(m, AIMessage) and not m.tool_calls and m.content:
-                content = m.content.strip()
-                # Check for JSON block (either raw or in markdown)
-                json_str = None
-                if (content.startswith("{") and content.endswith("}")):
-                    json_str = content
-                elif content.startswith("```json"):
-                    json_str = content[7:-3].strip()
-                elif content.startswith("```"):
-                     json_str = content[3:-3].strip()
-
-                if json_str:
-                    try:
-                        data = json.loads(json_str)
-                        if isinstance(data, dict) and "name" in data and data["name"] in tools_map:
-                            t_name = data["name"]
-                            t_args = data.get("args") or data.get("arguments") or {}
-                            t_func = tools_map[t_name]
-                            
-                            logger.info(f"Packager: Manually executing detected tool intent from content: {t_name}")
-                            # Execute the tool function
-                            # Note: t_func is a LangChain BaseTool, we call invoke()
-                            res = t_func.invoke(t_args)
-                            
-                            # Create a ToolMessage to make it "visible" to the packager LLM
-                            tool_msg = ToolMessage(
-                                content=json.dumps(res.model_dump()) if hasattr(res, 'model_dump') else json.dumps(res),
-                                tool_call_id=f"manual_{uuid.uuid4().hex[:8]}",
-                                name=t_name
-                            )
-                            enhanced_history.append(tool_msg)
-                    except Exception as e:
-                        logger.debug(f"Packager: Failed to parse/execute tool intent: {e}")
-
         system_instruction = SystemMessage(content=PACKAGER_SYSTEM_PROMPT)
-        messages = [system_instruction] + enhanced_history
+        relevant_history = [
+            m for m in state.messages
+            if isinstance(m, (HumanMessage, AIMessage, ToolMessage))
+        ]
+        messages = [system_instruction] + relevant_history
 
-        # We ask it to look at the history (including injected ToolMessages) and package them
-        response = await packager_llm_with_mfe_container_schema.ainvoke(messages)
+        # We ask it to look at the TOOL results and package them
+        response = await llm.ainvoke(messages)
 
         logger.info(f"MFE packager node response: {response}")
 
@@ -286,32 +247,19 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
                 break
 
         if last_ai_message:
-            # Prepare the updated AI message
+            # We return a message with the SAME ID to update it in the state history
+            # This follows the add_messages reducer pattern for updates
             updated_kwargs = last_ai_message.additional_kwargs.copy() if last_ai_message.additional_kwargs else {}
             updated_kwargs["mfe_contents"] = [mfe.model_dump() for mfe in response.mfes]
             updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
 
             updated_msg = AIMessage(
                 content=last_ai_message.content,
-                # We do NOT use the same ID here if we are going to use it for a ToolMessage replacement
-                # to ensure this one is appended at the end.
+                id=last_ai_message.id,
                 additional_kwargs=updated_kwargs
             )
-            
-            # Find the tool messages we created in this node
-            new_tool_messages = [m for m in enhanced_history if isinstance(m, ToolMessage) and m not in state.messages]
-            
-            if new_tool_messages:
-                # To clean up history, we replace the malformed AIMessage with the first ToolMessage
-                # by giving the ToolMessage the same ID.
-                new_tool_messages[0].id = last_ai_message.id
-                logger.info(f"Packager: Replacing malformed AI message (ID={last_ai_message.id}) with ToolMessage")
-            else:
-                # If no new tools were created but it was an update, we still want to update the original
-                updated_msg.id = last_ai_message.id
-                logger.info(f"Packager: Updating existing Turn AIMessage ID={last_ai_message.id}")
-
-            return {"messages": new_tool_messages + [updated_msg]}
+            logger.info(f"Packager: Updating existing Turn AIMessage ID={last_ai_message.id} with packaged MFEs")
+            return {"messages": [updated_msg]}
 
         # Fallback (should not be reached in normal flow)
         logger.warning("No AIMessage found to update in packager_node, creating new one.")
@@ -326,13 +274,13 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
             )]
         }
 
-    async def llm_node(state: AgentState):
+    async def llm_node(state: AgentState, llm=main_llm_with_tools):
         system_instruction = SystemMessage(content=SYSTEM_MESSAGE)
         messages = [system_instruction] + state.messages
 
         logger.info(f"LLM Node: Invoking LLM with {len(messages)} messages (including System Prompt)")
 
-        response = await main_llm_with_tools.ainvoke(messages)
+        response = await llm.ainvoke(messages)
 
         return {"messages": [response]}
 

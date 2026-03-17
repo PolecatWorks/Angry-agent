@@ -22,10 +22,10 @@ class LLMHandler:
     def __init__(self, db_dsn: str, main_llm=None, packager_llm=None):
         self.db_dsn = db_dsn
         if main_llm is None:
-            llm = FakeListChatModel(responses=["I am a placeholder LLM. Please configure a real model."])
+            main_llm = FakeListChatModel(responses=["I am a placeholder LLM. Please configure a real model."])
         self.main_llm = main_llm
         if packager_llm is None:
-            llm = FakeListChatModel(responses=["I am a placeholder LLM. Please configure a real model."])
+            packager_llm = FakeListChatModel(responses=["I am a placeholder LLM. Please configure a real model."])
         self.packager_llm = packager_llm
 
         self.checkpointer: Optional[AsyncPostgresSaver] = None

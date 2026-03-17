@@ -56,10 +56,10 @@ def generate_mfe_of_json(json_content: Any, title: str) -> MFEContent:
 @tool
 def generate_mfe_of_markdown(markdown_content: str) -> MFEContent:
     """
-    Display rendered version of the markdown.
-    This function must be used to make markdown visible to the user.
+    Render and display the provided markdown text in the UI using MarkdownShow.
+    You MUST use this tool whenever you want to show formatted text, poems, lists, or headers to the user.
     Args:
-        markdown_content: The markdown to render.
+        markdown_content: The markdown string to render.
     """
     logger.info(f"Tool generate_mfe_of_markdown called: {markdown_content}")
     return MFEContent(
