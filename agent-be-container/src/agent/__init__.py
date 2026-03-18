@@ -235,7 +235,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
         if not response.tool_calls and response.content:
             content = response.content.strip()
             json_str = None
-            
+
             # 1. Check for markdown code block
             match = re.search(r"```json\s*(.*?)\s*```", content, re.DOTALL)
             if match:
@@ -255,7 +255,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
                     if isinstance(tool_data, dict) and "name" in tool_data:
                         # Some models use 'arguments', LangChain expects 'args'
                         args = tool_data.get("args") or tool_data.get("arguments") or {}
-                        
+
                         # Manually inject the tool call into the message object
                         response.tool_calls = [{
                             "name": tool_data["name"],
@@ -263,6 +263,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
                             "id": f"repair_{uuid.uuid4().hex[:8]}",
                             "type": "tool_call"
                         }]
+                        response.content=""
                         logger.info(f"LLM Node: Successfully coerced tool call for: {tool_data['name']}")
                 except Exception as e:
                     logger.debug(f"LLM Node: Content looked like JSON but failed to parse: {e}")
