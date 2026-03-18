@@ -60,18 +60,19 @@ Your goal is to convert a conversation into a sequence of MFEContent objects.
 
 ### MFE NAMING
 - The 'mfe' field refers to the source where the component is defined.
-- ALWAYS use 'mfe1' for components like 'MarkdownShowWrapper', 'JsonShowWrapper', 'MermaidShowWrapper', and 'DataShowWrapper'.
+- ALWAYS use 'mfe1' for components like 'MarkdownShowWrapper', 'TextShowWrapper', 'JsonShowWrapper', 'MermaidShowWrapper', and 'DataShowWrapper'.
 - DO NOT increment the 'mfe' name (e.g. 'mfe1', 'mfe2') for multiple components; they should all refer to their respective source MFE.
 
 ### STEPS:
-1. Identify any helpful text descriptions the AI provided. Convert these into 'MarkdownShowWrapper' MFEs using mfe='mfe1'.
+1. Identify any helpful text descriptions the AI provided. Convert these into 'MarkdownShowWrapper' MFEs using mfe='mfe1'. If the text is raw data or should NOT be interpreted as markdown, use 'TextShowWrapper'.
 2. Identify all ToolMessage results. Convert these into their respective MFE types based on the tool used, preserving the 'mfe' field from the tool result (usually 'mfe1').
-3. Maintain the logical order of the explanation. Usually: [Context Markdown] -> [Tool Data MFE] -> [Closing Summary Markdown].
+3. Maintain the logical order of the explanation. Usually: [Context Markdown/Text] -> [Tool Data MFE] -> [Closing Summary Markdown/Text].
 
 EXAMPLE:
 If the AI said: "Here is your poem:" followed by a `generate_mfe_of_markdown` tool call, you should produce TWO MFEContent objects:
 - One for the text "Here is your poem:" (as 'MarkdownShowWrapper' from 'mfe1')
 - One for the actual tool result (from the `generate_mfe_of_markdown` result, also using 'mfe1').
+- If you need a simple, unformatted text block, you could use 'TextShowWrapper'.
 """
 
 

@@ -76,6 +76,26 @@ def generate_mfe_of_markdown(markdown_content: str) -> MFEContent:
     )
 
 
+class TextInput(BaseModel):
+    text_content: str = Field(description="The full plain text string to be rendered in the UI.")
+
+@tool(args_schema=TextInput)
+def generate_mfe_of_text(text_content: str) -> MFEContent:
+    """
+    Render and display plain text in the UI.
+    Use this tool for logs, raw output, or simple text that should not be interpreted as markdown.
+    It only supports line wrapping and basic styling.
+    """
+    logger.info(f"Tool generate_mfe_of_text called: {text_content}")
+    return MFEContent(
+        mfe="mfe1",
+        component="./TextShowWrapper",
+        content={
+            "content": text_content
+        }
+    )
+
+
 @tool
 def generate_mfe_of_mermaid(mermaid_code: str, title: str) -> MFEContent:
     """
@@ -123,7 +143,7 @@ def generate_data_visualization(title: str, datasets: list, x_axis_type: str = "
 def get_tools(builder):
     """Returns a list of tools available for the agent."""
     # tools = [generate_mfe_of_json, generate_data_visualization]
-    tools = [generate_data_visualization, generate_mfe_of_markdown, generate_mfe_of_json, generate_mfe_of_mermaid]
+    tools = [generate_data_visualization, generate_mfe_of_markdown, generate_mfe_of_text, generate_mfe_of_json, generate_mfe_of_mermaid]
 
     @tool
     def visualize_graph() -> MFEContent:
