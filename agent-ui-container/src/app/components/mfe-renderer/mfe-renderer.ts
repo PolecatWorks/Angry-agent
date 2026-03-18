@@ -9,9 +9,10 @@ import { loadRemoteModule } from '@angular-architects/native-federation';
 export class MfeRenderer implements AfterViewInit, OnDestroy {
   @Input() mfe: string = '';
   @Input() component: string = '';
-  @Input() data: any;
+  @Input() content: any;
+  @Input() data: any; // Keep for backward compatibility
 
-  @ViewChild('container', { static: true }) container!: ElementRef;
+  @ViewChild('container', { static: true }) container! : ElementRef;
 
   private unmountFn?: () => void;
 
@@ -25,7 +26,9 @@ export class MfeRenderer implements AfterViewInit, OnDestroy {
       });
 
       if (m && m.mount) {
-        this.unmountFn = await m.mount(this.container.nativeElement, { data: this.data });
+        // Pass the content directly as props
+        const props = this.content || { content: this.data };
+        this.unmountFn = await m.mount(this.container.nativeElement, props);
       } else {
         throw new Error(`Remote module ${this.mfe}/${this.component} does not export mount function.`);
       }
