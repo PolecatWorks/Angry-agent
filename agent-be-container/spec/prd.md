@@ -45,6 +45,7 @@ The backend includes specific routing and post-processing mechanisms for process
     - **Tool-Call Fallback**: It is responsible for detecting "lost" tool call attempts (where the LLM placed JSON in the message content instead of tool-calling metadata). It manually executes these tools and injects the results into the packager's view to ensure a consistent UI representation.
 - **MFE Tools**:
     - `generate_mfe_of_markdown`: For rendering markdown text via `MarkdownShowWrapper`.
+    - `generate_mfe_of_text`: For rendering plain text via `TextShowWrapper`.
     - `generate_mfe_of_json`: For general JSON/structured data via `JsonShowWrapper`.
     - `generate_data_visualization`: For D3-based graphs via `DataShowWrapper`.
     - `generate_mfe_of_mermaid` and `visualize_graph`: For Mermaid diagrams via `MermaidShowWrapper`.
