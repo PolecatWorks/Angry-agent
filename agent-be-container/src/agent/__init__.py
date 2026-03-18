@@ -34,7 +34,6 @@ Your goal is to assist the user by providing information and visualizing that in
   5. `visualize_graph`: Returns a mermaid diagram of this AI agent's LangGraph.
 - If the user asks for a visualization, you MUST use the appropriate tool.
 - Do not describe what a tool *would* do; execute the tool to get the actual data.
-- NEVER output raw JSON blocks in your response; instead, invoke the corresponding tool using the system's tool-calling mechanism.
 
 ### MERMAID DIAGRAMS
 - You can also create beautiful diagrams using Mermaid.js syntax. To do this, simply include a ```mermaid code block in your response. The application will automatically extract and render it beautifully.
@@ -42,19 +41,18 @@ Your goal is to assist the user by providing information and visualizing that in
 
 ### EXAMPLES
 - User: "Write a short poem about space."
-- AI (Action): Calls `generate_mfe_of_markdown(markdown_content="# Space\\nInfinite and vast...")`
-- AI (Speech): "I've written a poem about space for you. You can see it below."
+- AI: Calls `generate_mfe_of_markdown(markdown_content="# Space\\nInfinite and vast...")`
 
 ### WORKFLOW
 1. Analyze the user's request.
-2. If data visualization is needed, call the relevant tool immediately.
+2. If data is needed, call the relevant tools.
 3. Once you have the tool results, provide a brief summary of what you've prepared.
 4. Your final response should explain to the user what they are seeing in the MFEs.
 
 ### CONSTRAINTS
 - Do not hallucinate data that should come from a tool.
 - If a tool fails, explain the error and offer an alternative.
-- Native tool calls are the ONLY way to make content visible in the UI.
+- Never output raw JSON blocks in your conversational text; the system will handle the packaging.
 """
 
 PACKAGER_SYSTEM_PROMPT = """You are a UI Content Packager.
@@ -222,7 +220,57 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
     # This LLM is forced to output the Pydantic model. It is used for the packager to finalise the MFE output
     packager_llm_with_mfe_container_schema = packager_llm.with_structured_output(MFEContainer)
 
-    async def packager_node(state: AgentState, llm=packager_llm_with_mfe_container_schema):
+
+    async def llm_node(state: AgentState):
+        system_instruction = SystemMessage(content=SYSTEM_MESSAGE)
+        messages = [system_instruction] + state.messages
+
+        logger.info(f"LLM Node: Invoking LLM with {len(messages)} messages (including System Prompt)")
+
+        response = await main_llm_with_tools.ainvoke(messages)
+
+        logger.info(f"LLM Node: Response: {response}")
+
+        # Coerce tool calls from content if tool_calls is empty
+        if not response.tool_calls and response.content:
+            content = response.content.strip()
+            json_str = None
+            
+            # 1. Check for markdown code block
+            match = re.search(r"```json\s*(.*?)\s*```", content, re.DOTALL)
+            if match:
+                json_str = match.group(1).strip()
+            # 2. Check if content itself is JSON
+            elif content.startswith("{") and content.endswith("}"):
+                json_str = content
+            # 3. Look for any JSON-like structure in the string
+            else:
+                match = re.search(r"(\{.*\})", content, re.DOTALL)
+                if match:
+                    json_str = match.group(1).strip()
+
+            if json_str:
+                try:
+                    tool_data = json.loads(json_str)
+                    if isinstance(tool_data, dict) and "name" in tool_data:
+                        # Some models use 'arguments', LangChain expects 'args'
+                        args = tool_data.get("args") or tool_data.get("arguments") or {}
+                        
+                        # Manually inject the tool call into the message object
+                        response.tool_calls = [{
+                            "name": tool_data["name"],
+                            "args": args,
+                            "id": f"repair_{uuid.uuid4().hex[:8]}",
+                            "type": "tool_call"
+                        }]
+                        logger.info(f"LLM Node: Successfully coerced tool call for: {tool_data['name']}")
+                except Exception as e:
+                    logger.debug(f"LLM Node: Content looked like JSON but failed to parse: {e}")
+
+        return {"messages": [response]}
+
+
+    async def packager_node(state: AgentState):
 
         for i, message in enumerate(state.messages):
             logger.info(f"Message {i}: {type(message)} {message}")
@@ -235,7 +283,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
         messages = [system_instruction] + relevant_history
 
         # We ask it to look at the TOOL results and package them
-        response = await llm.ainvoke(messages)
+        response = await packager_llm_with_mfe_container_schema.ainvoke(messages)
 
         logger.info(f"MFE packager node response: {response}")
 
@@ -246,16 +294,19 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
                 last_ai_message = m
                 break
 
+
         if last_ai_message:
             # We return a message with the SAME ID to update it in the state history
             # This follows the add_messages reducer pattern for updates
             updated_kwargs = last_ai_message.additional_kwargs.copy() if last_ai_message.additional_kwargs else {}
             updated_kwargs["mfe_contents"] = [mfe.model_dump() for mfe in response.mfes]
             updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
+            updated_kwargs["packaged"] = True
 
             updated_msg = AIMessage(
                 content=last_ai_message.content,
                 id=last_ai_message.id,
+                tool_calls=getattr(last_ai_message, 'tool_calls', []),
                 additional_kwargs=updated_kwargs
             )
             logger.info(f"Packager: Updating existing Turn AIMessage ID={last_ai_message.id} with packaged MFEs")
@@ -269,20 +320,12 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
                 content="I have prepared the following components for you.",
                 additional_kwargs={
                     "mfe_contents": [mfe.model_dump() for mfe in response.mfes],
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "packaged": True
                 }
             )]
         }
 
-    async def llm_node(state: AgentState, llm=main_llm_with_tools):
-        system_instruction = SystemMessage(content=SYSTEM_MESSAGE)
-        messages = [system_instruction] + state.messages
-
-        logger.info(f"LLM Node: Invoking LLM with {len(messages)} messages (including System Prompt)")
-
-        response = await llm.ainvoke(messages)
-
-        return {"messages": [response]}
 
     builder.add_node("initial", initial_node)
     builder.add_node("intent", intent_node)
@@ -359,7 +402,7 @@ def llm_model(config: LangchainConfig):
             model = ChatOllama(
                 model=config.model,
                 base_url=str(config.ollama_base_url),
-                stop=["<|im_start|>", "<|im_end|>"]
+                # stop=["<|im_start|>", "<|im_end|>"]
             )
         case _:
             raise ValueError(f"Unsupported model provider: {config.model_provider}")

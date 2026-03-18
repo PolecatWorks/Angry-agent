@@ -1,7 +1,7 @@
 from langchain_core.tools import tool
 import logging
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +53,19 @@ def generate_mfe_of_json(json_content: Any, title: str) -> MFEContent:
         }
     )
 
-@tool
+
+class MarkdownInput(BaseModel):
+    markdown_content: str = Field(description="The full markdown string to be rendered in the UI.")
+
+@tool(args_schema=MarkdownInput)
 def generate_mfe_of_markdown(markdown_content: str) -> MFEContent:
     """
-    Render and display the provided markdown text in the UI using MarkdownShow.
-    You MUST use this tool whenever you want to show formatted text, poems, lists, or headers to the user.
-    Args:
-        markdown_content: The markdown string to render.
+    Render and display markdown text in the UI.
+    Use this tool for ANY formatted text, headers, or lists.
     """
+    # The LLM doesn't actually 'see' the execution logic below,
+    # only the docstring and the MarkdownInput schema.
+
     logger.info(f"Tool generate_mfe_of_markdown called: {markdown_content}")
     return MFEContent(
         mfe="mfe1",
