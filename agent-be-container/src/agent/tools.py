@@ -97,13 +97,13 @@ def generate_mfe_of_text(text_content: str) -> MFEContent:
 
 
 class MermaidInput(BaseModel):
-    mermaid_content: str = Field(description="The full mermaid string to be rendered in the UI")
+    mermaid_content: str = Field(description="The full mermaid string to be rendered in the UI. Do not include ```mermaid ... ``` markers in the content.")
     title: str = Field(description="The title of the mermaid diagram")
 
 @tool(args_schema=MermaidInput)
 def generate_mfe_of_mermaid(mermaid_content: str, title: str) -> MFEContent:
     """
-    Generate a pretty rendered version of the input mermaid diagram
+    Generate a pretty rendered version of the input mermaid diagram.
     """
     logger.info(f"Tool generate_mfe_of_mermaid called: {mermaid_content}")
     return MFEContent(
