@@ -34,15 +34,14 @@ from .structs import MFEContent
 #     }
 
 
+class JsonInput(BaseModel):
+    json_content: Any = Field(description="The JSON object to render")
+    title: str = Field(description="The title of the JSON object")
 
-
-@tool()
+@tool(args_schema=JsonInput)
 def generate_mfe_of_json(json_content: Any, title: str) -> MFEContent:
     """
     Generate a pretty rendered version of the input JSON.
-    Args:
-        json_content: The JSON object to render.
-        title: The title of the JSON object.
     """
     logger.info(f"Tool generate_mfe_of_json called: {json_content}")
     return MFEContent(
@@ -84,6 +83,7 @@ def generate_mfe_of_text(text_content: str) -> MFEContent:
     """
     Render and display plain text in the UI.
     Use this tool for logs, raw output, or simple text that should not be interpreted as markdown.
+    You can use it as preamble or description before and after more complex visualisation components.
     It only supports line wrapping and basic styling.
     """
     logger.info(f"Tool generate_mfe_of_text called: {text_content}")
@@ -96,21 +96,22 @@ def generate_mfe_of_text(text_content: str) -> MFEContent:
     )
 
 
-@tool
-def generate_mfe_of_mermaid(mermaid_code: str, title: str) -> MFEContent:
+class MermaidInput(BaseModel):
+    mermaid_content: str = Field(description="The full mermaid string to be rendered in the UI")
+    title: str = Field(description="The title of the mermaid diagram")
+
+@tool(args_schema=MermaidInput)
+def generate_mfe_of_mermaid(mermaid_content: str, title: str) -> MFEContent:
     """
-    Generate a pretty rendered version of the input mermaid diagram.
-    Args:
-        mermaid_code: The mermaid diagram to render.
-        title: The title of the mermaid diagram.
+    Generate a pretty rendered version of the input mermaid diagram
     """
-    logger.info(f"Tool generate_mfe_of_mermaid called: {mermaid_code}")
+    logger.info(f"Tool generate_mfe_of_mermaid called: {mermaid_content}")
     return MFEContent(
         mfe="mfe1",
         component="./MermaidShowWrapper",
         content={
             "title": title,
-            "content": mermaid_code
+            "content": mermaid_content
         }
     )
 
@@ -146,10 +147,11 @@ def get_tools(builder):
     tools = [generate_data_visualization, generate_mfe_of_markdown, generate_mfe_of_text, generate_mfe_of_json, generate_mfe_of_mermaid]
 
     @tool
-    def visualize_graph() -> MFEContent:
+    def visualize_graph() -> str:
         """
         Returns a mermaid diagram showing the internal structure and flow of this AI agent's LangGraph.
         Use this when the user asks 'how do you work?', 'show me your graph', or 'what is your architecture?'.
+        the respose is plain mermaid code as a string
         """
         logger.info("Tool visualize_graph called")
         # StateGraph builder doesn't have get_graph() in all versions;
@@ -159,13 +161,9 @@ def get_tools(builder):
         else:
             mermaid_code = builder.compile().get_graph().draw_mermaid()
 
-        return MFEContent(
-            mfe="mfe1",
-            component="./MermaidShowWrapper",
-            content={
-                "content": mermaid_code
-            }
-        )
+        print("mermaid_code: ", mermaid_code)
+
+        return mermaid_code
 
     tools.append(visualize_graph)
 

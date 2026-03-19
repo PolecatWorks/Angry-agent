@@ -212,6 +212,22 @@ async def echo_node(state: AgentState):
     return {}
 
 
+def merge_usage_metadata(m1: dict | None, m2: Any) -> dict:
+    """Combines two usage_metadata objects or dictionaries."""
+    res = (m1 or {}).copy()
+    if not m2:
+        return res
+    
+    # helper to get value from dict or object attribute
+    def get_val(obj, key):
+        if isinstance(obj, dict):
+            return obj.get(key, 0) or 0
+        return getattr(obj, key, 0) or 0
+
+    for key in ["input_tokens", "output_tokens", "total_tokens"]:
+        res[key] = res.get(key, 0) + get_val(m2, key)
+    return res
+
 def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpointer=None):
 
     builder = StateGraph(AgentState)
@@ -220,7 +236,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
     main_llm_with_tools = main_llm.bind_tools(tools)
 
     # This LLM is forced to output the Pydantic model. It is used for the packager to finalise the MFE output
-    packager_llm_with_mfe_container_schema = packager_llm.with_structured_output(MFEContainer)
+    packager_llm_with_mfe_container_schema = packager_llm.with_structured_output(MFEContainer, include_raw=True)
 
 
     async def llm_node(state: AgentState):
@@ -278,6 +294,18 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
         for i, message in enumerate(state.messages):
             logger.info(f"Message {i}: {type(message)} {message}")
 
+        # Accumulate usage metadata from all AIMessages in THE CURRENT TURN
+        total_usage = {}
+        messages_since_human = []
+        for m in reversed(state.messages):
+            if isinstance(m, HumanMessage):
+                break
+            messages_since_human.append(m)
+        
+        for m in reversed(messages_since_human):
+            if isinstance(m, AIMessage) and hasattr(m, 'usage_metadata') and m.usage_metadata:
+                total_usage = merge_usage_metadata(total_usage, m.usage_metadata)
+
         system_instruction = SystemMessage(content=PACKAGER_SYSTEM_PROMPT)
         relevant_history = [
             m for m in state.messages
@@ -286,9 +314,19 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
         messages = [system_instruction] + relevant_history
 
         # We ask it to look at the TOOL results and package them
-        response = await packager_llm_with_mfe_container_schema.ainvoke(messages)
+        # Note: with include_raw=True, this returns a dict with "raw" and "parsed" keys
+        raw_response = await packager_llm_with_mfe_container_schema.ainvoke(messages)
+        
+        # If include_raw=True was set successfuly, we extract from the dict
+        if isinstance(raw_response, dict) and "parsed" in raw_response:
+            response_mfe_container = raw_response["parsed"]
+            packager_usage = raw_response["raw"].usage_metadata if hasattr(raw_response["raw"], 'usage_metadata') else None
+            total_usage = merge_usage_metadata(total_usage, packager_usage)
+        else:
+            # Fallback if with_structured_output didn't return the expected dict structure
+            response_mfe_container = raw_response
 
-        logger.info(f"MFE packager node response: {response}")
+        logger.info(f"MFE packager node response: {response_mfe_container}")
 
         # Find the last AIMessage to update it with the packaged contents
         last_ai_message = None
@@ -297,22 +335,23 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
                 last_ai_message = m
                 break
 
-
         if last_ai_message:
             # We return a message with the SAME ID to update it in the state history
             # This follows the add_messages reducer pattern for updates
             updated_kwargs = last_ai_message.additional_kwargs.copy() if last_ai_message.additional_kwargs else {}
-            updated_kwargs["mfe_contents"] = [mfe.model_dump() for mfe in response.mfes]
+            updated_kwargs["mfe_contents"] = [mfe.model_dump() for mfe in response_mfe_container.mfes]
             updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
             updated_kwargs["packaged"] = True
 
+            logger.info(f"Packager: Final combined usage: {total_usage}")
             updated_msg = AIMessage(
                 content=last_ai_message.content,
                 id=last_ai_message.id,
                 tool_calls=getattr(last_ai_message, 'tool_calls', []),
-                additional_kwargs=updated_kwargs
+                additional_kwargs=updated_kwargs,
+                usage_metadata=total_usage
             )
-            logger.info(f"Packager: Updating existing Turn AIMessage ID={last_ai_message.id} with packaged MFEs")
+            logger.info(f"Packager: Updating existing Turn AIMessage ID={last_ai_message.id} with packaged MFEs and metadata")
             return {"messages": [updated_msg]}
 
         # Fallback (should not be reached in normal flow)
