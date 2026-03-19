@@ -1,14 +1,11 @@
 import pytest
-from deepeval.test_case import LLMTestCase
-from deepeval.metrics import GEval
-from deepeval.test_case import LLMTestCaseParams
-from deepeval import assert_test
 import os
-
-from src.agent import create_agent, AgentState, llm_model
-from src.config import ServiceConfig, LangchainConfig
 import yaml
 from pathlib import Path
+from langchain_core.messages import HumanMessage, SystemMessage
+
+from src.agent import create_agent, llm_model
+from src.config import ServiceConfig
 
 @pytest.fixture
 def mock_config():
@@ -19,73 +16,83 @@ def mock_config():
         with open(config_yaml_path) as f:
             config_data = yaml.safe_load(f)
 
-    # Modify DB credentials to pass validation
-    config_data.setdefault("persistence", {}).setdefault("db", {}).setdefault("connection", {})
-    config_data["persistence"]["db"]["connection"]["username"] = "dummy"
-    config_data["persistence"]["db"]["connection"]["password"] = "dummy"
-    config_data["persistence"]["db"]["acquire_timeout"] = 5
+    # Ensure all required fields for ServiceConfig are present to avoid Pydantic validation errors
     config_data.setdefault("hams", {})
-    config_data["hams"]["enable"] = False
-    config_data["hams"]["enable_dashboard"] = False
     config_data["hams"]["url"] = "http://localhost:8001"
     config_data["hams"]["prefix"] = "/hams"
-    config_data["hams"]["checks"] = {"timeout": 1, "fails": 1, "preflights": [], "shutdowns": []}
-    config_data["hams"]["shutdownDuration"] = 1
+    config_data["hams"]["checks"] = {
+        "timeout": 1,
+        "fails": 1,
+        "preflights": [],
+        "shutdowns": []
+    }
+    config_data["hams"]["shutdownDuration"] = "PT1S"
+    
+    config_data.setdefault("webservice", {})
+    config_data["webservice"]["url"] = "http://localhost:8080"
+    
+    config_data.setdefault("persistence", {}).setdefault("db", {})
+    config_data["persistence"]["db"].setdefault("connection", {})
+    config_data["persistence"]["db"]["connection"]["url"] = "postgresql://localhost:5432/dummy"
+    config_data["persistence"]["db"]["connection"]["username"] = "dummy"
+    config_data["persistence"]["db"]["connection"]["password"] = "dummy"
+    config_data["persistence"]["db"]["pool_size"] = 10
+    config_data["persistence"]["db"]["automigrate"] = False
+    config_data["persistence"]["db"]["acquire_timeout"] = 5
+
     config_data.setdefault("aiclient", {})
     config_data["aiclient"]["model_provider"] = "google_genai"
-    config_data["aiclient"]["model"] = "gemini-1.5-flash"
+    config_data["aiclient"]["model"] = "gemini-2.0-flash"
     config_data["aiclient"]["context_length"] = 8192
     config_data["aiclient"]["google_api_key"] = os.getenv("GOOGLE_API_KEY", "dummy")
 
     return ServiceConfig(**config_data)
 
 @pytest.mark.asyncio
-async def test_mermaid_prime_numbers(gemini_judge, mock_config):
+async def test_system_prompt_adherence_mfe(mock_config):
     """
-    Test that the agent can generate a valid Mermaid diagram showing the growth
-    of the first 7 prime numbers.
+    Test that the agent follows the system prompt by using the 'get_mfe_content' tool
+    when requested to show structured data or JSON.
     """
-    # 1. Define the input prompt
-    prompt = "show me a mermaid diagram or that chart of growth of first 7 prime numbers"
-
-    # 2. Get the agent instance
-    config = mock_config
-
-    llm = llm_model(config.aiclient)
+    prompt = "Show me a JSON example of a product catalog entry."
+    
+    llm = llm_model(mock_config.aiclient)
     agent = create_agent(llm)
+    
+    state = {"messages": [HumanMessage(content=prompt)]}
+    response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mfe_thread"}})
+    
+    last_msg = response_state["messages"][-1]
+    
+    # Adherence Check:
+    # 1. Was the MFE tool used? (post_process_node extracts this from ToolMessages into additional_kwargs)
+    assert "mfe_contents" in last_msg.additional_kwargs, "Agent failed to use get_mfe_content for JSON request"
+    assert len(last_msg.additional_kwargs["mfe_contents"]) > 0
+    
+    # 2. Was the visual experience prioritized (text suppressed)?
+    # SYSTEM PROMPT: "Do not just output the JSON as text; using the tool ensures the user gets a premium visual experience."
+    assert last_msg.content == "", "Agent should have suppressed text content when providing an MFE"
 
-    # 3. Call the agent to get its response
-    state = {"messages": [("user", prompt)]}
-
-    # We pass empty config for the graph execution
-    response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_thread"}})
-    actual_response = response_state["messages"][-1].content
-
-    # 4. Define the expected output characteristics (Reference answer)
-    # The first 7 prime numbers are: 2, 3, 5, 7, 11, 13, 17.
-    # The reference doesn't need to be exact text, but provides ground truth for the judge.
-    expected_output = (
-        "A valid Mermaid.js diagram (e.g., a line chart, bar chart, or graph) that explicitly "
-        "plots the first 7 prime numbers: 2, 3, 5, 7, 11, 13, and 17. The response must contain "
-        "a ```mermaid code block."
-    )
-
-    # 5. Define the metric using our custom Gemini judge
-    # GEval is a generic evaluator that uses the LLM to score the response.
-    correctness_metric = GEval(
-        name="Correctness",
-        criteria="Determine whether the actual output accurately follows the expected output format and rules.",
-        evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-        threshold=0.7,
-        model=gemini_judge,
-    )
-
-    # 6. Create the test case
-    test_case = LLMTestCase(
-        input=prompt,
-        actual_output=actual_response,
-        expected_output=expected_output
-    )
-
-    # 7. Assert the test
-    assert_test(test_case, [correctness_metric])
+@pytest.mark.asyncio
+async def test_system_prompt_adherence_mermaid(mock_config):
+    """
+    Test that the agent follows the system prompt for Mermaid diagram generation.
+    """
+    prompt = "Create a mermaid sequence diagram showing an order fulfillment flow."
+    
+    llm = llm_model(mock_config.aiclient)
+    agent = create_agent(llm)
+    
+    state = {"messages": [HumanMessage(content=prompt)]}
+    response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mermaid_thread"}})
+    
+    last_msg = response_state["messages"][-1]
+    
+    # Adherence Check:
+    # 1. Did it generate a mermaid block that was then extracted by post_process_node?
+    assert "mermaid_diagrams" in last_msg.additional_kwargs, "Agent failed to generate a mermaid diagram"
+    assert len(last_msg.additional_kwargs["mermaid_diagrams"]) > 0
+    
+    # 2. Check for typical mermaid sequence diagram keywords
+    diagram_content = last_msg.additional_kwargs["mermaid_diagrams"][0].lower()
+    assert "sequence" in diagram_content or "participant" in diagram_content

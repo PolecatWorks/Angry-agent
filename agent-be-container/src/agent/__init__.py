@@ -20,7 +20,10 @@ logger = logging.getLogger(__name__)
 SYSTEM_MESSAGE = """You are a helpful AI assistant.
 You have access to a tool `get_mfe_content` that returns structured data to be displayed in a beautiful Micro-Frontend (MFE) component.
 Whenever the user asks to see structured data, JSON examples, or mentions MFEs, you MUST use the `get_mfe_content` tool.
-Do not just output the JSON as text; using the tool ensures the user gets a premium visual experience."""
+Do not just output the JSON as text; using the tool ensures the user gets a premium visual experience.
+
+You can also create beautiful diagrams and charts using Mermaid.js syntax. To do this, simply include a ```mermaid code block in your response. The application will automatically extract and render it beautifully.
+Use Mermaid for flowcharts, sequence diagrams, gantt charts, and line/bar charts when specifically requested or when it helps visualize data."""
 
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
@@ -77,8 +80,10 @@ async def post_process_node(state: AgentState):
             logger.info(f"Adding {len(mfe_contents)} MFE blocks to message metadata and suppressing text content")
             last_msg.additional_kwargs = last_msg.additional_kwargs or {}
             last_msg.additional_kwargs["mfe_contents"] = mfe_contents
-            # Suppress intermediate/boilerplate text if showing an MFE
-            last_msg.content = ""
+            # Suppress intermediate/boilerplate text if showing an MFE, 
+            # but preserve it if it contains Mermaid diagrams
+            if not last_msg.additional_kwargs.get("mermaid_diagrams"):
+                last_msg.content = ""
 
         return {"messages": [last_msg]}
     return {}
@@ -145,7 +150,13 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
     llm_with_tools = llm.bind_tools(tools)
 
     async def llm_node(state: AgentState):
-        response = await llm_with_tools.ainvoke(state.messages)
+        from langchain_core.messages import SystemMessage
+        # Prepend system message for adherence
+        messages = state.messages
+        if not any(isinstance(m, SystemMessage) for m in messages):
+            messages = [SystemMessage(content=SYSTEM_MESSAGE)] + messages
+            
+        response = await llm_with_tools.ainvoke(messages)
         
         # Fallback for models that return tool call JSON in content instead of tool_calls field
         if isinstance(response, AIMessage) and not response.tool_calls:
@@ -232,8 +243,6 @@ def llm_model(config: LangchainConfig):
             model = ChatGoogleGenerativeAI(
                 model=config.model,
                 google_api_key=config.google_api_key.get_secret_value() if config.google_api_key else None,
-                system_instruction=SYSTEM_MESSAGE,
-                # http_client=httpx_client,
             )
         case "azure_openai":
             from langchain_openai import AzureChatOpenAI
