@@ -17,6 +17,9 @@ agent-be_INTERNAL_PORT := 8080
 agent-be_INTERNAL_HEALTH_PORT := 8079
 agent-ui_INTERNAL_PORT := 8080
 
+export APP_AICLIENT__GOOGLE_API_KEY := ${GOOGLE_API_KEY}
+
+
 # --- Python Venvs & Deps ---
 
 # Pattern to create venvs and install deps for any app in PYTHON_APPS
@@ -67,8 +70,10 @@ $(foreach app,$(NODE_APPS),$(app)-test):%-test:%-container/node_modules
 # --- Docker ---
 
 # Docker Build
+agent-be_DOCKER_BUILD_OPTS := --secret id=GOOGLE_API_KEY
+
 $(foreach app,$(APPS),$(app)-docker):%-docker:
-	docker build -t $* $*-container
+	docker build ${$*_DOCKER_BUILD_OPTS} -t $* $*-container
 
 # Docker Run
 $(foreach app,$(APPS),$(app)-docker-run):%-docker-run:%-docker

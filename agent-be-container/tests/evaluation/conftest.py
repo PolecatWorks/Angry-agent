@@ -6,7 +6,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 class GeminiJudge(DeepEvalBaseLLM):
     def __init__(self):
         # Use gemini-1.5-pro for best reasoning/evaluation
-        self._model = ChatGoogleGenerativeAI(model="gemini-1.5-pro")
+        self._model = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
         super().__init__()
 
     def load_model(self):
