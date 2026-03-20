@@ -24,6 +24,14 @@ RUN npm run build
 
 # Stage 2: Serve
 FROM nginx:alpine
+
+# Add OCI labels
+LABEL org.opencontainers.image.title="Agent UI"
+LABEL org.opencontainers.image.description="AI Agent User Interface (Micro-Frontend)"
+LABEL org.opencontainers.image.authors="Ben Greene <BenJGreene@gmail.com>"
+LABEL org.opencontainers.image.source="https://github.com/polecatworks/Angry-agent"
+LABEL org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
 COPY --from=build /app/dist/agent-ui/browser /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
