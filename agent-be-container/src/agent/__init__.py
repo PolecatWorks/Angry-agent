@@ -300,7 +300,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
             logger.info(f"Message {i}: {type(message)} {message}")
 
         # Accumulate usage metadata from all AIMessages in THE CURRENT TURN
-        total_usage = {}
+        total_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
         messages_since_human = []
         for m in reversed(state.messages):
             if isinstance(m, HumanMessage):
@@ -347,6 +347,12 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
             updated_kwargs["mfe_contents"] = [mfe.model_dump() for mfe in response_mfe_container.mfes]
             updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
             updated_kwargs["packaged"] = True
+
+            # Extract any mermaid diagrams from the conversational content
+            mermaid_diagrams = extract_mermaid(last_ai_message.content)
+            if mermaid_diagrams:
+                updated_kwargs["mermaid_diagrams"] = mermaid_diagrams
+                logger.info(f"Packager: Extracted {len(mermaid_diagrams)} mermaid diagrams")
 
             logger.info(f"Packager: Final combined usage: {total_usage}")
             updated_msg = AIMessage(
