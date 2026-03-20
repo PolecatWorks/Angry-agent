@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-from typing import Any
+from typing import Any, List, Literal
 from .structs import MFEContent
 
 # @tool
@@ -116,26 +116,35 @@ def generate_mfe_of_mermaid(mermaid_content: str, title: str) -> MFEContent:
     )
 
 
-@tool
-def generate_data_visualization(title: str, datasets: list, x_axis_type: str = "linear") -> MFEContent:
+class DataPoint(BaseModel):
+    x: Any = Field(description="The X value (number, string, or date string)")
+    y: float = Field(description="The Y value (number)")
+
+class Dataset(BaseModel):
+    label: str = Field(description="Name of the dataset")
+    values: List[DataPoint] = Field(description="List of data points")
+    color: str | None = Field(default=None, description="Optional CSS color hex")
+
+class DataVizInput(BaseModel):
+    title: str = Field(description="The title of the visualization")
+    datasets: List[Dataset] = Field(description="List of datasets to plot")
+    x_axis_type: Literal["linear", "time", "band"] = Field(default="linear", description="Scale type for X axis")
+
+@tool(args_schema=DataVizInput)
+def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type: str = "linear") -> MFEContent:
     """
     Generates a high-quality data visualization (line graph) in the UI.
     Use this tool when the user asks for charts, graphs, trends, or data comparisons.
-    Args:
-        title: The title of the visualization.
-        datasets: A list of datasets to plot. Each dataset must contain:
-                  - label (str): Name of the dataset.
-                  - values (list): List of {x, y} points where x is a number/string/date and y is a number.
-                  - color (str, optional): CSS color hex for the line (e.g., '#6366f1').
-        x_axis_type: The scale type for the X axis ('linear', 'time', or 'band'). Defaults to 'linear'.
     """
     logger.info(f"Tool generate_data_visualization called: {title}")
+    # Convert datasets back to dicts for the MFE
+    datasets_dict = [d.model_dump() for d in datasets]
     return MFEContent(
         mfe="mfe1",
         component="./DataShowWrapper",
         content={
             "title": title,
-            "content": datasets,
+            "content": datasets_dict,
             "xType": x_axis_type
         }
     )
@@ -147,11 +156,10 @@ def get_tools(builder):
     tools = [generate_data_visualization, generate_mfe_of_markdown, generate_mfe_of_text, generate_mfe_of_json, generate_mfe_of_mermaid]
 
     @tool
-    def visualize_graph() -> str:
+    def visualize_graph() -> MFEContent:
         """
         Returns a mermaid diagram showing the internal structure and flow of this AI agent's LangGraph.
         Use this when the user asks 'how do you work?', 'show me your graph', or 'what is your architecture?'.
-        the respose is plain mermaid code as a string
         """
         logger.info("Tool visualize_graph called")
         # StateGraph builder doesn't have get_graph() in all versions;
@@ -161,9 +169,13 @@ def get_tools(builder):
         else:
             mermaid_code = builder.compile().get_graph().draw_mermaid()
 
-        print("mermaid_code: ", mermaid_code)
-
-        return mermaid_code
+        return MFEContent(
+            mfe="mfe1",
+            component="./MermaidShowWrapper",
+            content={
+                "content": mermaid_code
+            }
+        )
 
     tools.append(visualize_graph)
 

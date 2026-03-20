@@ -40,9 +40,9 @@ async def test_visualize_graph_tool_execution():
     builder.set_entry_point("start")
     builder.add_edge("start", END)
     
-    # Call the tool
-    # Mermaid draw usually requires at least some edges
-    result = vg_tool.invoke({})
+    # Call the function directly instead of using tool.invoke({})
+    # as LangChain tools often serialize output, but we want the MFEContent instance.
+    result = vg_tool.func()
     
     assert result.mfe == "mfe1"
     assert result.component == "./MermaidShowWrapper"
@@ -53,10 +53,22 @@ async def test_agent_uses_visualize_graph_tool():
     # Setup LLM to call the visualize_graph tool
     from unittest.mock import MagicMock, AsyncMock
     from langchain_core.language_models import BaseChatModel
+    from agent.structs import MFEContainer, MFEContent
     
     llm = MagicMock(spec=BaseChatModel)
     llm.bind_tools.return_value = llm
     
+    # Mock with_structured_output for the packager_node
+    structured_mock = MagicMock()
+    async def mock_packager_invoke(messages):
+        # Return a simple mock MFEContainer
+        return {"parsed": MFEContainer(mfes=[
+            MFEContent(mfe="mfe1", component="./MermaidShowWrapper", content={"content": "graph TD; A-->B"})
+        ]), "raw": AIMessage(content="Packaged response")}
+
+    structured_mock.ainvoke = AsyncMock(side_effect=mock_packager_invoke)
+    llm.with_structured_output.return_value = structured_mock
+
     # First call returns tool call, second call returns content
     llm.ainvoke = AsyncMock(side_effect=[
         AIMessage(content="", tool_calls=[{
@@ -69,7 +81,7 @@ async def test_agent_uses_visualize_graph_tool():
     ])
     
     checkpointer = MemorySaver()
-    agent = create_agent(llm=llm, checkpointer=checkpointer)
+    agent = create_agent(main_llm=llm, packager_llm=llm, checkpointer=checkpointer)
     
     config = {"configurable": {"thread_id": "vg-test"}}
     
