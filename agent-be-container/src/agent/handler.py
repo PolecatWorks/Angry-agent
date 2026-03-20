@@ -19,8 +19,10 @@ from langchain_core.messages import (
 logger = logging.getLogger(__name__)
 
 class LLMHandler:
-    def __init__(self, db_dsn: str, main_llm=None, packager_llm=None):
+    def __init__(self, db_dsn: str, main_llm=None, packager_llm=None, main_prompt: str = "", packager_prompt: str = ""):
         self.db_dsn = db_dsn
+        self.main_prompt = main_prompt
+        self.packager_prompt = packager_prompt
         if main_llm is None:
             main_llm = FakeListChatModel(responses=["I am a placeholder LLM. Please configure a real model."])
         self.main_llm = main_llm
@@ -52,7 +54,7 @@ class LLMHandler:
         await self._exit_stack.enter_async_context(pool)
         self.checkpointer = AsyncPostgresSaver(pool)
         await self.checkpointer.setup()
-        self.agent = create_agent(self.main_llm, self.packager_llm, self.checkpointer)
+        self.agent = create_agent(self.main_llm, self.packager_llm, self.main_prompt, self.packager_prompt, self.checkpointer)
 
 
     async def chat(self, thread_id: str, message: str) -> str:

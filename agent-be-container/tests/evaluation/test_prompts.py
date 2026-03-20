@@ -40,11 +40,19 @@ def mock_config():
     config_data["persistence"]["db"]["automigrate"] = False
     config_data["persistence"]["db"]["acquire_timeout"] = 5
 
-    config_data.setdefault("aiclient", {})
-    config_data["aiclient"]["model_provider"] = "google_genai"
-    config_data["aiclient"]["model"] = "gemini-2.0-flash"
-    config_data["aiclient"]["context_length"] = 8192
-    config_data["aiclient"]["google_api_key"] = os.getenv("GOOGLE_API_KEY", "dummy")
+    config_data.setdefault("main_aiclient", {})
+    config_data["main_aiclient"]["model_provider"] = "google_genai"
+    config_data["main_aiclient"]["model"] = "gemini-2.0-flash"
+    config_data["main_aiclient"]["context_length"] = 8192
+    config_data["main_aiclient"]["google_api_key"] = os.getenv("GOOGLE_API_KEY", "dummy")
+    config_data["main_aiclient"]["system_prompt"] = "Main prompt"
+
+    config_data.setdefault("packager_aiclient", {})
+    config_data["packager_aiclient"]["model_provider"] = "google_genai"
+    config_data["packager_aiclient"]["model"] = "gemini-2.0-flash"
+    config_data["packager_aiclient"]["context_length"] = 8192
+    config_data["packager_aiclient"]["google_api_key"] = os.getenv("GOOGLE_API_KEY", "dummy")
+    config_data["packager_aiclient"]["system_prompt"] = "Packager prompt"
 
     return ServiceConfig(**config_data)
 
@@ -56,8 +64,14 @@ async def test_system_prompt_adherence_mfe(mock_config):
     """
     prompt = "Show me a JSON example of a product catalog entry."
     
-    llm = llm_model(mock_config.aiclient)
-    agent = create_agent(main_llm=llm, packager_llm=llm)
+    llm = llm_model(mock_config.main_aiclient)
+    packager_llm = llm_model(mock_config.packager_aiclient)
+    agent = create_agent(
+        main_llm=llm,
+        packager_llm=packager_llm,
+        main_prompt=mock_config.main_aiclient.system_prompt,
+        packager_prompt=mock_config.packager_aiclient.system_prompt
+    )
     
     state = {"messages": [HumanMessage(content=prompt)]}
     response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mfe_thread"}})
@@ -81,8 +95,14 @@ async def test_system_prompt_adherence_mermaid(mock_config):
     """
     prompt = "Create a mermaid sequence diagram showing an order fulfillment flow."
     
-    llm = llm_model(mock_config.aiclient)
-    agent = create_agent(main_llm=llm, packager_llm=llm)
+    llm = llm_model(mock_config.main_aiclient)
+    packager_llm = llm_model(mock_config.packager_aiclient)
+    agent = create_agent(
+        main_llm=llm,
+        packager_llm=packager_llm,
+        main_prompt=mock_config.main_aiclient.system_prompt,
+        packager_prompt=mock_config.packager_aiclient.system_prompt
+    )
     
     state = {"messages": [HumanMessage(content=prompt)]}
     response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mermaid_thread"}})
