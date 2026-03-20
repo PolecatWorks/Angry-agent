@@ -38,7 +38,7 @@ async def post_process_node(state: AgentState):
     messages = state.messages
     if not messages:
         return {}
-    
+
     last_msg = messages[-1]
     if isinstance(last_msg, AIMessage):
         # 1. Extract Mermaid Diagrams
@@ -46,7 +46,7 @@ async def post_process_node(state: AgentState):
         if mermaid_diagrams:
             last_msg.additional_kwargs = last_msg.additional_kwargs or {}
             last_msg.additional_kwargs["mermaid_diagrams"] = mermaid_diagrams
-        
+
         # 2. Extract Tool Outputs for MFE rendering
         mfe_contents = []
         # We look back in history for ToolMessages
@@ -67,7 +67,7 @@ async def post_process_node(state: AgentState):
                         content_obj = json.loads(cleaned_content)
                     except:
                         pass
-                
+
                 if content_obj and isinstance(content_obj, dict) and "mfe" in content_obj:
                     logger.info(f"Extracted MFE content: {content_obj.get('mfe')}")
                     mfe_contents.append(content_obj)
@@ -75,12 +75,12 @@ async def post_process_node(state: AgentState):
                     logger.warning(f"ToolMessage content was not valid MFE dict: {type(content_obj)}")
             elif isinstance(m, HumanMessage):
                 break
-        
+
         if mfe_contents:
             logger.info(f"Adding {len(mfe_contents)} MFE blocks to message metadata and suppressing text content")
             last_msg.additional_kwargs = last_msg.additional_kwargs or {}
             last_msg.additional_kwargs["mfe_contents"] = mfe_contents
-            # Suppress intermediate/boilerplate text if showing an MFE, 
+            # Suppress intermediate/boilerplate text if showing an MFE,
             # but preserve it if it contains Mermaid diagrams
             if not last_msg.additional_kwargs.get("mermaid_diagrams"):
                 last_msg.content = ""
@@ -145,7 +145,7 @@ async def echo_node(state: AgentState):
 
 def create_agent(llm: BaseChatModel, checkpointer=None):
     builder = StateGraph(AgentState)
-    
+
     tools = get_tools()
     llm_with_tools = llm.bind_tools(tools)
 
@@ -155,9 +155,9 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
         messages = state.messages
         if not any(isinstance(m, SystemMessage) for m in messages):
             messages = [SystemMessage(content=SYSTEM_MESSAGE)] + messages
-            
+
         response = await llm_with_tools.ainvoke(messages)
-        
+
         # Fallback for models that return tool call JSON in content instead of tool_calls field
         if isinstance(response, AIMessage) and not response.tool_calls:
             content = response.content.strip()
@@ -170,7 +170,7 @@ def create_agent(llm: BaseChatModel, checkpointer=None):
                         json_str = json_str[7:-3].strip()
                     elif json_str.startswith("```"):
                         json_str = json_str[3:-3].strip()
-                        
+
                     tool_data = json.loads(json_str)
                     if isinstance(tool_data, dict) and "name" in tool_data and ("arguments" in tool_data or "args" in tool_data):
                         logger.warning(f"Detected hallucinated tool call in AI content: {tool_data['name']}. Converting to native tool_call.")
@@ -242,7 +242,7 @@ def llm_model(config: LangchainConfig):
 
             model = ChatGoogleGenerativeAI(
                 model=config.model,
-                google_api_key=config.google_api_key.get_secret_value() if config.google_api_key else None,
+                google_api_key=config.google_api_key.get_secret_value(),
             )
         case "azure_openai":
             from langchain_openai import AzureChatOpenAI

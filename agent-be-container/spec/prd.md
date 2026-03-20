@@ -53,6 +53,12 @@ The backend includes specific routing and post-processing mechanisms for process
 
 ## 6. Development Guidelines
 
+### 6.1 General
 - Run tests using the provided Makefile targets (e.g., `make agent-be-test`).
 - When modifying the agent flow, ensure that changes to graph construction occur at startup and do not introduce per-request overhead.
 - Ensure new features or alterations to how the backend handles state are documented in this specification file.
+
+### 6.2 Testing & Build Environment
+- **Evaluation**: The backend uses `deepeval` for LLM-based evaluation of agent prompts and outputs.
+- **Build Secrets**: Running tests during the Docker build process requires a valid `GOOGLE_API_KEY` passed as a Docker build secret (`--secret id=GOOGLE_API_KEY`). This key is used by the `GeminiJudge` in the evaluation suite.
+- **CI/CD**: Ensure the CI environment (e.g., GitHub Actions) is configured to pass this secret during the build.
