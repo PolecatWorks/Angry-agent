@@ -175,7 +175,7 @@ async def get_history(request):
     llm_handler: LLMHandler = request.app["llm_handler"]
     state = await llm_handler.get_thread_state(thread_id)
     messages_list = []
-    max_tokens = getattr(config.aiclient, "context_length", None)
+    max_tokens = getattr(config.main_aiclient, "context_length", None)
 
     if state.values and "messages" in state.values:
         last_human_timestamp = None
@@ -315,12 +315,21 @@ async def on_startup(app):
         # Initialize LLM
         logger.info("Initializing LLM")
         from .agent import llm_model
-        main_llm = llm_model(config.aiclient)
-        packager_llm = llm_model(config.aiclient)
+        main_llm = llm_model(config.main_aiclient)
+        packager_llm = llm_model(config.packager_aiclient)
+
+        main_prompt = config.main_aiclient.system_prompt or ""
+        packager_prompt = config.packager_aiclient.system_prompt or ""
 
         # Initialize LLM Handler
         logger.info("Initializing LLMHandler")
-        llm_handler = LLMHandler(db_dsn=config.persistence.db.connection.dsn, main_llm=main_llm, packager_llm=packager_llm)
+        llm_handler = LLMHandler(
+            db_dsn=config.persistence.db.connection.dsn,
+            main_llm=main_llm,
+            packager_llm=packager_llm,
+            main_prompt=main_prompt,
+            packager_prompt=packager_prompt
+        )
         await llm_handler.initialize()
         app["llm_handler"] = llm_handler
 
@@ -387,7 +396,8 @@ if __name__ == "__main__":
                     }
                 }
             },
-            aiclient={"context_length": 8192}
+            main_aiclient={"context_length": 8192},
+            packager_aiclient={"context_length": 8192}
         )
         app_start(config)
     except Exception as e:

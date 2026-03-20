@@ -138,6 +138,7 @@ class LangchainConfig(BaseModel):
     stop_sequences: list[str] = Field(default_factory=list, description="List of sequences that will stop generation")
     timeout: int = Field(default=60, description="Timeout in seconds for model API calls")
     streaming: bool = Field(default=True, description="Whether to stream responses from the model")
+    system_prompt: str | None = Field(default=None, description="System prompt for the model")
 
     model_config = ConfigDict(extra="forbid")
 
@@ -157,7 +158,8 @@ class ServiceConfig(BaseSettings):
     """
 
     logging: dict[str, Any] = Field(default_factory=dict, description="Logging configuration")
-    aiclient: LangchainConfig = Field(default_factory=LangchainConfig, description="AI Client configuration")
+    main_aiclient: LangchainConfig = Field(default_factory=LangchainConfig, description="Main AI Client configuration")
+    packager_aiclient: LangchainConfig = Field(default_factory=LangchainConfig, description="Packager AI Client configuration")
     myai: MyAiConfig = Field(default_factory=MyAiConfig, description="MyAI bot configuration")
     hams: HamsConfig = Field(description="Health and monitoring configuration")
 

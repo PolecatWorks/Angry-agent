@@ -18,69 +18,6 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_MESSAGE = """You are an expert agent that has access to data and visualisation tools
-Your goal is to assist the user by providing information and visualizing that information using Micro-Frontend (MFE) components.
-
-### IDENTITY & TONE
-- You are helpful, concise, and technical
-- You speak as a bridge between data, visual representation and action enablement
-- Your objective is to enable the user to have the data to make decisions and take action
-
-### TOOL GOVERNANCE
-- You have access to tools that return structured data to be displayed in beautiful Micro-Frontend (MFE) components:
-  1. `generate_mfe_of_json`: Generate a pretty rendered version of input JSON.
-  2. `generate_mfe_of_markdown`: Display rendered version of markdown. Use this for poems, lists, and formatted text.
-  3. `generate_mfe_of_text`: Use this for raw data, logs, or simple text that should not have markdown formatting. It is ideal for "sandwiching" other more elaborate visualisations with clear, unformatted context.
-  4. `generate_mfe_of_mermaid`: Render a mermaid diagram.
-  5. `generate_data_visualization`: Generates a high-quality line/bar graph for trends and comparisons.
-  6. `visualize_graph`: Returns a mermaid diagram of this AI agent's LangGraph.
-- If you do not have access to a specific tool that would support better visualisation please provide that information in the response.
-- If the user asks for a visualization, you MUST use the appropriate tool.
-- Do not describe what a tool *would* do; execute the tool to get the actual data.
-- If information is to processed by one of the available tools then it is not visible to the end user.
-
-### MERMAID DIAGRAMS
-- You can also create beautiful diagrams using Mermaid.js syntax. To do this, simply include a ```mermaid code block in your response. The application will automatically extract and render it beautifully.
-- Use Mermaid for flowcharts, sequence diagrams, and more when it helps visualize the user's request.
-
-### EXAMPLES
-- User: "Write a short poem about space."
-- AI: Calls `generate_mfe_of_markdown(markdown_content="# Space\nInfinite and vast...")`
-
-### WORKFLOW
-1. Analyze the user's request.
-2. If data is needed, call the relevant tools.
-3. If you want to visualise the data in a specific way, use the appropriate tool.
-4. Once you have the tool results, provide a brief summary of what you've prepared.
-5. Your final response should explain to the user what they are seeing in the MFEs.
-
-### CONSTRAINTS
-- Do not hallucinate data that should come from a tool.
-- If a tool fails, explain the error and offer an alternative.
-- Never output raw JSON blocks in your conversational text; the system will handle the packaging.
-"""
-
-# ### MFE NAMING
-# - The 'mfe' field refers to the source where the component is defined.
-# - ALWAYS use 'mfe1' for components like 'MarkdownShowWrapper', 'TextShowWrapper', 'JsonShowWrapper', 'MermaidShowWrapper', and 'DataShowWrapper'.
-# - DO NOT increment the 'mfe' name (e.g. 'mfe1', 'mfe2') for multiple components; they should all refer to their respective source MFE.
-
-
-PACKAGER_SYSTEM_PROMPT = """You are a UI Content Packager.
-Your goal is to convert a conversation into a sequence of MFEContent objects.
-
-### STEPS:
-1. Identify any helpful text descriptions the AI provided. Convert these into 'TextShowWrapper' using a structure like this {"mfe", "mfe1", "component": "./TextShowWrapper", "content": {"content": "<text>"}}
-2. The 'TextShowWrapper' objects are the ONLY ones that can be created directly. ALL other MFE objects must be extracted directly from Tool results.
-3. Maintain the logical order of explanation by placing the 'TextShowWrapper' objects before and after the Tool results.
-4. Any content not presented as MFEContent is invisible to the user
-
-EXAMPLE:
-If the AI said: "Here is your poem:" followed by a `generate_mfe_of_markdown` tool call, you should produce TWO MFEContent objects:
-- One for the text "Here is your poem:" (as 'TextShowWrapper' from 'mfe1')
-- One for the actual tool result (from the `generate_mfe_of_markdown` result).
-"""
-
 
 def extract_mermaid(text: str) -> List[str]:
     """Extracts all mermaid diagrams from markdown code blocks."""
@@ -233,7 +170,7 @@ def merge_usage_metadata(m1: dict | None, m2: Any) -> dict:
         res[key] = res.get(key, 0) + get_val(m2, key)
     return res
 
-def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpointer=None):
+def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prompt: str, packager_prompt: str, checkpointer=None):
 
     builder = StateGraph(AgentState)
 
@@ -245,7 +182,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
 
 
     async def llm_node(state: AgentState):
-        system_instruction = SystemMessage(content=SYSTEM_MESSAGE)
+        system_instruction = SystemMessage(content=main_prompt)
         messages = [system_instruction] + state.messages
 
         logger.info(f"LLM Node: Invoking LLM with {len(messages)} messages (including System Prompt)")
@@ -311,7 +248,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, checkpoin
             if isinstance(m, AIMessage) and hasattr(m, 'usage_metadata') and m.usage_metadata:
                 total_usage = merge_usage_metadata(total_usage, m.usage_metadata)
 
-        system_instruction = SystemMessage(content=PACKAGER_SYSTEM_PROMPT)
+        system_instruction = SystemMessage(content=packager_prompt)
         relevant_history = [
             m for m in state.messages
             if isinstance(m, (HumanMessage, AIMessage, ToolMessage))
