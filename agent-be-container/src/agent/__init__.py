@@ -170,7 +170,7 @@ def merge_usage_metadata(m1: dict | None, m2: Any) -> dict:
         res[key] = res.get(key, 0) + get_val(m2, key)
     return res
 
-def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prompt: str, packager_prompt: str, checkpointer=None):
+def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prompt: str = "", packager_prompt: str = "", checkpointer=None):
 
     builder = StateGraph(AgentState)
 
