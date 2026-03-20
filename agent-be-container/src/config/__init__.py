@@ -7,6 +7,8 @@ from typing import (
     Type,
     Tuple,
     Literal,
+    Union,
+    Annotated,
 )
 from datetime import timedelta
 from pydantic_settings import (
@@ -86,49 +88,14 @@ class MyAiConfig(BaseModel):
     )
 
 
-class LangchainConfig(BaseModel):
+class BaseAiClientConfig(BaseModel):
     """
-    Configuration for LangChain, supporting Azure OpenAI, GitHub-hosted models, Google GenAI, and Ollama
+    Common configuration for all AI client providers
     """
-
-    model_provider: Literal["azure_openai", "github", "google_genai", "ollama"] = Field(default="azure_openai", description="Provider for the model: 'azure_openai', 'github', 'google_genai', or 'ollama'")
-
     httpx_verify_ssl: str | bool = Field(
         default=True,
         description="Whether to verify SSL certificates for HTTP requests, can be a boolean or a path to a CA bundle",
     )
-
-    # Azure OpenAI settings
-    azure_endpoint: HttpUrl | None = Field(default=None, description="Azure OpenAI endpoint for LangChain")
-    azure_api_key: SecretStr | None = Field(default=None, description="API key for Azure OpenAI access")
-    azure_deployment: str | None = Field(default=None, description="Azure OpenAI deployment name for LangChain")
-    azure_api_version: str | None = Field(
-        default=None,
-        description="API version for Azure OpenAI, default is None",
-    )
-
-    # GitHub-hosted model settings
-    github_model_repo: str | None = Field(
-        default=None,
-        description="GitHub repository containing the model in owner/repo format",
-    )
-    github_api_base_url: HttpUrl | None = Field(default=None, description="Base URL for the GitHub model API endpoint")
-    github_api_key: SecretStr | None = Field(
-        default=None,
-        description="Optional API key for authenticated access to GitHub model",
-    )
-    google_api_key: SecretStr | None = Field(
-        default=None,
-        description="Optional API key for authenticated access to Genai model",
-    )
-
-    # Ollama settings
-    ollama_base_url: HttpUrl | None = Field(
-        default=None,
-        description="Base URL for your local Ollama instance (e.g. http://localhost:11434)",
-    )
-
-    # Common settings
     model: str = Field(default="gemini-1.5-flash-latest", description="The model to use (e.g., 'gemini-1.5-flash-latest' or GitHub model name)")
     temperature: float = Field(
         default=0.7,
@@ -142,14 +109,47 @@ class LangchainConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    @field_validator("model_provider")
-    @classmethod
-    def validate_provider_settings(cls, v, values):
-        """Validate that the required settings are present for the chosen provider"""
-        if v == "azure_openai" and not (values.get("azure_openai_endpoint") and values.get("azure_deployment")):
-            # Raising this might be annoying if defaults make it valid, but leaving logic for now
-            pass
-        return v
+
+class AzureOpenAIConfig(BaseAiClientConfig):
+    model_provider: Literal["azure_openai"] = Field(default="azure_openai", description="Azure OpenAI provider")
+    azure_endpoint: HttpUrl = Field(description="Azure OpenAI endpoint for LangChain")
+    azure_api_key: SecretStr = Field(description="API key for Azure OpenAI access")
+    azure_deployment: str = Field(description="Azure OpenAI deployment name for LangChain")
+    azure_api_version: str | None = Field(
+        default=None,
+        description="API version for Azure OpenAI, default is None",
+    )
+
+
+class GitHubConfig(BaseAiClientConfig):
+    model_provider: Literal["github"] = Field(default="github", description="GitHub-hosted model provider")
+    github_model_repo: str = Field(
+        description="GitHub repository containing the model in owner/repo format",
+    )
+    github_api_base_url: HttpUrl = Field(description="Base URL for the GitHub model API endpoint")
+    github_api_key: SecretStr = Field(
+        description="API key for authenticated access to GitHub model",
+    )
+
+
+class GoogleGenAIConfig(BaseAiClientConfig):
+    model_provider: Literal["google_genai"] = Field(default="google_genai", description="Google GenAI provider")
+    google_api_key: SecretStr = Field(
+        description="API key for authenticated access to Genai model",
+    )
+
+
+class OllamaConfig(BaseAiClientConfig):
+    model_provider: Literal["ollama"] = Field(default="ollama", description="Ollama provider")
+    ollama_base_url: HttpUrl = Field(
+        description="Base URL for your local Ollama instance (e.g. http://localhost:11434)",
+    )
+
+
+LangchainConfig = Annotated[
+    Union[AzureOpenAIConfig, GitHubConfig, GoogleGenAIConfig, OllamaConfig],
+    Field(discriminator="model_provider")
+]
 
 
 class ServiceConfig(BaseSettings):
@@ -158,8 +158,8 @@ class ServiceConfig(BaseSettings):
     """
 
     logging: dict[str, Any] = Field(default_factory=dict, description="Logging configuration")
-    main_aiclient: LangchainConfig = Field(default_factory=LangchainConfig, description="Main AI Client configuration")
-    packager_aiclient: LangchainConfig = Field(default_factory=LangchainConfig, description="Packager AI Client configuration")
+    main_aiclient: LangchainConfig = Field(description="Main AI Client configuration")
+    packager_aiclient: LangchainConfig = Field(description="Packager AI Client configuration")
     myai: MyAiConfig = Field(default_factory=MyAiConfig, description="MyAI bot configuration")
     hams: HamsConfig = Field(description="Health and monitoring configuration")
 

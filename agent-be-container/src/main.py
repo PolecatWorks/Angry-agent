@@ -396,8 +396,16 @@ if __name__ == "__main__":
                     }
                 }
             },
-            main_aiclient={"context_length": 8192},
-            packager_aiclient={"context_length": 8192}
+            main_aiclient={
+                "model_provider": "google_genai",
+                "context_length": 8192,
+                "google_api_key": "dummy"
+            },
+            packager_aiclient={
+                "model_provider": "google_genai",
+                "context_length": 8192,
+                "google_api_key": "dummy"
+            }
         )
         app_start(config)
     except Exception as e:

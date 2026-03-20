@@ -38,7 +38,10 @@ RUN poetry install --no-interaction --no-ansi --with dev
 # Run tests and create success flag
 ENV PYTHONPATH=src
 RUN --mount=type=secret,id=GOOGLE_API_KEY \
-    GOOGLE_API_KEY=$(cat /run/secrets/GOOGLE_API_KEY) \
+    GAK=$(cat /run/secrets/GOOGLE_API_KEY) && \
+    export APP_MAIN_AICLIENT__GOOGLE_API_KEY=$GAK && \
+    export APP_PACKAGER_AICLIENT__GOOGLE_API_KEY=$GAK && \
+    export GOOGLE_API_KEY=$GAK && \
     poetry run pytest && touch /app/tests/.test_success
 
 # Stage 3: Final image
