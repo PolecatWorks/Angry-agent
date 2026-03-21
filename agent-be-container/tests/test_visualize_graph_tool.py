@@ -42,7 +42,10 @@ async def test_visualize_graph_tool_execution():
     
     # Call the function directly instead of using tool.invoke({})
     # as LangChain tools often serialize output, but we want the MFEContent instance.
-    result = vg_tool.func()
+    from langchain_core.runnables import RunnableConfig
+    # Create a dummy config, appending visualizations will fail but won't throw
+    dummy_config: RunnableConfig = {"configurable": {"thread_id": "dummy"}}
+    result = await vg_tool.coroutine(config=dummy_config)
     
     assert result.mfe == "mfe1"
     assert result.component == "./MermaidShowWrapper"

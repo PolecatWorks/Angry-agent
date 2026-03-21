@@ -1,8 +1,9 @@
-<div class="chat-container" [style.--chat-color]="threadColor || '#3f51b5'">
-    <div class="messages-list" #scrollContainer>
-        <div *ngIf="loading" class="spinner-container">
-            <mat-spinner diameter="40"></mat-spinner>
-        </div>
+<div class="layout-container" [style.--chat-color]="threadColor || '#3f51b5'">
+    <div class="chat-container">
+        <div class="messages-list" #scrollContainer>
+            <div *ngIf="loading" class="spinner-container">
+                <mat-spinner diameter="40"></mat-spinner>
+            </div>
 
         <div *ngIf="!loading && messages.length === 0" class="empty-state">
             <mat-icon class="large-icon">chat_bubble_outline</mat-icon>
@@ -42,39 +43,50 @@
             </div>
         </div>
 
-        <div *ngIf="sending" class="message ai sending">
-            <div class="message-avatar">
-                <mat-icon [class.spinning]="!pollingError">smart_toy</mat-icon>
-            </div>
-            <div class="message-content indicator-content">
-                <div class="thinking-row">
-                    <span>
-                        {{ currentStatusMsg || 'Thinking' }}
-                        <span *ngIf="totalDuration" class="duration-badge">[{{ totalDuration }}]</span>
-                    </span>
-                    <span class="dot-typing"></span>
+            <div *ngIf="sending" class="message ai sending">
+                <div class="message-avatar">
+                    <mat-icon [class.spinning]="!pollingError">smart_toy</mat-icon>
                 </div>
-                <div class="poll-tracker" *ngIf="pollCount > 0">
-                    <mat-icon>sync</mat-icon>
-                    <small>Checked {{ pollCount }} time{{ pollCount !== 1 ? 's' : '' }}</small>
-                </div>
-                <div class="polling-error" *ngIf="pollingError">
-                    <mat-icon>warning</mat-icon>
-                    <small>{{ pollingError }}</small>
+                <div class="message-content indicator-content">
+                    <div class="thinking-row">
+                        <span>
+                            {{ currentStatusMsg || 'Thinking' }}
+                            <span *ngIf="totalDuration" class="duration-badge">[{{ totalDuration }}]</span>
+                        </span>
+                        <span class="dot-typing"></span>
+                    </div>
+                    <div class="poll-tracker" *ngIf="pollCount > 0">
+                        <mat-icon>sync</mat-icon>
+                        <small>Checked {{ pollCount }} time{{ pollCount !== 1 ? 's' : '' }}</small>
+                    </div>
+                    <div class="polling-error" *ngIf="pollingError">
+                        <mat-icon>warning</mat-icon>
+                        <small>{{ pollingError }}</small>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <div class="input-area">
+            <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Message</mat-label>
+                <input matInput #messageInput [(ngModel)]="newMessage" (keyup.enter)="sendMessage()" [readonly]="sending"
+                    placeholder="Type your message...">
+                <button mat-icon-button matSuffix (click)="sendMessage()" [disabled]="!newMessage.trim() || sending"
+                    color="primary">
+                    <mat-icon>send</mat-icon>
+                </button>
+            </mat-form-field>
+        </div>
     </div>
 
-    <div class="input-area">
-        <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Message</mat-label>
-            <input matInput #messageInput [(ngModel)]="newMessage" (keyup.enter)="sendMessage()" [readonly]="sending"
-                placeholder="Type your message...">
-            <button mat-icon-button matSuffix (click)="sendMessage()" [disabled]="!newMessage.trim() || sending"
-                color="primary">
-                <mat-icon>send</mat-icon>
-            </button>
-        </mat-form-field>
+    <div class="visualizations-panel">
+        <h2>Visualizations</h2>
+        <div *ngIf="!visualizations || visualizations.length === 0" class="empty-vis-state">
+            <p>No visualizations yet.</p>
+        </div>
+        <div *ngFor="let vis of visualizations" class="vis-item">
+            <app-mfe-renderer [mfe]="vis.mfe" [component]="vis.component" [content]="vis.content"></app-mfe-renderer>
+        </div>
     </div>
 </div>

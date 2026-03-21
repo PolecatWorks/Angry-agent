@@ -25,6 +25,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 })
 export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     messages: Message[] = [];
+    visualizations: any[] = [];
     newMessage: string = '';
     threadId: string | null = null;
     threadColor: string | null = null;
@@ -70,6 +71,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 this.loadHistory(this.threadId);
             } else {
                 this.loading = false;
+                this.visualizations = [];
                 this.focusInput();
             }
         });
@@ -100,6 +102,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 this.currentStatusMsg = res.thread?.status_msg || null;
                 this.lastStatusUpdatedAtStr = res.thread?.status_updated_at || null;
                 this.messages = res.messages;
+                this.visualizations = res.thread?.visualizations || [];
                 this.loading = false;
                 this.pollCount = 0;
                 this.pollingError = null;
@@ -218,6 +221,9 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
 
                 this.pollingError = null;
                 this.currentStatusMsg = res.thread?.status_msg || null;
+                if (res.thread?.visualizations) {
+                    this.visualizations = res.thread.visualizations;
+                }
 
                 if (res.thread?.current_server_time) {
                     this.serverOffset = Date.now() - new Date(res.thread.current_server_time).getTime();

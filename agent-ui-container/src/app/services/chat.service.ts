@@ -12,6 +12,7 @@ export interface Thread {
   status_msg?: string;
   status_updated_at?: string;
   current_server_time?: string;
+  visualizations?: any[];
 }
 
 export interface ChatResponse {

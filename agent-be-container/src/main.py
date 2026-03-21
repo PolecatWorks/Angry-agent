@@ -185,7 +185,7 @@ async def get_history(request):
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT user_id, color, status_msg, status_updated_at FROM threads WHERE thread_id = $1", thread_id)
+        row = await conn.fetchrow("SELECT user_id, color, status_msg, status_updated_at, visualizations FROM threads WHERE thread_id = $1", thread_id)
         if not row:
             return web.json_response({"error": "Not found"}, status=404)
 
@@ -193,6 +193,16 @@ async def get_history(request):
             access_row = await conn.fetchrow("SELECT 1 FROM thread_access WHERE thread_id = $1 AND user_id = $2", thread_id, user_id)
             if not access_row:
                 return web.json_response({"error": "Not found or access denied"}, status=404)
+
+        visualizations = []
+        if row.get("visualizations"):
+            if isinstance(row["visualizations"], str):
+                try:
+                    visualizations = json.loads(row["visualizations"])
+                except json.JSONDecodeError:
+                    pass
+            else:
+                visualizations = row["visualizations"]
 
     llm_handler: LLMHandler = request.app["llm_handler"]
     state = await llm_handler.get_thread_state(thread_id)
@@ -259,6 +269,7 @@ async def get_history(request):
                 "color": row["color"],
                 "status_msg": row["status_msg"],
                 "status_updated_at": str(row["status_updated_at"]) if row["status_updated_at"] else None,
+                "visualizations": visualizations,
                 "current_server_time": datetime.now(timezone.utc).isoformat()
             },
             "messages": messages_list

@@ -3,10 +3,18 @@
     height: 100%;
 }
 
+.layout-container {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+}
+
 .chat-container {
     display: flex;
     flex-direction: column;
     height: 100%;
+    flex: 1;
+    border-right: 1px solid #eee;
 }
 
 .messages-list {
@@ -16,6 +24,41 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+.visualizations-panel {
+    width: 40%;
+    min-width: 300px;
+    height: 100%;
+    overflow-y: auto;
+    background-color: #fafafa;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-sizing: border-box;
+
+    h2 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 1.2rem;
+        color: #333;
+    }
+
+    .empty-vis-state {
+        color: #757575;
+        text-align: center;
+        margin-top: 40px;
+    }
+
+    .vis-item {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        margin-bottom: 16px;
+        padding: 16px;
+
+        // Hide the title inside the MFE content if we wanted to, but for now just basic padding
+    }
 }
 
 .spinner-container {
