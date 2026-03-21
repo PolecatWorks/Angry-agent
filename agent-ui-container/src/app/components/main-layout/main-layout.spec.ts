@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { vi } from 'vitest';
 import { AuthService } from '../../services/auth.service';
-import { SharedContextService } from 'mfe-shared';
+import { SharedContextService } from '@polecatworks/mfe-shared';
 
 import { MainLayout } from './main-layout';
 

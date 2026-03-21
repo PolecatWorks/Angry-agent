@@ -4,7 +4,7 @@ import { ChatService, Thread } from '../../services/chat.service';
 import { ThreadList } from './thread-list';
 import { of, Subject, BehaviorSubject } from 'rxjs';
 import { vi } from 'vitest';
-import { SharedContextService } from 'mfe-shared';
+import { SharedContextService } from '@polecatworks/mfe-shared';
 
 describe('ThreadList', () => {
   let component: ThreadList;
