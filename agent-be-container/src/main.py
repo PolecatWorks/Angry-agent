@@ -39,6 +39,7 @@ async def auth_middleware(app, handler):
             return await handler(request)
 
         user_id = None
+        user_name = None
 
         # Try extracting user_id from Authorization Header (JWT)
         auth_header = request.headers.get("Authorization")
@@ -52,6 +53,9 @@ async def auth_middleware(app, handler):
                     # If standard claims are missing, serialize payload as a fallback identifier or fallback to default
                     user_id = "default-user"
                     logger.warning(f"JWT decoded but no 'sub' or 'user_id' claim found. Payload: {decoded_payload}")
+
+                # Extract user_name for tracking logins
+                user_name = decoded_payload.get("name") or decoded_payload.get("preferred_username") or decoded_payload.get("email")
             except Exception as e:
                 logger.error(f"Failed to decode JWT: {e}")
 
@@ -64,6 +68,7 @@ async def auth_middleware(app, handler):
              user_id = "default-user"
 
         request["user_id"] = user_id
+        request["user_name"] = user_name
 
         try:
             response = await handler(request)
@@ -138,10 +143,27 @@ async def chat_endpoint(request):
 async def list_threads(request):
     config: ServiceConfig = request.app[keys.config]
     user_id = request["user_id"]
+    user_name = request["user_name"]
+
+    if not user_name:
+        return web.json_response({"error": "User name claim missing in JWT token"}, status=403)
+
     threads = []
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
+        # Update user tracking information
+        await conn.execute(
+            """
+            INSERT INTO users (user_id, user_name, last_login_at)
+            VALUES ($1, $2, NOW())
+            ON CONFLICT (user_id) DO UPDATE
+            SET user_name = EXCLUDED.user_name,
+                last_login_at = NOW()
+            """,
+            user_id, user_name
+        )
+
         query = """
             SELECT DISTINCT t.thread_id, t.title, t.color, t.created_at
             FROM threads t

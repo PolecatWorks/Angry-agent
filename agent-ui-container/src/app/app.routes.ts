@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { Login } from './components/login/login';
 import { MainLayout } from './components/main-layout/main-layout';
 import { ChatWindow } from './components/chat-window/chat-window';
+import { ErrorPage } from './components/error-page/error-page';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from './services/auth.service';
@@ -25,5 +26,6 @@ export const routes: Routes = [
       { path: '', redirectTo: 'chat', pathMatch: 'full' }
     ]
   },
+  { path: 'error', component: ErrorPage },
   { path: '**', redirectTo: '' }
 ];
