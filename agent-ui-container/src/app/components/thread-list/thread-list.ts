@@ -8,7 +8,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ChatService, Thread } from '../../services/chat.service';
 import { AudioService } from '../../services/audio.service';
 import { Observable } from 'rxjs';
-import { SharedContextService } from 'mfe-shared';
+import { SharedContextService } from '@polecatworks/mfe-shared';
 import { EditThreadDialog, EditThreadDialogData } from '../edit-thread-dialog/edit-thread-dialog';
 
 @Component({

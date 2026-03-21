@@ -1,22 +1,17 @@
-# Use mfe-shell image for mfe-shared library
-ARG MFE_SHELL_IMAGE=ghcr.io/polecatworks/mfe-shell-mfe-shell:main
-FROM ${MFE_SHELL_IMAGE} AS mfe-shell
-
 FROM node:22-alpine AS build
 
 WORKDIR /app
 
-# Copy mfe-shared library from mfe-shell image to a path that matches package.json relative path
-# package.json has: "mfe-shared": "file:../../Mfe-shell/mfe-shell-container/dist/mfe-shared"
-# We need to recreate this structure relative to /app/agent-ui-container (where we will build)
+# Accept GitHub token for private/scoped package installation
+ARG NODE_AUTH_TOKEN
 
-# Create the directory structure needed by package.json
-COPY --from=mfe-shell /usr/share/mfe-shared /Mfe-shell/mfe-shell-container/dist/mfe-shared
-
+# Add .npmrc for GitHub Packages inside the container before install
+RUN echo "@polecatworks:registry=https://npm.pkg.github.com" > .npmrc && \
+    echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
 
 # Switch to app directory
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Copy application code
 COPY . .
