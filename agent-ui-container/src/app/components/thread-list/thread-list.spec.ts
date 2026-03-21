@@ -64,9 +64,6 @@ describe('ThreadList', () => {
     const thread: Thread = { thread_id: '1', title: 'Test Thread', color: '#000000', user_id: 'u1' };
     const event = { stopPropagation: vi.fn(), preventDefault: vi.fn() } as any;
 
-    // Setup confirm mock
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-
     chatServiceSpy.deleteThread = vi.fn().mockReturnValue(of({}));
 
     // Mock MatDialog
@@ -81,8 +78,6 @@ describe('ThreadList', () => {
     expect(component['dialog'].open).toHaveBeenCalled();
     expect(chatServiceSpy.deleteThread).toHaveBeenCalledWith(thread.thread_id);
     expect(chatServiceSpy.refreshThreads).toHaveBeenCalled();
-
-    confirmSpy.mockRestore();
   });
 
   it('should edit thread and handle save result', () => {

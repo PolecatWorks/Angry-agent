@@ -63,17 +63,15 @@ export class ThreadList implements OnInit {
       if (!result) return;
 
       if (result.action === 'delete') {
-        if (confirm('Are you sure you want to delete this chat?')) {
-          this.chatService.deleteThread(thread.thread_id).subscribe({
-            next: () => {
-              this.chatService.refreshThreads();
-              if (this.router.url.includes(thread.thread_id)) {
-                this.router.navigate(['chat'], { relativeTo: this.route });
-              }
-            },
-            error: (err) => console.error('Error deleting thread', err)
-          });
-        }
+        this.chatService.deleteThread(thread.thread_id).subscribe({
+          next: () => {
+            this.chatService.refreshThreads();
+            if (this.router.url.includes(thread.thread_id)) {
+              this.router.navigate(['chat'], { relativeTo: this.route });
+            }
+          },
+          error: (err) => console.error('Error deleting thread', err)
+        });
       } else if (result.action === 'save') {
         // We PUT the entire resource state required for the update
         const updatedThread = {

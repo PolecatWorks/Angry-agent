@@ -39,6 +39,7 @@ export class EditThreadDialog {
 
   title: string;
   selectedColor: string;
+  showDeleteConfirm = false;
 
   constructor(
     public dialogRef: MatDialogRef<EditThreadDialog>,
@@ -63,6 +64,14 @@ export class EditThreadDialog {
   }
 
   onDeleteClick(): void {
+    this.showDeleteConfirm = true;
+  }
+
+  cancelDelete(): void {
+    this.showDeleteConfirm = false;
+  }
+
+  confirmDelete(): void {
     this.dialogRef.close({
       action: 'delete'
     });
