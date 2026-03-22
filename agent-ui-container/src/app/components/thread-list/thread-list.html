@@ -1,22 +1,41 @@
-<div class="thread-list-header">
-    <h3>History</h3>
-    <button mat-stroked-button color="primary" (click)="newChat()" class="new-chat-btn">
-        <mat-icon>add</mat-icon>
-        New Chat
-    </button>
-</div>
+<button class="btn-new-thread action-gradient" (click)="newChat()">
+    <span class="material-symbols-outlined icon">add_circle</span>
+    New Thread
+</button>
 
-<mat-nav-list class="thread-nav-list">
-    <a mat-list-item *ngFor="let thread of threads$ | async" [routerLink]="['chat', thread.thread_id]"
-        routerLinkActive="active-thread" [style.--thread-color]="thread.color || '#3f51b5'"
-        (click)="audioService.playChangeThread()" [title]="thread.title || 'New Chat'">
-        <div matListItemTitle>{{ thread.title || 'New Chat' }}</div>
-        <div matListItemLine>{{ thread.created_at | date:'short' }}</div>
-
-        <div matListItemMeta class="thread-actions" style="display: flex; align-items: center;">
-            <button mat-icon-button (click)="editThread($event, thread)">
-                <mat-icon>edit</mat-icon>
-            </button>
-        </div>
+<nav class="thread-nav">
+    <!-- Static items mimicking the reference design, for navigation -->
+    <a class="nav-item active" href="#">
+        <span class="material-symbols-outlined icon">forum</span>
+        Threads
     </a>
-</mat-nav-list>
+    <a class="nav-item inactive" href="#">
+        <span class="material-symbols-outlined icon">analytics</span>
+        Insights Library
+    </a>
+    <a class="nav-item inactive" href="#">
+        <span class="material-symbols-outlined icon">settings</span>
+        Settings
+    </a>
+</nav>
+
+<div class="history-list">
+    <div class="history-header">Recent Threads</div>
+    <a *ngFor="let thread of threads$ | async"
+       [routerLink]="['chat', thread.thread_id]"
+       routerLinkActive="active-history-item"
+       [style.--thread-color]="thread.color || '#3f51b5'"
+       (click)="audioService.playChangeThread()"
+       [title]="thread.title || 'New Chat'"
+       class="history-item">
+
+        <div class="thread-info">
+            <div class="thread-title">{{ thread.title || 'New Chat' }}</div>
+            <div class="thread-date">{{ thread.created_at | date:'short' }}</div>
+        </div>
+
+        <button class="btn-edit" (click)="editThread($event, thread)">
+            <span class="material-symbols-outlined">edit</span>
+        </button>
+    </a>
+</div>

@@ -135,6 +135,11 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         }, 100);
     }
 
+    handleEnterKey(event: Event) {
+        event.preventDefault();
+        this.sendMessage();
+    }
+
     sendMessage() {
         if (!this.newMessage.trim() || this.sending) return;
 

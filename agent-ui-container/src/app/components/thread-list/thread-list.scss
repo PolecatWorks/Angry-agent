@@ -4,60 +4,178 @@
     height: 100%;
 }
 
-.thread-list-header {
-    flex-shrink: 0;
+.btn-new-thread {
+    width: 100%;
+    padding: 12px 16px; /* py-3 px-4 */
+    margin-bottom: 32px; /* mb-8 */
+    color: white;
+    border-radius: 12px; /* rounded-xl */
+    font-family: 'Manrope', sans-serif;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 62, 199, 0.2), 0 4px 6px -4px rgba(0, 62, 199, 0.2);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-new-thread:hover {
+    opacity: 0.9;
+}
+
+.btn-new-thread:active {
+    transform: scale(0.98);
+}
+
+.btn-new-thread .icon {
+    font-size: 20px;
+}
+
+.thread-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px; /* space-y-1 roughly */
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px; /* gap-3 */
+    padding: 12px 16px; /* py-3 px-4 */
+    font-family: 'Manrope', sans-serif;
+    font-size: 14px; /* text-sm */
+    font-weight: 600; /* font-semibold */
+    letter-spacing: -0.015em; /* tracking-tight */
+    text-decoration: none;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.nav-item.active {
+    background-color: #eff6ff; /* bg-blue-50 */
+    color: #1d4ed8; /* text-blue-700 */
+    border-left: 4px solid #2563eb; /* border-l-4 border-blue-600 */
+}
+
+@media (prefers-color-scheme: dark) {
+    .nav-item.active {
+        background-color: rgba(30, 58, 138, 0.3); /* dark:bg-blue-900/30 */
+        color: #93c5fd; /* dark:text-blue-300 */
+    }
+}
+
+.nav-item.inactive {
+    color: #475569; /* text-slate-600 */
+}
+
+@media (prefers-color-scheme: dark) {
+    .nav-item.inactive { color: #94a3b8; /* dark:text-slate-400 */ }
+}
+
+.nav-item.inactive:hover {
+    background-color: #e2e8f0; /* hover:bg-slate-200 */
+}
+
+@media (prefers-color-scheme: dark) {
+    .nav-item.inactive:hover { background-color: #1e293b; /* dark:hover:bg-slate-800 */ }
+}
+
+.nav-item .icon {
+    font-size: 20px;
+}
+
+.history-list {
+    margin-top: 24px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.history-header {
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #94a3b8; /* text-slate-400 */
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: 'Inter', sans-serif;
+}
+
+.history-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px;
-    border-bottom: 1px solid #eee;
-
-    .new-chat-btn {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
+    padding: 12px 16px;
+    text-decoration: none;
+    color: inherit;
+    border-left: 4px solid transparent;
+    transition: background-color 0.2s;
+    cursor: pointer;
 }
 
-
-
-.thread-nav-list {
-    flex: 1;
-    overflow-y: auto;
-    padding-top: 8px;
-
-    a[mat-list-item] {
-        height: auto;
-        min-height: 64px;
-        position: relative;
-        background-color: color-mix(in srgb, var(--thread-color) 8%, transparent);
-        border-left: 4px solid transparent;
-
-        button[matListItemMeta] {
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        /* Target only the leading icon if not inline styled */
-        >.mat-icon {
-            margin-right: 16px;
-        }
-
-        button[mat-icon-button] {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-    }
+.history-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
 }
 
-.active-thread {
-    background-color: color-mix(in srgb, var(--thread-color) 15%, transparent) !important;
-    border-left: 4px solid var(--thread-color);
+.active-history-item {
+    background-color: color-mix(in srgb, var(--thread-color) 10%, transparent);
+    border-left-color: var(--thread-color);
+}
 
-    .mat-icon {
-        color: var(--thread-color) !important;
-    }
+.active-history-item .thread-title {
+    color: var(--thread-color);
+    font-weight: 600;
+}
+
+.thread-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.thread-title {
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    color: #334155; /* text-slate-700 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (prefers-color-scheme: dark) {
+    .thread-title { color: #cbd5e1; }
+}
+
+.thread-date {
+    font-size: 11px;
+    color: #94a3b8; /* text-slate-400 */
+    margin-top: 2px;
+}
+
+.btn-edit {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s, background-color 0.2s;
+}
+
+.history-item:hover .btn-edit {
+    opacity: 1;
+}
+
+.btn-edit:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #475569;
+}
+
+.btn-edit .material-symbols-outlined {
+    font-size: 16px;
 }

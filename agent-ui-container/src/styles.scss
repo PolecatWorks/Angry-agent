@@ -1,4 +1,109 @@
 @import '@angular/material/prebuilt-themes/indigo-pink.css';
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+:root {
+  --tertiary-container: #bf3003;
+  --surface-tint: #004ced;
+  --inverse-on-surface: #eef0ff;
+  --tertiary-fixed: #ffdbd2;
+  --primary: #003ec7;
+  --primary-fixed: #dde1ff;
+  --on-primary: #ffffff;
+  --on-tertiary-fixed: #3c0800;
+  --on-error: #ffffff;
+  --primary-container: #0052ff;
+  --on-tertiary: #ffffff;
+  --error-container: #ffdad6;
+  --secondary-container: #d5e3fc;
+  --on-tertiary-container: #ffddd5;
+  --on-surface: #131b2e;
+  --error: #ba1a1a;
+  --on-error-container: #93000a;
+  --surface-container-highest: #dae2fd;
+  --on-secondary-fixed: #0d1c2e;
+  --surface-container-lowest: #ffffff;
+  --surface-container: #eaedff;
+  --surface-container-low: #f2f3ff;
+  --tertiary-fixed-dim: #ffb4a1;
+  --on-secondary-fixed-variant: #3a485b;
+  --secondary-fixed: #d5e3fc;
+  --on-secondary: #ffffff;
+  --outline-variant: #c3c5d9;
+  --on-background: #131b2e;
+  --surface-dim: #d2d9f4;
+  --on-tertiary-fixed-variant: #891e00;
+  --outline: #737688;
+  --background: #faf8ff;
+  --on-secondary-container: #57657a;
+  --primary-fixed-dim: #b7c4ff;
+  --surface-container-high: #e2e7ff;
+  --surface-bright: #faf8ff;
+  --surface-variant: #dae2fd;
+  --on-surface-variant: #434656;
+  --secondary: #515f74;
+  --on-primary-fixed: #001452;
+  --surface: #faf8ff;
+  --on-primary-fixed-variant: #0038b6;
+  --secondary-fixed-dim: #b9c7df;
+  --on-primary-container: #dfe3ff;
+  --tertiary: #952200;
+  --inverse-primary: #b7c4ff;
+  --inverse-surface: #283044;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', "Helvetica Neue", sans-serif;
+  background-color: var(--background);
+  color: var(--on-surface);
+}
+
+::selection {
+  background-color: var(--primary-fixed);
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.font-headline {
+  font-family: 'Manrope', sans-serif;
+}
+
+.glass-panel {
+  background-color: rgba(218, 226, 253, 0.6);
+  backdrop-filter: blur(20px);
+}
+
+.insight-prism {
+  background-color: #ffffff;
+  border: 1px solid transparent;
+  background-image: linear-gradient(#ffffff, #ffffff), linear-gradient(135deg, rgba(0, 62, 199, 0.3) 0%, rgba(149, 34, 0, 0.3) 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.action-gradient {
+  background: linear-gradient(135deg, #003ec7 0%, #0052ff 100%);
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--outline-variant);
+  border-radius: 10px;
+}
+
+/* Base utility classes translated from Tailwind for easy use */
+.bg-background { background-color: var(--background); }
+.text-on-surface { color: var(--on-surface); }
+.font-body { font-family: 'Inter', sans-serif; }
+.selection\:bg-primary-fixed::selection { background-color: var(--primary-fixed); }

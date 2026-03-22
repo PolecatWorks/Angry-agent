@@ -1,10 +1,46 @@
-<mat-sidenav-container class="sidenav-container">
-  <mat-sidenav mode="side" opened class="sidenav">
-    <app-thread-list></app-thread-list>
-  </mat-sidenav>
-  <mat-sidenav-content>
-    <div class="content">
-        <router-outlet></router-outlet>
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="brand">
+            <div class="brand-icon action-gradient">
+                <span class="material-symbols-outlined icon-small">hub</span>
+            </div>
+            <h1 class="brand-title font-headline">Nexus AI</h1>
+        </div>
+        <app-thread-list></app-thread-list>
     </div>
-  </mat-sidenav-content>
-</mat-sidenav-container>
+    <div class="sidebar-footer">
+        <div class="user-profile">
+            <img alt="User Profile Avatar" class="avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDB8nLkXfzDNifRSc3XQvd9U0k2LOw4OI8qh5rvh6At2Wsa4b6hg23gVE9QY3MYYnREgdGc0h6EhpAhR3FQfwbHILiN3108pxNWPhRQnfArQEba9sit-1qYfH6SBtOP6zCXBnY_5hT_-jN2j8qwF0sUOAK-1_8KKcBR5tavbFX8rq5sIwwajOQwAKX7KJS8pF4Z3dLIwLMHSHLH-CnMgXS-9npOJQ3-T3BxbH9aSyzXzCtqVgV1iOak_Re6VqmE4j7fXGgtiol3vzU"/>
+            <div class="user-info">
+                <p class="user-name font-bold">Enterprise Workspace</p>
+                <p class="user-tier">Premium Tier</p>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <h2 class="thread-title font-headline">Strategic Thread: Q4 Analysis</h2>
+        <div class="divider"></div>
+        <div class="collaborators">
+            <img alt="Collaborator" class="collab-avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAh1x8a9Ur3Gi_rW9iC3s5bfTWAZ3y-DwQMHja1F3byqFaLbNRyu0ljegFpByohXNLn8Pgrx1sB7EAmkXBuznj-4fCM9ObROiesiEuXCbqYODn8qYVDQwfSHjzhmsfkPmaMpKNyjOUKHdM8nnxAb4sc2tN0ULP5ygf9GH8PLo5Z9A8WW6EvWG8dw8vrZ-RiqPR7oDGKnrlAxqL1yxMtvinnSsX8uMjWZaD-qeQEQMWN_F3qN15nE3LHBSIECwzyRbZ_RXiRgPG2EMc"/>
+            <img alt="Collaborator" class="collab-avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1oS5y5JebKBATWR_cf45WdL7lS-sDV2PBwjMmEeojRccFrw2hmVg0ulmG_tpSYtbgE9oQj5gQefXB0Qbkc4mY4KCmAQelHumGr3zA69fX4rBZoBFoq0tZ2N2osyPkXuJm1redtktMs6GF7SRQPmZx6MAK74jyM7dBHMI_G1vnkVOWWhn-bYjJ9eUFNZopm76NvGIk1qpP5H1LPfdxo-rm2FIVLORYr2iousCJTcP8z3vuga3D0krosVYQ7lHmJieFnjLmn9Er5nI"/>
+            <div class="collab-count">+4</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="search-bar">
+            <span class="material-symbols-outlined search-icon">search</span>
+            <input class="search-input" placeholder="Search thread..." type="text"/>
+        </div>
+        <button class="btn-share">Share</button>
+        <button class="btn-invite action-gradient">Invite</button>
+        <span class="material-symbols-outlined icon-btn">notifications</span>
+        <span class="material-symbols-outlined icon-btn">more_vert</span>
+    </div>
+</header>
+
+<main class="main-content">
+    <router-outlet></router-outlet>
+</main>
