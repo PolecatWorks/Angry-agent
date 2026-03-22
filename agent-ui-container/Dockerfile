@@ -3,11 +3,11 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 # Accept GitHub token for private/scoped package installation
-ARG NODE_AUTH_TOKEN
+ARG NODE_POLECATWORKS
 
 # Add .npmrc for GitHub Packages inside the container before install
 RUN echo "@polecatworks:registry=https://npm.pkg.github.com" > .npmrc && \
-    echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
+    echo "//npm.pkg.github.com/:_authToken=${NODE_POLECATWORKS}" >> .npmrc
 
 # Switch to app directory
 COPY package.json package-lock.json ./
