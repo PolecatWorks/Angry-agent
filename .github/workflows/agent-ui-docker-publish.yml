@@ -126,7 +126,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: agent-ui-container
-          push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            NODE_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWERCASE }},push-by-digest=true,name-canonical=true,push=true,oci-mediatypes=true
