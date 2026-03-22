@@ -15,11 +15,7 @@
     "target": "ES2022",
     "module": "preserve",
     "baseUrl": "./",
-    "paths": {
-      "mfe-shared": [
-        "node_modules/mfe-shared"
-      ]
-    }
+    "paths": {}
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
