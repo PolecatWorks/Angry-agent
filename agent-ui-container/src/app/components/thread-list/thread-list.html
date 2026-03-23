@@ -1,9 +1,9 @@
-<div class="p-6 h-full flex flex-col">
+<div class="p-6 h-full flex flex-col bg-surface-container-low">
     <div class="flex items-center gap-3 mb-8">
         <div class="w-8 h-8 rounded-lg action-gradient flex items-center justify-center text-white">
             <span class="material-symbols-outlined text-sm" data-icon="hub">hub</span>
         </div>
-        <h1 class="text-xl font-bold text-slate-900 dark:text-white font-headline">Nexus AI</h1>
+        <h1 class="text-xl font-bold text-on-surface font-headline">Nexus AI</h1>
     </div>
 
     <button (click)="newChat()" class="w-full py-3 px-4 mb-8 action-gradient text-white rounded-xl font-headline font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:opacity-90 transition-all active:scale-[0.98]">
@@ -14,12 +14,8 @@
     <nav class="space-y-1 flex-1 overflow-y-auto">
         <a *ngFor="let thread of threads$ | async"
            [routerLink]="['chat', thread.thread_id]"
-           routerLinkActive="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-l-4 border-blue-600"
-           [class.text-slate-600]="true"
-           [class.dark:text-slate-400]="true"
-           [class.hover:bg-slate-200]="true"
-           [class.dark:hover:bg-slate-800]="true"
-           class="flex items-center justify-between gap-3 px-4 py-3 font-manrope text-sm font-semibold tracking-tight transition-colors group"
+           routerLinkActive="bg-white/50 text-primary border-l-4 border-primary"
+           class="flex items-center justify-between gap-3 px-4 py-3 font-manrope text-sm font-semibold tracking-tight transition-colors group text-on-surface-variant hover:bg-surface-container-high"
            (click)="audioService.playChangeThread()"
            [title]="thread.title || 'New Chat'">
             <div class="flex items-center gap-3 overflow-hidden">
@@ -32,11 +28,13 @@
             </button>
         </a>
 
-        <a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 font-manrope text-sm font-semibold tracking-tight hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" href="#">
+        <div class="h-8"></div>
+
+        <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant font-manrope text-sm font-semibold tracking-tight hover:bg-surface-container-high transition-colors" href="#">
             <span class="material-symbols-outlined" data-icon="analytics">analytics</span>
             Insights Library
         </a>
-        <a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 font-manrope text-sm font-semibold tracking-tight hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" href="#">
+        <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant font-manrope text-sm font-semibold tracking-tight hover:bg-surface-container-high transition-colors" href="#">
             <span class="material-symbols-outlined" data-icon="settings">settings</span>
             Settings
         </a>

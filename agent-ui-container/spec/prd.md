@@ -15,7 +15,8 @@ The `agent-ui-container` is the frontend application of the AI Agent application
 ## 3. Architecture & Tech Stack
 
 - **Framework:** Angular.
-- **UI Components:** Angular Material.
+- **UI & Styling:** Tailwind CSS and Angular Material.
+- **Design Philosophy:** "The Digital Atrium" — An architectural intelligence framework characterized by structural clarity, glassmorphism, and editorial typography (Manrope & Inter).
 - **Package Management:** npm.
 - **Micro-Frontend Architecture:** The application is built using the `@angular-architects/native-federation` package, allowing it to act as a remote module.
 - **Testing:** Unit and integration testing are handled by Vitest, running via the `ng test` command.
