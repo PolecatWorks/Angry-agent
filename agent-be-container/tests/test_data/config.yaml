@@ -74,6 +74,10 @@ packager_aiclient:
     - One for the text "Here is your poem:" (as 'TextShowWrapper' from 'mfe1')
     - One for the actual tool result (from the `generate_mfe_of_markdown` result).
 
+embedding_client:
+  model_provider: google_genai
+  model: text-embedding-004
+
 logging:
   version: 1
   disable_existing_loggers: False

@@ -139,6 +139,14 @@ class GoogleGenAIConfig(BaseAiClientConfig):
     )
 
 
+class EmbeddingConfig(BaseModel):
+    model_provider: Literal["google_genai"] = Field(description="Embedding model provider")
+    model: str = Field(description="Embedding model name")
+    google_api_key: SecretStr = Field(description="API key for authenticated access to Genai model")
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class OllamaConfig(BaseAiClientConfig):
     model_provider: Literal["ollama"] = Field(default="ollama", description="Ollama provider")
     ollama_base_url: HttpUrl = Field(
@@ -160,6 +168,7 @@ class ServiceConfig(BaseSettings):
     logging: dict[str, Any] = Field(default_factory=dict, description="Logging configuration")
     main_aiclient: LangchainConfig = Field(description="Main AI Client configuration")
     packager_aiclient: LangchainConfig = Field(description="Packager AI Client configuration")
+    embedding_client: EmbeddingConfig = Field(description="Embedding AI Client configuration")
     myai: MyAiConfig = Field(default_factory=MyAiConfig, description="MyAI bot configuration")
     hams: HamsConfig = Field(description="Health and monitoring configuration")
 
