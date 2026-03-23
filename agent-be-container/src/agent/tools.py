@@ -5,6 +5,11 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
+try:
+    from ..config import DbOptionsConfig
+except (ImportError, ValueError):
+    from src.config import DbOptionsConfig
+
 from typing import Any, List, Literal
 from .structs import MFEContent
 
@@ -153,7 +158,7 @@ def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type
 import json
 import uuid
 from langchain_core.runnables import RunnableConfig
-from ..database import get_db_pool
+from src.database import get_db_pool
 
 class CreateVisualizationInput(BaseModel):
     mfe: str = Field(description="The source MFE where the component is defined (e.g. 'mfe1')")
