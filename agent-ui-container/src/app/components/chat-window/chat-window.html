@@ -1,12 +1,15 @@
-<div class="flex flex-col h-full relative" [style.--chat-color]="threadColor || '#3f51b5'">
-    <div class="flex-1 overflow-y-auto p-8 space-y-8" #scrollContainer>
+<div class="flex flex-col h-full relative" [style.--chat-color]="threadColor || '#003ec7'">
+    <div class="flex-1 overflow-y-auto p-8 space-y-8 pb-32" #scrollContainer>
         <div *ngIf="loading" class="flex justify-center p-8">
             <mat-spinner diameter="40"></mat-spinner>
         </div>
 
-        <div *ngIf="!loading && messages.length === 0" class="flex flex-col items-center justify-center h-full text-outline">
-            <span class="material-symbols-outlined text-6xl mb-4" data-icon="chat_bubble_outline">chat_bubble_outline</span>
-            <p class="text-lg m-0">No messages yet. Start the conversation!</p>
+        <div *ngIf="!loading && messages.length === 0" class="flex flex-col items-center justify-center h-full text-outline/50">
+            <div class="w-16 h-16 rounded-2xl action-gradient flex items-center justify-center text-white mb-6 shadow-xl shadow-primary/20">
+                <span class="material-symbols-outlined text-3xl" data-icon="hub">hub</span>
+            </div>
+            <h2 class="text-2xl font-headline font-bold text-on-surface mb-2">Nexus AI</h2>
+            <p class="text-sm m-0">Secure Enterprise Intelligence is ready.</p>
         </div>
 
         <div *ngFor="let msg of messages">
@@ -17,7 +20,7 @@
                     <div class="text-sm markdown-body" [innerHTML]="msg.content | markdown"></div>
                 </div>
                 <div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-on-surface" data-icon="person">person</span>
+                    <span class="material-symbols-outlined text-on-surface/50 text-[18px]" data-icon="person">person</span>
                 </div>
             </div>
 
@@ -29,30 +32,42 @@
                 <div class="bg-white p-5 rounded-2xl rounded-tl-none border border-outline-variant/10 shadow-sm max-w-[80%] space-y-3">
                     <div class="text-sm text-on-surface leading-relaxed markdown-body" [innerHTML]="msg.content | markdown"></div>
 
+                    <!-- Image Block -->
+                    <div *ngIf="msg.additional_kwargs?.['image_url'] as imageUrl" class="image-block mt-4 relative group cursor-pointer overflow-hidden rounded-xl bg-surface-container-low border border-outline-variant/10 aspect-video flex items-center justify-center">
+                        <img [src]="imageUrl" class="w-full h-full object-cover transition-all duration-500 group-hover:scale-105" alt="AI Generated Image">
+                        <div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span class="bg-white/90 backdrop-blur px-4 py-2 rounded-full font-bold text-[10px] text-primary uppercase tracking-widest shadow-xl">Expand View</span>
+                        </div>
+                    </div>
+
                     <div *ngFor="let mfe of msg.additional_kwargs?.['mfe_contents']" class="mt-4">
                         <app-mfe-renderer [mfe]="mfe.mfe" [component]="mfe.component" [content]="mfe.content"></app-mfe-renderer>
                     </div>
 
-                    <div *ngIf="msg.usage_metadata || msg.duration" class="text-[10px] text-outline mt-2 pt-2 border-t border-outline-variant/10">
-                        <span *ngIf="msg.usage_metadata">{{ msg.usage_metadata.total_tokens }}<ng-container
-                                *ngIf="msg.usage_metadata.max_tokens"> / {{ msg.usage_metadata.max_tokens
-                                }}</ng-container> tokens ({{
-                            msg.usage_metadata.input_tokens }} in / {{ msg.usage_metadata.output_tokens }} out)</span>
-                        <ng-container *ngIf="msg.duration">
-                            <span *ngIf="msg.usage_metadata"> in </span>
-                            <span *ngIf="!msg.usage_metadata">Total time: </span>
-                            <span>{{ msg.duration }}</span>
-                        </ng-container>
+                    <!-- Mermaid Diagrams -->
+                    <div *ngIf="msg.additional_kwargs?.['mermaid_diagrams'] as diagrams" class="mt-4 space-y-4">
+                        <app-mermaid-renderer *ngFor="let diagram of diagrams" [content]="diagram"></app-mermaid-renderer>
+                    </div>
+
+                    <div *ngIf="msg.usage_metadata || msg.duration" class="text-[10px] text-outline/60 mt-2 pt-2 border-t border-outline-variant/10 flex items-center gap-3">
+                        <span *ngIf="msg.usage_metadata" class="flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[12px]" data-icon="data_usage">data_usage</span>
+                            {{ msg.usage_metadata.total_tokens }} tokens
+                        </span>
+                        <span *ngIf="msg.duration" class="flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[12px]" data-icon="timer">timer</span>
+                            {{ msg.duration }}
+                        </span>
                     </div>
                 </div>
             </div>
 
             <!-- Error Message -->
             <div *ngIf="msg.type === 'error'" class="flex justify-start gap-4 max-w-2xl mx-auto w-full">
-                <div class="w-8 h-8 rounded-full bg-error-container flex items-center justify-center text-error shrink-0">
+                <div class="w-8 h-8 rounded-full bg-error-container flex items-center justify-center text-error shrink-0 border border-error/10">
                     <span class="material-symbols-outlined" data-icon="error">error</span>
                 </div>
-                <div class="bg-error-container text-on-error-container p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[80%]">
+                <div class="bg-error-container text-on-error-container p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[80%] border border-error/5">
                     <div class="text-sm markdown-body" [innerHTML]="msg.content | markdown"></div>
                 </div>
             </div>
@@ -60,22 +75,22 @@
         </div>
 
         <div *ngIf="sending" class="flex justify-start gap-4 max-w-2xl mx-auto w-full">
-            <div class="w-8 h-8 rounded-lg action-gradient flex items-center justify-center text-white shrink-0 shadow-sm" [class.animate-spin]="!pollingError">
+            <div class="w-8 h-8 rounded-lg action-gradient flex items-center justify-center text-white shrink-0 shadow-sm" [class.animate-pulse]="!pollingError">
                 <span class="material-symbols-outlined text-sm" data-icon="smart_toy" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
             </div>
             <div class="bg-white p-5 rounded-2xl rounded-tl-none border border-outline-variant/10 shadow-sm max-w-[80%] flex flex-col gap-2">
-                <div class="flex items-center gap-3 text-sm font-medium text-slate-600">
-                    <span>
-                        {{ currentStatusMsg || 'Thinking' }}
-                        <span *ngIf="totalDuration" class="text-xs text-outline">[{{ totalDuration }}]</span>
+                <div class="flex items-center gap-3 text-sm font-medium text-on-surface-variant">
+                    <span class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                        {{ currentStatusMsg || 'Analyzing pipelines' }}
                     </span>
-                    <span class="dot-typing"></span>
+                    <span *ngIf="totalDuration" class="text-xs text-outline/50">[{{ totalDuration }}]</span>
                 </div>
-                <div class="flex items-center gap-1.5 text-xs text-outline" *ngIf="pollCount > 0">
-                    <span class="material-symbols-outlined text-[14px]" data-icon="sync">sync</span>
-                    <span>Checked {{ pollCount }} time{{ pollCount !== 1 ? 's' : '' }}</span>
+                <div class="flex items-center gap-1.5 text-[10px] text-outline/50 uppercase tracking-widest font-bold" *ngIf="pollCount > 0">
+                    <span class="material-symbols-outlined text-[12px] animate-spin" data-icon="sync">sync</span>
+                    <span>Synchronizing ({{ pollCount }})</span>
                 </div>
-                <div class="flex items-center gap-1.5 text-xs text-error bg-error-container px-2 py-1 rounded" *ngIf="pollingError">
+                <div class="flex items-center gap-1.5 text-xs text-error bg-error-container/50 px-2 py-1 rounded-lg border border-error/10" *ngIf="pollingError">
                     <span class="material-symbols-outlined text-[14px]" data-icon="warning">warning</span>
                     <span>{{ pollingError }}</span>
                 </div>
@@ -84,8 +99,8 @@
     </div>
 
     <!-- Message Input Area -->
-    <div class="p-6 bg-gradient-to-t from-surface to-transparent absolute bottom-0 left-0 right-0">
-        <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl border border-outline-variant/20 p-2 flex items-end gap-2">
+    <div class="p-6 bg-gradient-to-t from-surface to-transparent absolute bottom-0 left-0 right-0 z-10">
+        <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-2xl shadow-primary/5 border border-outline-variant/20 p-2 flex items-end gap-2">
             <button class="p-2 text-outline hover:text-primary transition-colors">
                 <span class="material-symbols-outlined" data-icon="add">add</span>
             </button>
@@ -102,7 +117,7 @@
             <button (click)="sendMessage()"
                     [disabled]="!newMessage.trim() || sending"
                     [class.opacity-50]="!newMessage.trim() || sending"
-                    class="p-2 action-gradient text-white rounded-xl shadow-md transition-opacity">
+                    class="p-2 action-gradient text-white rounded-xl shadow-md transition-all active:scale-95">
                 <span class="material-symbols-outlined" data-icon="send">send</span>
             </button>
         </div>

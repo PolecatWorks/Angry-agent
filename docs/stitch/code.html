@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nexus AI | Strategic Thread</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary-container": "#bf3003",
+                        "surface-tint": "#004ced",
+                        "inverse-on-surface": "#eef0ff",
+                        "tertiary-fixed": "#ffdbd2",
+                        "primary": "#003ec7",
+                        "primary-fixed": "#dde1ff",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed": "#3c0800",
+                        "on-error": "#ffffff",
+                        "primary-container": "#0052ff",
+                        "on-tertiary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "secondary-container": "#d5e3fc",
+                        "on-tertiary-container": "#ffddd5",
+                        "on-surface": "#131b2e",
+                        "error": "#ba1a1a",
+                        "on-error-container": "#93000a",
+                        "surface-container-highest": "#dae2fd",
+                        "on-secondary-fixed": "#0d1c2e",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container": "#eaedff",
+                        "surface-container-low": "#f2f3ff",
+                        "tertiary-fixed-dim": "#ffb4a1",
+                        "on-secondary-fixed-variant": "#3a485b",
+                        "secondary-fixed": "#d5e3fc",
+                        "on-secondary": "#ffffff",
+                        "outline-variant": "#c3c5d9",
+                        "on-background": "#131b2e",
+                        "surface-dim": "#d2d9f4",
+                        "on-tertiary-fixed-variant": "#891e00",
+                        "outline": "#737688",
+                        "background": "#faf8ff",
+                        "on-secondary-container": "#57657a",
+                        "primary-fixed-dim": "#b7c4ff",
+                        "surface-container-high": "#e2e7ff",
+                        "surface-bright": "#faf8ff",
+                        "surface-variant": "#dae2fd",
+                        "on-surface-variant": "#434656",
+                        "secondary": "#515f74",
+                        "on-primary-fixed": "#001452",
+                        "surface": "#faf8ff",
+                        "on-primary-fixed-variant": "#0038b6",
+                        "secondary-fixed-dim": "#b9c7df",
+                        "on-primary-container": "#dfe3ff",
+                        "tertiary": "#952200",
+                        "inverse-primary": "#b7c4ff",
+                        "inverse-surface": "#283044"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background-color: rgba(218, 226, 253, 0.6);
+            backdrop-filter: blur(20px);
+        }
+        .insight-prism {
+            background-color: #ffffff;
+            border: 1px solid transparent;
+            background-image: linear-gradient(#ffffff, #ffffff), linear-gradient(135deg, rgba(0, 62, 199, 0.3) 0%, rgba(149, 34, 0, 0.3) 100%);
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+        }
+        .action-gradient {
+            background: linear-gradient(135deg, #003ec7 0%, #0052ff 100%);
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c3c5d9;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-fixed">
+<!-- SideNavBar Shell -->
+<aside class="h-screen w-64 fixed left-0 top-0 border-r-0 bg-slate-50 dark:bg-slate-900 flex flex-col z-40 overflow-y-auto">
+<div class="p-6">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-8 h-8 rounded-lg action-gradient flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-sm" data-icon="hub">hub</span>
+</div>
+<h1 class="text-xl font-bold text-slate-900 dark:text-white font-headline">Nexus AI</h1>
+</div>
+<button class="w-full py-3 px-4 mb-8 action-gradient text-white rounded-xl font-headline font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:opacity-90 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+                New Thread
+            </button>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-l-4 border-blue-600 font-manrope text-sm font-semibold tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="forum">forum</span>
+                    Threads
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 font-manrope text-sm font-semibold tracking-tight hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+                    Insights Library
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 font-manrope text-sm font-semibold tracking-tight hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                    Settings
+                </a>
+</nav>
+</div>
+<div class="mt-auto p-6 border-t border-slate-100 bg-slate-100/50">
+<div class="flex items-center gap-3">
+<img alt="User Profile Avatar" class="w-10 h-10 rounded-full object-cover" data-alt="Professional user profile headshot in circular frame" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDB8nLkXfzDNifRSc3XQvd9U0k2LOw4OI8qh5rvh6At2Wsa4b6hg23gVE9QY3MYYnREgdGc0h6EhpAhR3FQfwbHILiN3108pxNWPhRQnfArQEba9sit-1qYfH6SBtOP6zCXBnY_5hT_-jN2j8qwF0sUOAK-1_8KKcBR5tavbFX8rq5sIwwajOQwAKX7KJS8pF4Z3dLIwLMHSHLH-CnMgXS-9npOJQ3-T3BxbH9aSyzXzCtqVgV1iOak_Re6VqmE4j7fXGgtiol3vzU"/>
+<div class="overflow-hidden">
+<p class="text-sm font-bold truncate">Enterprise Workspace</p>
+<p class="text-xs text-slate-500 truncate">Premium Tier</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopAppBar Shell -->
+<header class="fixed top-0 right-0 left-64 h-16 z-30 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800/50 flex justify-between items-center px-6">
+<div class="flex items-center gap-4">
+<h2 class="font-manrope font-bold text-lg text-on-surface">Strategic Thread: Q4 Analysis</h2>
+<div class="h-4 w-[1px] bg-outline-variant/30"></div>
+<div class="flex -space-x-2">
+<img alt="Collaborator Avatars" class="w-7 h-7 rounded-full border-2 border-white" data-alt="Female team member avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAh1x8a9Ur3Gi_rW9iC3s5bfTWAZ3y-DwQMHja1F3byqFaLbNRyu0ljegFpByohXNLn8Pgrx1sB7EAmkXBuznj-4fCM9ObROiesiEuXCbqYODn8qYVDQwfSHjzhmsfkPmaMpKNyjOUKHdM8nnxAb4sc2tN0ULP5ygf9GH8PLo5Z9A8WW6EvWG8dw8vrZ-RiqPR7oDGKnrlAxqL1yxMtvinnSsX8uMjWZaD-qeQEQMWN_F3qN15nE3LHBSIECwzyRbZ_RXiRgPG2EMc"/>
+<img alt="Collaborator Avatars" class="w-7 h-7 rounded-full border-2 border-white" data-alt="Male team member avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1oS5y5JebKBATWR_cf45WdL7lS-sDV2PBwjMmEeojRccFrw2hmVg0ulmG_tpSYtbgE9oQj5gQefXB0Qbkc4mY4KCmAQelHumGr3zA69fX4rBZoBFoq0tZ2N2osyPkXuJm1redtktMs6GF7SRQPmZx6MAK74jyM7dBHMI_G1vnkVOWWhn-bYjJ9eUFNZopm76NvGIk1qpP5H1LPfdxo-rm2FIVLORYr2iousCJTcP8z3vuga3D0krosVYQ7lHmJieFnjLmn9Er5nI"/>
+<div class="w-7 h-7 rounded-full border-2 border-white bg-surface-container-high flex items-center justify-center text-[10px] font-bold">+4</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative flex items-center bg-surface-container-low rounded-full px-4 py-1.5 border border-outline-variant/10">
+<span class="material-symbols-outlined text-lg text-outline" data-icon="search">search</span>
+<input class="bg-transparent border-none text-sm focus:ring-0 w-48" placeholder="Search thread..." type="text"/>
+</div>
+<button class="px-4 py-1.5 rounded-full border border-outline-variant/30 text-sm font-semibold hover:bg-surface-container transition-all">Share</button>
+<button class="px-4 py-1.5 rounded-full action-gradient text-white text-sm font-semibold hover:shadow-md transition-all">Invite</button>
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors" data-icon="more_vert">more_vert</span>
+</div>
+</header>
+<!-- Main Content Grid -->
+<main class="ml-64 pt-16 h-screen flex overflow-hidden">
+<!-- Left Section: Central Chat Area -->
+<section class="flex-1 flex flex-col bg-surface relative">
+<div class="flex-1 overflow-y-auto p-8 space-y-8">
+<!-- System Insight -->
+<div class="insight-prism rounded-xl p-6 max-w-2xl mx-auto shadow-sm">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded-lg action-gradient flex items-center justify-center text-white shrink-0">
+<span class="material-symbols-outlined" data-icon="auto_awesome" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<div class="space-y-3">
+<h3 class="font-headline font-bold text-primary">AI Synthesis: Market Positioning</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed">
+                                I've analyzed the Q4 reports across your active MFEs. Revenue is tracking 12% above projection, primarily driven by the expansion in Western markets. I've populated the Workspace panel with real-time delta visualizations.
+                            </p>
+<div class="flex gap-2">
+<span class="px-3 py-1 bg-primary-fixed text-on-primary-fixed text-[10px] font-bold rounded-full uppercase tracking-wider">Analysis Complete</span>
+<span class="px-3 py-1 bg-surface-container-high text-on-surface-variant text-[10px] font-bold rounded-full uppercase tracking-wider">3 Modules Linked</span>
+</div>
+</div>
+</div>
+</div>
+<!-- User Message -->
+<div class="flex justify-end gap-4 max-w-2xl mx-auto w-full">
+<div class="bg-primary text-on-primary p-4 rounded-2xl rounded-tr-none shadow-sm max-w-[80%]">
+<p class="text-sm">Can you drill down into the logistics costs? They seem higher than the previous quarter despite the volume increase.</p>
+</div>
+<img class="w-8 h-8 rounded-full object-cover shrink-0" data-alt="User avatar profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXHeUR-1-otQYnkfCtnVbA9cgIhB_OmQ9i6dTASvNrQF246qfpwGPSn3aer-t7tkkRlWbGX9hZj1lXYa3btKn4iBmN7Rr2cSIjudLdUXESP_ulS3rB8UmALZRx_XNO5u8xcQevVfPtyKNSiyr3RKwdA9yn0JTEnbzXInU5myNmZvsLZYIh--Df08sIcTYsrJBu_X7roe52G0ScO5SCLHmqvspLnjqnaBqt1VEWjPUlu1m07nbxXz7zsO-_Xd2uyjAGPzK4IZA_WGI"/>
+</div>
+<!-- AI Response -->
+<div class="flex justify-start gap-4 max-w-2xl mx-auto w-full">
+<div class="w-8 h-8 rounded-lg action-gradient flex items-center justify-center text-white shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-sm" data-icon="smart_toy" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</div>
+<div class="bg-white p-5 rounded-2xl rounded-tl-none border border-outline-variant/10 shadow-sm max-w-[80%] space-y-3">
+<p class="text-sm text-on-surface leading-relaxed">Checking logistics pipelines. It appears a significant portion of the cost increase is attributed to expedited shipping for the holiday peak.</p>
+<p class="text-sm text-on-surface leading-relaxed">I am provisioning the **Logistics Heatmap** and **Carrier Performance Dashboard** in your workspace now.</p>
+</div>
+</div>
+<!-- Ghost Image for Visual Break -->
+<div class="max-w-2xl mx-auto w-full py-4">
+<div class="w-full h-48 rounded-xl bg-surface-container-low flex items-center justify-center overflow-hidden border border-outline-variant/10 group cursor-pointer">
+<img alt="Data Visual" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" data-alt="Financial data dashboard visualization" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDRM05ai5dHr6k-nBI9T1W7XmuwWHzfKshajrebbomg_g0izG2-LDQuXZ_nqGfj3n_t64PMlH-vVi2Omiz_Q9l3LrG_EblN7FPV-9TjHLE0VA1GwuAltHYTlEsy9LBBalLNJr_0cQ-Eutpl6yrmOeiLbXU3KqMbjSb4s5iRjnZ3ULKxPgbc2cYn9TZV9qVO9hsIiF9oLwOuQJxgIJWddhzbTJOSwHYf3eTxHoc8IPMW8c0fOYN9yc4-9jucnrAUMzi9XWKKcWbROY"/>
+<div class="absolute inset-0 bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="bg-white px-4 py-2 rounded-full font-bold text-xs text-primary shadow-xl">Expand Visual Analytics</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Message Input Area -->
+<div class="p-6 bg-gradient-to-t from-surface to-transparent">
+<div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl border border-outline-variant/20 p-2 flex items-end gap-2">
+<button class="p-2 text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<textarea class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 px-2 resize-none max-h-32 min-h-[44px]" placeholder="Message Nexus..." rows="1"></textarea>
+<button class="p-2 text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="mic">mic</span>
+</button>
+<button class="p-2 action-gradient text-white rounded-xl shadow-md">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Right Section: Workspace Panel (Glassmorphism) -->
+<section class="w-[450px] glass-panel border-l border-white/20 h-full overflow-y-auto p-6 space-y-6">
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-headline font-extrabold text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="dashboard_customize">dashboard_customize</span>
+                    AI WORKSPACE
+                </h3>
+<span class="text-[10px] font-bold uppercase tracking-widest text-primary bg-primary-fixed px-2 py-0.5 rounded">Live MFEs</span>
+</div>
+<!-- Bento Widget: Logistics Heatmap -->
+<div class="bg-white/70 rounded-2xl p-5 shadow-sm border border-white/40 hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-[10px] font-bold text-outline uppercase tracking-tight">Logistics MFE</p>
+<h4 class="font-headline font-bold text-on-surface">Carrier Efficiency</h4>
+</div>
+<span class="material-symbols-outlined text-tertiary" data-icon="north_east">north_east</span>
+</div>
+<div class="space-y-4">
+<div class="grid grid-cols-2 gap-3">
+<div class="bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/5">
+<p class="text-[10px] text-outline mb-1">On-Time</p>
+<p class="text-lg font-extrabold text-on-surface">94.2%</p>
+</div>
+<div class="bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/5">
+<p class="text-[10px] text-outline mb-1">Delay Delta</p>
+<p class="text-lg font-extrabold text-tertiary">+2.1h</p>
+</div>
+</div>
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full action-gradient w-[94%]"></div>
+</div>
+</div>
+</div>
+<!-- Bento Widget: Performance Dashboard -->
+<div class="bg-white/70 rounded-2xl overflow-hidden shadow-sm border border-white/40">
+<div class="p-5">
+<div class="flex justify-between items-center mb-4">
+<h4 class="font-headline font-bold text-on-surface">Market Trajectory</h4>
+<span class="material-symbols-outlined text-primary" data-icon="open_in_full">open_in_full</span>
+</div>
+<div class="h-40 w-full rounded-xl overflow-hidden relative">
+<img class="w-full h-full object-cover" data-alt="Abstract blue data line graph" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9MnyDreAuDa8Em5s5uSKoGzjWzmCV4ZjMZ9MdtEqaG_7YHa6-LEpce3UOWbMrGQcRGw9rxsi4mu76LtkBOEuqiZnHbcH9DdKERmCPPEjlqt0zYP9Cytn-bh0UVoEULj0-tK7scz3fQL3L8E86np45j4_64yZaBonljTfbUqeSOuJdSJoOXvYPzIFnxagRB0YdDRagzCMegq-f3DR3byXrfFQFR8vGAbrRv_VrZC4t02Zdg6csk4LeV48atwSlSxHx8A0KjMuYb_Y"/>
+<div class="absolute inset-0 bg-gradient-to-t from-white/80 to-transparent"></div>
+</div>
+</div>
+<div class="bg-primary/5 p-4 flex justify-between items-center border-t border-white/40">
+<p class="text-xs font-semibold text-primary">View detailed breakdown</p>
+<span class="material-symbols-outlined text-sm text-primary" data-icon="arrow_forward">arrow_forward</span>
+</div>
+</div>
+<!-- Bento Widget: Collaboration Tool -->
+<div class="insight-prism rounded-2xl p-5 shadow-sm border border-white/40">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-10 h-10 rounded-full bg-tertiary-fixed flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" data-icon="warning" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div>
+<h4 class="font-headline font-bold text-on-surface text-sm">Action Required</h4>
+<p class="text-[11px] text-on-surface-variant">Logistics costs exceeded threshold</p>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<button class="w-full py-2 bg-on-surface text-white rounded-xl text-xs font-bold hover:opacity-90">Approve Override</button>
+<button class="w-full py-2 bg-surface-container-lowest text-on-surface border border-outline-variant/30 rounded-xl text-xs font-bold">Reroute Shipments</button>
+</div>
+</div>
+<!-- Bento Widget: Team Status -->
+<div class="bg-white/70 rounded-2xl p-5 shadow-sm border border-white/40">
+<p class="text-[10px] font-bold text-outline uppercase tracking-tight mb-3">Workspace Activity</p>
+<div class="space-y-4">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-green-500"></div>
+<p class="text-xs font-medium text-on-surface">Sarah J. is editing 'Inventory Map'</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<p class="text-xs font-medium text-on-surface">AI is calculating Q1 Forecast</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>
