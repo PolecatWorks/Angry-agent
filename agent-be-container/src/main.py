@@ -467,6 +467,11 @@ if __name__ == "__main__":
                 "model_provider": "google_genai",
                 "context_length": 8192,
                 "google_api_key": "dummy"
+            },
+            embedding_client={
+                "model_provider": "google_genai",
+                "model": "text-embedding-004",
+                "google_api_key": "dummy"
             }
         )
         app_start(config)

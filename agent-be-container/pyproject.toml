@@ -27,6 +27,9 @@ langchain-ollama = "^1.0.1"
 yoyo-migrations = "^8.2.0"
 setuptools = "^75.8.0"
 pyjwt = "^2.11.0"
+pgvector = "^0.4.2"
+langchain-community = "^0.4.1"
+langchain-text-splitters = "^1.1.1"
 
 [build-system]
 requires = ["poetry-core"]
