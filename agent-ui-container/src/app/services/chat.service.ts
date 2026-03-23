@@ -43,6 +43,22 @@ export interface HistoryResponse {
   messages: Message[];
 }
 
+export interface Visualization {
+  id: string;
+  thread_id: string;
+  mfe: string;
+  component: string;
+  content: any;
+  description?: string;
+  order_index: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface VisualizationsResponse {
+  visualizations: Visualization[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -104,6 +120,12 @@ export class ChatService {
   updateThread(threadId: string, thread: { title: string, color: string }): Observable<any> {
     return this.apiUrl$.pipe(
       switchMap(apiUrl => this.http.put(`${apiUrl}/threads/${threadId}`, thread, { headers: this.getHeaders() }))
+    );
+  }
+
+  getVisualizations(threadId: string): Observable<VisualizationsResponse> {
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.get<VisualizationsResponse>(`${apiUrl}/threads/${threadId}/visualizations`, { headers: this.getHeaders() }))
     );
   }
 }

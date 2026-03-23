@@ -9,7 +9,15 @@
 
 .sidenav {
     width: 250px;
-    border-right: 1px solid #ccc;
+}
+
+.left-sidenav {
+    border-right: 1px solid var(--mat-sys-outline-variant, #ccc);
+}
+
+.right-sidenav {
+    width: 350px;
+    border-left: 1px solid var(--mat-sys-outline-variant, #ccc);
 }
 
 .content {

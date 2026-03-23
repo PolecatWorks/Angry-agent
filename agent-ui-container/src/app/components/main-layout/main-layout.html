@@ -1,7 +1,15 @@
 <mat-sidenav-container class="sidenav-container">
-  <mat-sidenav mode="side" opened class="sidenav">
+  <mat-sidenav mode="side" opened class="sidenav left-sidenav">
     <app-thread-list></app-thread-list>
   </mat-sidenav>
+
+  <mat-sidenav mode="side" opened position="end" class="sidenav right-sidenav">
+    <app-visualizations-panel
+        [threadId]="activeThreadId"
+        [isThreadActive]="!!activeThreadId">
+    </app-visualizations-panel>
+  </mat-sidenav>
+
   <mat-sidenav-content>
     <div class="content">
         <router-outlet></router-outlet>

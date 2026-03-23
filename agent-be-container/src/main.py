@@ -315,6 +315,43 @@ async def update_thread(request):
 
         return web.json_response({"status": "updated"})
 
+async def get_visualizations(request):
+    config: ServiceConfig = request.app[keys.config]
+    user_id = request["user_id"]
+    thread_id = request.match_info["thread_id"]
+
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        # First check if the user has access to this thread
+        row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
+        if not row:
+            return web.json_response({"error": "Not found"}, status=404)
+
+        if row["user_id"] != user_id:
+            access_row = await conn.fetchrow("SELECT 1 FROM thread_access WHERE thread_id = $1 AND user_id = $2", thread_id, user_id)
+            if not access_row:
+                return web.json_response({"error": "Not found or access denied"}, status=404)
+
+        # Fetch visualizations for the thread
+        query = """
+            SELECT id, thread_id, mfe, component, content, description, order_index, created_at, updated_at
+            FROM visualizations
+            WHERE thread_id = $1
+            ORDER BY order_index ASC, created_at ASC
+        """
+        rows = await conn.fetch(query, thread_id)
+        visualizations = []
+        for r in rows:
+            v = dict(r)
+            if v.get("id"): v["id"] = str(v["id"])
+            if v.get("content") and isinstance(v["content"], str):
+                v["content"] = json.loads(v["content"])
+            if v.get("created_at"): v["created_at"] = str(v["created_at"])
+            if v.get("updated_at"): v["updated_at"] = str(v["updated_at"])
+            visualizations.append(v)
+
+    return web.json_response({"visualizations": visualizations})
+
 async def on_startup(app):
     config: ServiceConfig = app[keys.config]
     logger.info("Starting up and connecting to DB...")
@@ -381,6 +418,7 @@ def create_app_with_middleware(config: ServiceConfig):
     app.router.add_post(f"{path_prefix}/api/chat", chat_endpoint)
     app.router.add_get(f"{path_prefix}/api/threads", list_threads)
     app.router.add_get(f"{path_prefix}/api/threads/{{thread_id}}/history", get_history)
+    app.router.add_get(f"{path_prefix}/api/threads/{{thread_id}}/visualizations", get_visualizations)
 
     app.router.add_delete(f"{path_prefix}/api/threads/{{thread_id}}", delete_thread)
     app.router.add_put(f"{path_prefix}/api/threads/{{thread_id}}", update_thread)
