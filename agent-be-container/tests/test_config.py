@@ -55,6 +55,9 @@ class TestConfigLoading:
         """Test loading with missing secrets directory (should use defaults)"""
         monkeypatch.setenv("APP_PERSISTENCE__DB__CONNECTION__USERNAME", "testuser")
         monkeypatch.setenv("APP_PERSISTENCE__DB__CONNECTION__PASSWORD", "testpass")
+        monkeypatch.setenv("APP_MAIN_AICLIENT__GOOGLE_API_KEY", "dummy_main_key")
+        monkeypatch.setenv("APP_PACKAGER_AICLIENT__GOOGLE_API_KEY", "dummy_packager_key")
+        monkeypatch.setenv("APP_EMBEDDING_CLIENT__GOOGLE_API_KEY", "dummy_embedding_key")
         # Should not raise, just log warning
         config = ServiceConfig.from_yaml_and_secrets_dir(
             yaml_file=test_config_path,
