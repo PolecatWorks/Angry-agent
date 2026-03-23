@@ -159,7 +159,6 @@ LangchainConfig = Annotated[
     Field(discriminator="model_provider")
 ]
 
-
 class ServiceConfig(BaseSettings):
     """
     Configuration for the service
