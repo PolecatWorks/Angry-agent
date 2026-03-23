@@ -66,12 +66,17 @@ async def auth_middleware(app, handler):
         if not user_id:
              # Fallback for single user mode if header is missing
              user_id = "default-user"
+        if not user_name:
+            user_name = user_id
 
         request["user_id"] = user_id
         request["user_name"] = user_name
 
         try:
             response = await handler(request)
+        except web.HTTPException:
+            # Let aiohttp handle its own exceptions (404, etc.)
+            raise
         except Exception as e:
              logger.error(f"Error handling request: {e}", exc_info=True)
              response = web.json_response({"error": str(e)}, status=500)
@@ -145,9 +150,6 @@ async def list_threads(request):
     user_id = request["user_id"]
     user_name = request["user_name"]
 
-    if not user_name:
-        return web.json_response({"error": "User name claim missing in JWT token"}, status=403)
-
     threads = []
 
     pool = await get_db_pool()
@@ -187,12 +189,12 @@ async def get_history(request):
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT user_id, color, status_msg, status_updated_at FROM threads WHERE thread_id = $1", thread_id)
         if not row:
-            return web.json_response({"error": "Not found"}, status=404)
+            return web.json_response({"thread": {"thread_id": thread_id}, "messages": []})
 
         if row["user_id"] != user_id:
             access_row = await conn.fetchrow("SELECT 1 FROM thread_access WHERE thread_id = $1 AND user_id = $2", thread_id, user_id)
             if not access_row:
-                return web.json_response({"error": "Not found or access denied"}, status=404)
+                return web.json_response({"thread": {"thread_id": thread_id}, "messages": []})
 
     llm_handler: LLMHandler = request.app["llm_handler"]
     state = await llm_handler.get_thread_state(thread_id)
@@ -325,12 +327,12 @@ async def get_visualizations(request):
         # First check if the user has access to this thread
         row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
         if not row:
-            return web.json_response({"error": "Not found"}, status=404)
+            return web.json_response({"visualizations": []})
 
         if row["user_id"] != user_id:
             access_row = await conn.fetchrow("SELECT 1 FROM thread_access WHERE thread_id = $1 AND user_id = $2", thread_id, user_id)
             if not access_row:
-                return web.json_response({"error": "Not found or access denied"}, status=404)
+                return web.json_response({"visualizations": []})
 
         # Fetch visualizations for the thread
         query = """
