@@ -107,4 +107,4 @@ db-local:
 		-e POSTGRES_PASSWORD=mysecretpassword \
 		-e POSTGRES_DB=agentdb \
 		-p 5432:5432 \
-		postgres:15-alpine
+		pgvector/pgvector:pg15
