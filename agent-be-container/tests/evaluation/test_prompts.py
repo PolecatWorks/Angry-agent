@@ -54,6 +54,11 @@ def mock_config():
     config_data["packager_aiclient"]["google_api_key"] = os.getenv("GOOGLE_API_KEY", "dummy")
     config_data["packager_aiclient"]["system_prompt"] = "Packager prompt"
 
+    config_data.setdefault("embedding_client", {})
+    config_data["embedding_client"]["model_provider"] = "google_genai"
+    config_data["embedding_client"]["model"] = "text-embedding-004"
+    config_data["embedding_client"]["google_api_key"] = os.getenv("GOOGLE_API_KEY", "dummy")
+
     return ServiceConfig(**config_data)
 
 @pytest.mark.asyncio
