@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { RouterOutlet } from '@angular/router';
@@ -16,6 +16,8 @@ import { VisualizationsPanel } from '../visualizations-panel/visualizations-pane
 })
 export class MainLayout {
   activeThreadId: string | null = null;
+  workspaceWidth = 450;
+  isResizing = false;
 
   constructor(private router: Router) {
     this.router.events.pipe(
@@ -29,5 +31,28 @@ export class MainLayout {
         this.activeThreadId = null;
       }
     });
+  }
+
+  startResizing(event: MouseEvent) {
+    this.isResizing = true;
+    event.preventDefault();
+  }
+
+  @HostListener('window:mousemove', ['$event'])
+  onMouseMove(event: MouseEvent) {
+    if (!this.isResizing) return;
+    
+    // Width is calculated from right edge of window
+    const newWidth = window.innerWidth - event.clientX;
+    
+    // Bounds (e.g. 300px to 800px)
+    if (newWidth > 320 && newWidth < 850) {
+      this.workspaceWidth = newWidth;
+    }
+  }
+
+  @HostListener('window:mouseup')
+  onMouseUp() {
+    this.isResizing = false;
   }
 }
