@@ -42,6 +42,9 @@ To support embedding within a shell application, the container exposes its core 
 ### 4.4 Dockerization
 The frontend application must be packaged and run inside a Docker container without relying on Docker Compose, aligning with the project's strategy for eventual Kubernetes migration.
 
+### 4.5 Resizable Workspace
+The main layout features a draggable splitter between the central chat area and the right-side visualization panel (AI WORKSPACE). This allows users to dynamically adjust the proportions of the interface to focus on either the conversation or the generated visualizations and data MFEs. The panel width is persisted during the session and constrained between 320px and 850px to maintain layout integrity.
+
 ## 5. Development Guidelines
 
 - Run tests using `ng test --watch=false`.
