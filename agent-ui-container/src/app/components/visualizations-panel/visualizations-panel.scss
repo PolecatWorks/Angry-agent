@@ -1,0 +1,47 @@
+.visualizations-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px;
+  overflow-y: auto;
+  background: var(--mat-sys-surface-container-low, #f8f9fa);
+  box-sizing: border-box;
+
+  .spinner-container {
+    display: flex;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--mat-sys-outline, #757575);
+    margin-top: 32px;
+    font-size: 14px;
+  }
+
+  .viz-card {
+    background: var(--mat-sys-surface, white);
+    border: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+
+    .viz-header {
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+      background: var(--mat-sys-surface-container-lowest, #ffffff);
+
+      .viz-description {
+        color: var(--mat-sys-on-surface-variant, #424242);
+        font-style: italic;
+      }
+    }
+
+    .viz-body {
+      padding: 16px;
+      overflow-x: auto;
+    }
+  }
+}

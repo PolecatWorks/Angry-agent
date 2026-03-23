@@ -1,0 +1,18 @@
+<div class="visualizations-container">
+  <div *ngIf="loading && visualizations.length === 0" class="spinner-container">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <div *ngIf="!loading && visualizations.length === 0" class="empty-state">
+    <p>No visualizations or tools currently active for this thread.</p>
+  </div>
+
+  <div *ngFor="let viz of visualizations" class="viz-card">
+    <div *ngIf="viz.description" class="viz-header">
+      <small class="viz-description">{{ viz.description }}</small>
+    </div>
+    <div class="viz-body">
+      <app-mfe-renderer [mfe]="viz.mfe" [component]="viz.component" [content]="viz.content"></app-mfe-renderer>
+    </div>
+  </div>
+</div>
