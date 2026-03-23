@@ -47,7 +47,7 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
     if (!this.threadId) return;
 
     if (this.visualizations.length === 0) {
-      this.loading = true;
+      Promise.resolve().then(() => this.loading = true);
     }
 
     this.pollSubscription = interval(3000).pipe(
@@ -61,7 +61,7 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
       ))
     ).subscribe((res: any) => {
       this.visualizations = res.visualizations;
-      this.loading = false;
+      Promise.resolve().then(() => this.loading = false);
     });
   }
 
