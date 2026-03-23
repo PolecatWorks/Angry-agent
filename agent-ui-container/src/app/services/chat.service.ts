@@ -67,7 +67,8 @@ export class ChatService {
 
   constructor(private http: HttpClient, private authService: AuthService) {
     const basePath = new URL('./', import.meta.url).href;
-    this.apiUrl$ = this.http.get<{ apiUrl: string }>(`${basePath}assets/contents/config.json`).pipe(
+    const configPath = basePath.endsWith('/') ? `${basePath}assets/contents/config.json` : `${basePath}/assets/contents/config.json`;
+    this.apiUrl$ = this.http.get<{ apiUrl: string }>(configPath).pipe(
       map(config => config.apiUrl),
       shareReplay(1)
     );
