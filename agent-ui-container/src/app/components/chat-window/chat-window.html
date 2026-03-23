@@ -1,33 +1,39 @@
-<div class="chat-container" [style.--chat-color]="threadColor || '#3f51b5'">
-    <div class="messages-list" #scrollContainer>
-        <div *ngIf="loading" class="spinner-container">
+<div class="flex flex-col h-full relative" [style.--chat-color]="threadColor || '#3f51b5'">
+    <div class="flex-1 overflow-y-auto p-8 space-y-8" #scrollContainer>
+        <div *ngIf="loading" class="flex justify-center p-8">
             <mat-spinner diameter="40"></mat-spinner>
         </div>
 
-        <div *ngIf="!loading && messages.length === 0" class="empty-state">
-            <mat-icon class="large-icon">chat_bubble_outline</mat-icon>
-            <p>No messages yet. Start the conversation!</p>
+        <div *ngIf="!loading && messages.length === 0" class="flex flex-col items-center justify-center h-full text-outline">
+            <span class="material-symbols-outlined text-6xl mb-4" data-icon="chat_bubble_outline">chat_bubble_outline</span>
+            <p class="text-lg m-0">No messages yet. Start the conversation!</p>
         </div>
 
-        <div *ngFor="let msg of messages" [class]="'message ' + msg.type">
-            <div class="message-avatar">
-                <mat-icon *ngIf="msg.type === 'human'"
-                    [matTooltip]="msg.created_at ? 'Sent at: ' + (msg.created_at | date:'mediumTime') : ''"
-                    matTooltipPosition="above">person</mat-icon>
-                <mat-icon *ngIf="msg.type === 'ai'" [matTooltip]="msg.duration ? 'Total time: ' + msg.duration : ''"
-                    matTooltipPosition="above">smart_toy</mat-icon>
-                <mat-icon *ngIf="msg.type === 'error'">error</mat-icon>
-            </div>
-            <div class="message-content markdown-body">
-                <div [innerHTML]="msg.content | markdown"></div>
+        <div *ngFor="let msg of messages">
 
-                <div *ngFor="let mfe of msg.additional_kwargs?.['mfe_contents']" class="mfe-block">
-                    <app-mfe-renderer [mfe]="mfe.mfe" [component]="mfe.component"
-                        [content]="mfe.content"></app-mfe-renderer>
+            <!-- Human Message -->
+            <div *ngIf="msg.type === 'human'" class="flex justify-end gap-4 max-w-2xl mx-auto w-full">
+                <div class="bg-primary text-on-primary p-4 rounded-2xl rounded-tr-none shadow-sm max-w-[80%]">
+                    <div class="text-sm markdown-body" [innerHTML]="msg.content | markdown"></div>
                 </div>
+                <div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-on-surface" data-icon="person">person</span>
+                </div>
+            </div>
 
-                <div *ngIf="msg.usage_metadata || msg.duration" class="usage-metadata">
-                    <small>
+            <!-- AI Message -->
+            <div *ngIf="msg.type === 'ai'" class="flex justify-start gap-4 max-w-2xl mx-auto w-full">
+                <div class="w-8 h-8 rounded-lg action-gradient flex items-center justify-center text-white shrink-0 shadow-sm">
+                    <span class="material-symbols-outlined text-sm" data-icon="smart_toy" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+                </div>
+                <div class="bg-white p-5 rounded-2xl rounded-tl-none border border-outline-variant/10 shadow-sm max-w-[80%] space-y-3">
+                    <div class="text-sm text-on-surface leading-relaxed markdown-body" [innerHTML]="msg.content | markdown"></div>
+
+                    <div *ngFor="let mfe of msg.additional_kwargs?.['mfe_contents']" class="mt-4">
+                        <app-mfe-renderer [mfe]="mfe.mfe" [component]="mfe.component" [content]="mfe.content"></app-mfe-renderer>
+                    </div>
+
+                    <div *ngIf="msg.usage_metadata || msg.duration" class="text-[10px] text-outline mt-2 pt-2 border-t border-outline-variant/10">
                         <span *ngIf="msg.usage_metadata">{{ msg.usage_metadata.total_tokens }}<ng-container
                                 *ngIf="msg.usage_metadata.max_tokens"> / {{ msg.usage_metadata.max_tokens
                                 }}</ng-container> tokens ({{
@@ -37,44 +43,68 @@
                             <span *ngIf="!msg.usage_metadata">Total time: </span>
                             <span>{{ msg.duration }}</span>
                         </ng-container>
-                    </small>
+                    </div>
                 </div>
             </div>
+
+            <!-- Error Message -->
+            <div *ngIf="msg.type === 'error'" class="flex justify-start gap-4 max-w-2xl mx-auto w-full">
+                <div class="w-8 h-8 rounded-full bg-error-container flex items-center justify-center text-error shrink-0">
+                    <span class="material-symbols-outlined" data-icon="error">error</span>
+                </div>
+                <div class="bg-error-container text-on-error-container p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[80%]">
+                    <div class="text-sm markdown-body" [innerHTML]="msg.content | markdown"></div>
+                </div>
+            </div>
+
         </div>
 
-        <div *ngIf="sending" class="message ai sending">
-            <div class="message-avatar">
-                <mat-icon [class.spinning]="!pollingError">smart_toy</mat-icon>
+        <div *ngIf="sending" class="flex justify-start gap-4 max-w-2xl mx-auto w-full">
+            <div class="w-8 h-8 rounded-lg action-gradient flex items-center justify-center text-white shrink-0 shadow-sm" [class.animate-spin]="!pollingError">
+                <span class="material-symbols-outlined text-sm" data-icon="smart_toy" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
             </div>
-            <div class="message-content indicator-content">
-                <div class="thinking-row">
+            <div class="bg-white p-5 rounded-2xl rounded-tl-none border border-outline-variant/10 shadow-sm max-w-[80%] flex flex-col gap-2">
+                <div class="flex items-center gap-3 text-sm font-medium text-slate-600">
                     <span>
                         {{ currentStatusMsg || 'Thinking' }}
-                        <span *ngIf="totalDuration" class="duration-badge">[{{ totalDuration }}]</span>
+                        <span *ngIf="totalDuration" class="text-xs text-outline">[{{ totalDuration }}]</span>
                     </span>
                     <span class="dot-typing"></span>
                 </div>
-                <div class="poll-tracker" *ngIf="pollCount > 0">
-                    <mat-icon>sync</mat-icon>
-                    <small>Checked {{ pollCount }} time{{ pollCount !== 1 ? 's' : '' }}</small>
+                <div class="flex items-center gap-1.5 text-xs text-outline" *ngIf="pollCount > 0">
+                    <span class="material-symbols-outlined text-[14px]" data-icon="sync">sync</span>
+                    <span>Checked {{ pollCount }} time{{ pollCount !== 1 ? 's' : '' }}</span>
                 </div>
-                <div class="polling-error" *ngIf="pollingError">
-                    <mat-icon>warning</mat-icon>
-                    <small>{{ pollingError }}</small>
+                <div class="flex items-center gap-1.5 text-xs text-error bg-error-container px-2 py-1 rounded" *ngIf="pollingError">
+                    <span class="material-symbols-outlined text-[14px]" data-icon="warning">warning</span>
+                    <span>{{ pollingError }}</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="input-area">
-        <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Message</mat-label>
-            <input matInput #messageInput [(ngModel)]="newMessage" (keyup.enter)="sendMessage()" [readonly]="sending"
-                placeholder="Type your message...">
-            <button mat-icon-button matSuffix (click)="sendMessage()" [disabled]="!newMessage.trim() || sending"
-                color="primary">
-                <mat-icon>send</mat-icon>
+    <!-- Message Input Area -->
+    <div class="p-6 bg-gradient-to-t from-surface to-transparent absolute bottom-0 left-0 right-0">
+        <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl border border-outline-variant/20 p-2 flex items-end gap-2">
+            <button class="p-2 text-outline hover:text-primary transition-colors">
+                <span class="material-symbols-outlined" data-icon="add">add</span>
             </button>
-        </mat-form-field>
+            <textarea #messageInput
+                      [(ngModel)]="newMessage"
+                      (keyup.enter)="sendMessage()"
+                      [readonly]="sending"
+                      class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 px-2 resize-none max-h-32 min-h-[44px]"
+                      placeholder="Message Nexus..."
+                      rows="1"></textarea>
+            <button class="p-2 text-outline hover:text-primary transition-colors">
+                <span class="material-symbols-outlined" data-icon="mic">mic</span>
+            </button>
+            <button (click)="sendMessage()"
+                    [disabled]="!newMessage.trim() || sending"
+                    [class.opacity-50]="!newMessage.trim() || sending"
+                    class="p-2 action-gradient text-white rounded-xl shadow-md transition-opacity">
+                <span class="material-symbols-outlined" data-icon="send">send</span>
+            </button>
+        </div>
     </div>
 </div>

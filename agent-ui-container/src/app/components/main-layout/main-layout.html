@@ -1,18 +1,43 @@
-<mat-sidenav-container class="sidenav-container">
-  <mat-sidenav mode="side" opened class="sidenav left-sidenav">
+<!-- SideNavBar Shell -->
+<aside class="h-screen w-64 fixed left-0 top-0 border-r-0 bg-slate-50 dark:bg-slate-900 flex flex-col z-40 overflow-y-auto">
     <app-thread-list></app-thread-list>
-  </mat-sidenav>
+</aside>
 
-  <mat-sidenav mode="side" opened position="end" class="sidenav right-sidenav">
-    <app-visualizations-panel
-        [threadId]="activeThreadId"
-        [isThreadActive]="!!activeThreadId">
-    </app-visualizations-panel>
-  </mat-sidenav>
-
-  <mat-sidenav-content>
-    <div class="content">
-        <router-outlet></router-outlet>
+<!-- TopAppBar Shell -->
+<header class="fixed top-0 right-0 left-64 h-16 z-30 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800/50 flex justify-between items-center px-6">
+    <div class="flex items-center gap-4">
+        <h2 class="font-manrope font-bold text-lg text-on-surface">Nexus AI Chat</h2>
     </div>
-  </mat-sidenav-content>
-</mat-sidenav-container>
+    <div class="flex items-center gap-3">
+        <div class="relative flex items-center bg-surface-container-low rounded-full px-4 py-1.5 border border-outline-variant/10">
+            <span class="material-symbols-outlined text-lg text-outline" data-icon="search">search</span>
+            <input class="bg-transparent border-none text-sm focus:ring-0 w-48" placeholder="Search..." type="text"/>
+        </div>
+        <span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors" data-icon="notifications">notifications</span>
+        <span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors" data-icon="more_vert">more_vert</span>
+    </div>
+</header>
+
+<!-- Main Content Grid -->
+<main class="ml-64 pt-16 h-screen flex overflow-hidden">
+    <!-- Left Section: Central Chat Area -->
+    <section class="flex-1 flex flex-col bg-surface relative">
+        <router-outlet></router-outlet>
+    </section>
+
+    <!-- Right Section: Workspace Panel (Glassmorphism) -->
+    <section class="w-[450px] glass-panel border-l border-white/20 h-full overflow-y-auto p-6 space-y-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-headline font-extrabold text-on-surface flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary" data-icon="dashboard_customize">dashboard_customize</span>
+                AI WORKSPACE
+            </h3>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-primary bg-primary-fixed px-2 py-0.5 rounded">Live MFEs</span>
+        </div>
+
+        <app-visualizations-panel
+            [threadId]="activeThreadId"
+            [isThreadActive]="!!activeThreadId">
+        </app-visualizations-panel>
+    </section>
+</main>
