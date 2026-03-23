@@ -1,22 +1,44 @@
-<div class="thread-list-header">
-    <h3>History</h3>
-    <button mat-stroked-button color="primary" (click)="newChat()" class="new-chat-btn">
-        <mat-icon>add</mat-icon>
-        New Chat
-    </button>
-</div>
-
-<mat-nav-list class="thread-nav-list">
-    <a mat-list-item *ngFor="let thread of threads$ | async" [routerLink]="['chat', thread.thread_id]"
-        routerLinkActive="active-thread" [style.--thread-color]="thread.color || '#3f51b5'"
-        (click)="audioService.playChangeThread()" [title]="thread.title || 'New Chat'">
-        <div matListItemTitle>{{ thread.title || 'New Chat' }}</div>
-        <div matListItemLine>{{ thread.created_at | date:'short' }}</div>
-
-        <div matListItemMeta class="thread-actions" style="display: flex; align-items: center;">
-            <button mat-icon-button (click)="editThread($event, thread)">
-                <mat-icon>edit</mat-icon>
-            </button>
+<div class="p-6 h-full flex flex-col">
+    <div class="flex items-center gap-3 mb-8">
+        <div class="w-8 h-8 rounded-lg action-gradient flex items-center justify-center text-white">
+            <span class="material-symbols-outlined text-sm" data-icon="hub">hub</span>
         </div>
-    </a>
-</mat-nav-list>
+        <h1 class="text-xl font-bold text-slate-900 dark:text-white font-headline">Nexus AI</h1>
+    </div>
+
+    <button (click)="newChat()" class="w-full py-3 px-4 mb-8 action-gradient text-white rounded-xl font-headline font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:opacity-90 transition-all active:scale-[0.98]">
+        <span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+        New Thread
+    </button>
+
+    <nav class="space-y-1 flex-1 overflow-y-auto">
+        <a *ngFor="let thread of threads$ | async"
+           [routerLink]="['chat', thread.thread_id]"
+           routerLinkActive="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-l-4 border-blue-600"
+           [class.text-slate-600]="true"
+           [class.dark:text-slate-400]="true"
+           [class.hover:bg-slate-200]="true"
+           [class.dark:hover:bg-slate-800]="true"
+           class="flex items-center justify-between gap-3 px-4 py-3 font-manrope text-sm font-semibold tracking-tight transition-colors group"
+           (click)="audioService.playChangeThread()"
+           [title]="thread.title || 'New Chat'">
+            <div class="flex items-center gap-3 overflow-hidden">
+                <span class="material-symbols-outlined shrink-0" data-icon="forum">forum</span>
+                <span class="truncate">{{ thread.title || 'New Chat' }}</span>
+            </div>
+
+            <button class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-black/5 rounded-full" (click)="editThread($event, thread)">
+                <span class="material-symbols-outlined text-[16px]" data-icon="edit">edit</span>
+            </button>
+        </a>
+
+        <a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 font-manrope text-sm font-semibold tracking-tight hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" href="#">
+            <span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+            Insights Library
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 font-manrope text-sm font-semibold tracking-tight hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" href="#">
+            <span class="material-symbols-outlined" data-icon="settings">settings</span>
+            Settings
+        </a>
+    </nav>
+</div>
