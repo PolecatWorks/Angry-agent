@@ -82,6 +82,10 @@ class LLMHandler:
             additional_kwargs={"timestamp": datetime.now(timezone.utc).isoformat()}
         )
 
+        # Store the human message in the state immediately before starting background task
+        # This ensures that history calls find the message even if the graph hasn't started yet.
+        await self.agent.aupdate_state(agent_config, {"messages": [msg]})
+
         async def _run_graph():
 
             async def _set_status(status_msg: str | None):
@@ -93,9 +97,9 @@ class LLMHandler:
                     logger.error(f"Failed to update status_msg for thread {thread_id}: {e}", exc_info=False)
 
             try:
-                # Use astream_events instead of ainvoke to observe progress
+                # Use astream_events with None as input to continue from the state we just updated
                 # version="v2" is the current standard for LangChain streaming
-                async for event in self.agent.astream_events({"messages": [msg]}, config=agent_config, version="v2"):
+                async for event in self.agent.astream_events(None, config=agent_config, version="v2"):
                     kind = event["event"]
                     name = event.get("name", "unknown")
 
