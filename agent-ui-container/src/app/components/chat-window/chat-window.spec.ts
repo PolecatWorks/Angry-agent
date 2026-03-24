@@ -120,4 +120,36 @@ describe('ChatWindow', () => {
     expect(imgElement).toBeTruthy();
     expect(imgElement.nativeElement.src).toBe('https://fake-image.com/pic.jpg');
   });
+
+  it('should not show content text if mfe_contents has items', () => {
+    const mockMessages: Message[] = [{
+      type: 'ai',
+      content: 'I am AI',
+      additional_kwargs: {
+        mfe_contents: [{ mfe: 'mfe1', component: './Comp', content: {} }]
+      }
+    }];
+    chatServiceSpy.getHistory.mockReturnValue(of({ messages: mockMessages }));
+    component.loadHistory('thread-1');
+    fixture.detectChanges();
+
+    const contentElement = fixture.debugElement.query(By.css('.markdown-body'));
+    expect(contentElement).toBeNull();
+  });
+
+  it('should show content text if mfe_contents is empty', () => {
+    const mockMessages: Message[] = [{
+      type: 'ai',
+      content: 'I am AI',
+      additional_kwargs: {
+        mfe_contents: []
+      }
+    }];
+    chatServiceSpy.getHistory.mockReturnValue(of({ messages: mockMessages }));
+    component.loadHistory('thread-1');
+    fixture.detectChanges();
+
+    const contentElement = fixture.debugElement.query(By.css('.markdown-body'));
+    expect(contentElement).toBeTruthy();
+  });
 });

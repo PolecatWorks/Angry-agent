@@ -30,7 +30,7 @@
                     <span class="material-symbols-outlined text-sm" data-icon="smart_toy" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
                 </div>
                 <div class="bg-white p-5 rounded-2xl rounded-tl-none border border-outline-variant/10 shadow-sm max-w-[80%] space-y-3">
-                    <div class="text-sm text-on-surface leading-relaxed markdown-body" [innerHTML]="msg.content | markdown"></div>
+                    <div *ngIf="!msg.additional_kwargs?.['mfe_contents']?.length" class="text-sm text-on-surface leading-relaxed markdown-body" [innerHTML]="msg.content | markdown"></div>
 
                     <!-- Image Block -->
                     <div *ngIf="msg.additional_kwargs?.['image_url'] as imageUrl" class="image-block mt-4 relative group cursor-pointer overflow-hidden rounded-xl bg-surface-container-low border border-outline-variant/10 aspect-video flex items-center justify-center">

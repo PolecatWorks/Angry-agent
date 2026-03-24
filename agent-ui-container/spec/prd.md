@@ -30,6 +30,7 @@ The interface supports rendering rich media:
 - **Image Blocks**: Renders full-width images via `image_url` metadata.
 - **Mermaid Diagrams**: Renders interactive Mermaid diagrams using the `MermaidShow` component from the `mfe1` remote. Diagrams are dynamically loaded for any message containing `mermaid_diagrams` metadata.
 - **Dynamic MFE Rendering**: Supports loading and rendering any remote MFE component dynamically via the `MfeRenderer`. This is used to display interactive or structured content (e.g., `JsonShow` from `mfe1`) based on `mfe_contents` metadata returned by agent tools.
+- **Conditional Content Rendering**: To reduce visual redundancy, the text content of an AI message is automatically hidden if it contains one or more `mfe_contents`. In these cases, the MFE is shown as the primary response.
 
 ### 4.2 Multi-User Isolation
 Chats are isolated by a `User ID`. Currently, this is handled via a mocked login screen that captures the user ID and passes it to the backend via an HTTP header (e.g., `X-User-ID`).
