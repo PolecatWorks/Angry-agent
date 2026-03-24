@@ -42,6 +42,7 @@ The backend includes specific routing and post-processing mechanisms for process
 - **MFE Tool Support**: The agent has access to tools that can generate data for Micro-Frontend (MFE) components (like Markdown, JSON, Charts, or Mermaid diagrams).
 - **Packager Node**: A dedicated node (the "Packager") runs after the LLM/Tool loop to convert the conversation into a sequence of MFEContent objects.
     - **Packaging**: It consolidates helpful AI text and ToolMessage results into a list of MFEs.
+    - **Finalization**: It marks the final AIMessage with `packaged: True` in `additional_kwargs` to signal completion to the frontend.
     - **Tool-Call Fallback**: It is responsible for detecting "lost" tool call attempts (where the LLM placed JSON in the message content instead of tool-calling metadata). It manually executes these tools and injects the results into the packager's view to ensure a consistent UI representation.
 - **MFE Tools**:
     - `generate_mfe_of_markdown`: For rendering markdown text via `MarkdownShowWrapper`.
