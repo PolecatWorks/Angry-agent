@@ -241,24 +241,20 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 }
 
                 if (messages.length > 0) {
+                    this.messages = messages;
                     const lastMsg = messages[messages.length - 1];
                     if (lastMsg.type === 'ai' || lastMsg.type === 'error') {
                         if (lastMsg.additional_kwargs?.['packaged']) {
                             if (this.sending && this.totalDuration) {
                                 lastMsg.duration = this.totalDuration;
                             }
-                            this.messages = messages;
                             this.stopPolling();
                             this.audioService.playBotReply();
-                            this.scrollToBottom();
-                            this.cdr.detectChanges();
-                            this.focusInput();
-                        } else {
-                            this.cdr.detectChanges();
                         }
-                    } else {
-                        this.cdr.detectChanges();
                     }
+                    this.scrollToBottom();
+                    this.cdr.detectChanges();
+                    this.focusInput();
                 }
             });
         });

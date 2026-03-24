@@ -126,7 +126,10 @@ def route_intent(state: AgentState) -> Literal["hello", "echo", "image", "llm"]:
 async def hello_node(state: AgentState):
     return {"messages": [AIMessage(
         content="Hello there!",
-        additional_kwargs={"timestamp": datetime.now(timezone.utc).isoformat()}
+        additional_kwargs={
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "packaged": True
+        }
     )]}
 
 async def image_node(state: AgentState):
@@ -134,7 +137,8 @@ async def image_node(state: AgentState):
         content="Here is your image:",
         additional_kwargs={
             "image_url": "https://picsum.photos/400/300",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "packaged": True
         }
     )]}
 
@@ -149,7 +153,10 @@ async def echo_node(state: AgentState):
     if isinstance(last_message, HumanMessage):
         return {"messages": [AIMessage(
             content=f"Echo: {last_message.content}",
-            additional_kwargs={"timestamp": datetime.now(timezone.utc).isoformat()}
+            additional_kwargs={
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "packaged": True
+            }
         )]}
     return {}
 
