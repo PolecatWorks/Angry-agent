@@ -18,7 +18,7 @@ from pydantic_settings import (
     NestedSecretsSettingsSource,
     SettingsConfigDict,
 )
-from src.hams.config import HamsConfig
+from ..hams.config import HamsConfig
 
 import os
 
