@@ -97,9 +97,10 @@ class LLMHandler:
                     logger.error(f"Failed to update status_msg for thread {thread_id}: {e}", exc_info=False)
 
             try:
-                # Use astream_events with None as input to continue from the state we just updated
+                # Use astream_events with the message to trigger the graph.
+                # De-duplication is handled by the 'add_messages' reducer because we use a fixed ID.
                 # version="v2" is the current standard for LangChain streaming
-                async for event in self.agent.astream_events(None, config=agent_config, version="v2"):
+                async for event in self.agent.astream_events({"messages": [msg]}, config=agent_config, version="v2"):
                     kind = event["event"]
                     name = event.get("name", "unknown")
 
