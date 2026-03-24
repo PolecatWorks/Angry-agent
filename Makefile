@@ -18,7 +18,7 @@ agent-be_INTERNAL_HEALTH_PORT := 8079
 agent-ui_INTERNAL_PORT := 8080
 
 # Docker Build
-agent-be_DOCKER_BUILD_OPTS := --secret id=GOOGLE_API_KEY
+agent-be_DOCKER_BUILD_OPTS := --secret id=GOOGLE_API_KEY,env=GOOGLE_API_KEY
 agent-ui_DOCKER_BUILD_OPTS := --secret id=NODE_AUTH_TOKEN,env=NODE_AUTH_TOKEN
 
 export APP_MAIN_AICLIENT__GOOGLE_API_KEY := ${GOOGLE_API_KEY}
