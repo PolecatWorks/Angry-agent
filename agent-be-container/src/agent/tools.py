@@ -44,25 +44,25 @@ class JsonInput(BaseModel):
     title: str = Field(description="The title of the JSON object")
 
 @tool(args_schema=JsonInput)
-def generate_mfe_of_json(json_content: Any, title: str) -> MFEContent:
+def generate_mfe_of_json(json_content: Any, title: str) -> dict:
     """
     Generate a pretty rendered version of the input JSON.
     """
     logger.info(f"Tool generate_mfe_of_json called: {json_content}")
-    return MFEContent(
-        mfe="mfe1",
-        component="./JsonShowWrapper",
-        content={
+    return {
+        "mfe": "mfe1",
+        "component": "./JsonShowWrapper",
+        "content": {
             "content": json_content
         }
-    )
+    }
 
 
 class MarkdownInput(BaseModel):
     markdown_content: str = Field(description="The full markdown string to be rendered in the UI.")
 
 @tool(args_schema=MarkdownInput)
-def generate_mfe_of_markdown(markdown_content: str) -> MFEContent:
+def generate_mfe_of_markdown(markdown_content: str) -> dict:
     """
     Render and display markdown text in the UI.
     Use this tool for ANY formatted text, headers, or lists.
@@ -71,20 +71,20 @@ def generate_mfe_of_markdown(markdown_content: str) -> MFEContent:
     # only the docstring and the MarkdownInput schema.
 
     logger.info(f"Tool generate_mfe_of_markdown called: {markdown_content}")
-    return MFEContent(
-        mfe="mfe1",
-        component="./MarkdownShowWrapper",
-        content={
+    return {
+        "mfe": "mfe1",
+        "component": "./MarkdownShowWrapper",
+        "content": {
             "content": markdown_content
         }
-    )
+    }
 
 
 class TextInput(BaseModel):
     text_content: str = Field(description="The full plain text string to be rendered in the UI.")
 
 @tool(args_schema=TextInput)
-def generate_mfe_of_text(text_content: str) -> MFEContent:
+def generate_mfe_of_text(text_content: str) -> dict:
     """
     Render and display plain text in the UI.
     Use this tool for logs, raw output, or simple text that should not be interpreted as markdown.
@@ -92,13 +92,13 @@ def generate_mfe_of_text(text_content: str) -> MFEContent:
     It only supports line wrapping and basic styling.
     """
     logger.info(f"Tool generate_mfe_of_text called: {text_content}")
-    return MFEContent(
-        mfe="mfe1",
-        component="./TextShowWrapper",
-        content={
+    return {
+        "mfe": "mfe1",
+        "component": "./TextShowWrapper",
+        "content": {
             "content": text_content
         }
-    )
+    }
 
 
 class MermaidInput(BaseModel):
@@ -106,19 +106,19 @@ class MermaidInput(BaseModel):
     title: str = Field(description="The title of the mermaid diagram")
 
 @tool(args_schema=MermaidInput)
-def generate_mfe_of_mermaid(mermaid_content: str, title: str) -> MFEContent:
+def generate_mfe_of_mermaid(mermaid_content: str, title: str) -> dict:
     """
     Generate a pretty rendered version of the input mermaid diagram.
     """
     logger.info(f"Tool generate_mfe_of_mermaid called: {mermaid_content}")
-    return MFEContent(
-        mfe="mfe1",
-        component="./MermaidShowWrapper",
-        content={
+    return {
+        "mfe": "mfe1",
+        "component": "./MermaidShowWrapper",
+        "content": {
             "title": title,
             "content": mermaid_content
         }
-    )
+    }
 
 
 class DataPoint(BaseModel):
@@ -136,7 +136,7 @@ class DataVizInput(BaseModel):
     x_axis_type: Literal["linear", "time", "band"] = Field(default="linear", description="Scale type for X axis")
 
 @tool(args_schema=DataVizInput)
-def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type: str = "linear") -> MFEContent:
+def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type: str = "linear") -> dict:
     """
     Generates a high-quality data visualization (line graph) in the UI.
     Use this tool when the user asks for charts, graphs, trends, or data comparisons.
@@ -144,19 +144,20 @@ def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type
     logger.info(f"Tool generate_data_visualization called: {title}")
     # Convert datasets back to dicts for the MFE
     datasets_dict = [d.model_dump() for d in datasets]
-    return MFEContent(
-        mfe="mfe1",
-        component="./DataShowWrapper",
-        content={
+    return {
+        "mfe": "mfe1",
+        "component": "./DataShowWrapper",
+        "content": {
             "title": title,
             "content": datasets_dict,
             "xType": x_axis_type
         }
-    )
+    }
 
 
 import json
 import uuid
+import re
 from langchain_core.runnables import RunnableConfig
 from src.database import get_db_pool
 
@@ -284,10 +285,11 @@ def get_tools(builder):
     ]
 
     @tool
-    def visualize_graph() -> MFEContent:
+    def visualize_graph() -> dict:
         """
         Returns a mermaid diagram showing the internal structure and flow of this AI agent's LangGraph.
         Use this when the user asks 'how do you work?', 'show me your graph', or 'what is your architecture?'.
+        You can use the result of this tool to pin the architecture to the right pane using 'create_visualization'.
         """
         logger.info("Tool visualize_graph called")
         # StateGraph builder doesn't have get_graph() in all versions;
@@ -297,13 +299,18 @@ def get_tools(builder):
         else:
             mermaid_code = builder.compile().get_graph().draw_mermaid()
 
-        return MFEContent(
-            mfe="mfe1",
-            component="./MermaidShowWrapper",
-            content={
+        # Clean up mermaid code: remove HTML tags that might break some mermaid renderers
+        # e.g. LangGraph often adds <p> tags in labels
+        mermaid_code = re.sub(r'<[^>]+>', '', mermaid_code)
+
+        return {
+            "mfe": "mfe1",
+            "component": "./MermaidShowWrapper",
+            "content": {
+                "title": "Agent Architecture",
                 "content": mermaid_code
             }
-        )
+        }
 
     tools.append(visualize_graph)
 
