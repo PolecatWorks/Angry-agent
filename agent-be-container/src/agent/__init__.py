@@ -20,22 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 def extract_mermaid(text: str) -> List[str]:
-    """Extracts and cleans all mermaid diagrams from markdown code blocks."""
-    if not text:
-        return []
-        
-    # More flexible pattern: allow optional newlines and varying whitespace
-    pattern = r"```mermaid\s*\n?(.*?)\n?\s*```"
-    matches = re.findall(pattern, text, re.DOTALL)
-    
-    # Strip any HTML tags that might break rendering
-    cleaned_matches = []
-    for m in matches:
-        cleaned = re.sub(r'<[^>]+>', '', m).strip()
-        if cleaned:
-            cleaned_matches.append(cleaned)
-            
-    return cleaned_matches
+    """Extracts all mermaid diagrams from markdown code blocks."""
+    pattern = r"```mermaid\s*\n(.*?)\n\s*```"
+    return re.findall(pattern, text, re.DOTALL)
 
 
 def _try_parse_mfe_content(content) -> MFEContent | None:
