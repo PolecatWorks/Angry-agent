@@ -40,13 +40,14 @@ async def test_visualize_graph_tool_execution():
     builder.set_entry_point("start")
     builder.add_edge("start", END)
     
-    # Call the function directly instead of using tool.invoke({})
-    # as LangChain tools often serialize output, but we want the MFEContent instance.
+    # Call the tool directly instead of using tool.invoke({})
+    # as LangChain tools often serialize output, but we want the actual dict.
     result = vg_tool.func()
     
-    assert result.mfe == "mfe1"
-    assert result.component == "./MermaidShowWrapper"
-    assert "graph TD" in result.content["content"] or "flowchart TD" in result.content["content"]
+    assert result["mfe"] == "mfe1"
+    assert result["component"] == "./MermaidShowWrapper"
+    assert "graph TD" in result["content"]["content"] or "flowchart TD" in result["content"]["content"]
+    assert "title" in result["content"]
 
 @pytest.mark.asyncio
 async def test_agent_uses_visualize_graph_tool():
