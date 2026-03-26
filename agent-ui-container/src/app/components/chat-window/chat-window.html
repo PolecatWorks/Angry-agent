@@ -12,7 +12,7 @@
             <p class="text-sm m-0">Secure Enterprise Intelligence is ready.</p>
         </div>
 
-        <div *ngFor="let msg of messages">
+        <div *ngFor="let msg of messages; let isLast = last">
 
             <!-- Human Message -->
             <div *ngIf="msg.type === 'human'" class="flex justify-end gap-4 max-w-2xl mx-auto w-full">
@@ -58,6 +58,19 @@
                             <span class="material-symbols-outlined text-[12px]" data-icon="timer">timer</span>
                             {{ msg.duration }}
                         </span>
+                    </div>
+
+                    <!-- Follow Up Questions -->
+                    <div *ngIf="isLast && msg.additional_kwargs?.['follow_up_questions'] as questions" class="mt-4 pt-2 border-t border-outline-variant/10 flex flex-col gap-2">
+                        <span class="text-xs text-outline font-medium mb-1">Suggested Follow-ups:</span>
+                        <div class="flex flex-wrap gap-2">
+                            <button *ngFor="let question of questions"
+                                    (click)="sendSuggestedQuestion(question)"
+                                    [disabled]="sending"
+                                    class="text-left text-xs bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface rounded-lg px-3 py-2 border border-outline-variant/20 shadow-sm active:scale-95 disabled:opacity-50 disabled:pointer-events-none">
+                                {{ question }}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

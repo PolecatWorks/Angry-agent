@@ -302,6 +302,8 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             # This follows the add_messages reducer pattern for updates
             updated_kwargs = last_ai_message.additional_kwargs.copy() if last_ai_message.additional_kwargs else {}
             updated_kwargs["mfe_contents"] = [mfe.model_dump() for mfe in response_mfe_container.mfes]
+            if hasattr(response_mfe_container, "follow_up_questions") and response_mfe_container.follow_up_questions:
+                updated_kwargs["follow_up_questions"] = response_mfe_container.follow_up_questions
             updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
             updated_kwargs["packaged"] = True
 

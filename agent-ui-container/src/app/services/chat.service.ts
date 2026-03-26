@@ -34,6 +34,7 @@ export interface Message {
   additional_kwargs?: {
     image_url?: string;
     mermaid_diagrams?: string[];
+    follow_up_questions?: string[];
     [key: string]: any;
   };
 }
