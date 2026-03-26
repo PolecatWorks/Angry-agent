@@ -135,6 +135,12 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         }, 100);
     }
 
+    sendSuggestedQuestion(question: string) {
+        if (this.sending) return;
+        this.newMessage = question;
+        this.sendMessage();
+    }
+
     sendMessage() {
         if (!this.newMessage.trim() || this.sending) return;
 
