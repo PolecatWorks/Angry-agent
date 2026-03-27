@@ -24,7 +24,7 @@ The `agent-ui-container` is the frontend application of the AI Agent application
 ## 4. Features & Functionality
 
 ### 4.1 Chat Interface
-The primary interface is a chat window that allows users to send messages to the backend AI agent and view responses. The history of the chat is fetched from and persisted by the backend. The interface uses a polling mechanism to retrieve the agent's progress, continuously polling until an AI message with the `packaged: True` flag in `additional_kwargs` is received, indicating the completion of the turn.
+The primary interface is a chat window that allows users to send messages to the backend AI agent and view responses. The history of the chat is fetched from and persisted by the backend. The interface uses a polling mechanism to retrieve the agent's progress, continuously polling until an AI message with the `packaged: True` flag in `additional_kwargs` is received, indicating the completion of the turn. The right-side visualization panel (AI Workspace) is synchronized with this polling mechanism, refreshing its content immediately whenever a chat update is detected. When the agent is idle, the panel uses a slower fallback polling interval to maintain data consistency without excessive network overhead.
 
 The interface supports rendering rich media:
 - **Image Blocks**: Renders full-width images via `image_url` metadata.
