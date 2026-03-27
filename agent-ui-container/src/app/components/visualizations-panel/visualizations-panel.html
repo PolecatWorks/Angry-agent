@@ -17,7 +17,7 @@
         <span class="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-opacity" data-icon="north_east">north_east</span>
       </div>
       <div class="overflow-x-auto">
-        <app-mfe-renderer [mfe]="viz.mfe" [component]="viz.component" [content]="viz.content"></app-mfe-renderer>
+        <app-mfe-renderer [mfe]="viz.mfe" [component]="viz.component" [content]="viz.content" (action)="handleMfeAction($event)"></app-mfe-renderer>
       </div>
     </div>
     <div class="bg-primary/5 p-4 flex justify-between items-center border-t border-white/40 opacity-0 group-hover:opacity-100 transition-opacity">

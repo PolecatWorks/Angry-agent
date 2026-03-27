@@ -1,4 +1,4 @@
-import { Component, Input, ElementRef, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ElementRef, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
 import { loadRemoteModule } from '@angular-architects/native-federation';
 
 @Component({
@@ -11,6 +11,7 @@ export class MfeRenderer implements AfterViewInit, OnDestroy {
   @Input() component: string = '';
   @Input() content: any;
   @Input() data: any; // Keep for backward compatibility
+  @Output() action = new EventEmitter<{action: string, payload: any}>();
 
   @ViewChild('container', { static: true }) container! : ElementRef;
 
@@ -27,7 +28,12 @@ export class MfeRenderer implements AfterViewInit, OnDestroy {
 
       if (m && m.mount) {
         // Pass the content directly as props
-        const props = this.content || { content: this.data };
+        const props = {
+          ...(this.content || { content: this.data } || {}),
+          onAction: (actionStr: string, payload: any) => {
+            this.action.emit({ action: actionStr, payload });
+          }
+        };
         this.unmountFn = await m.mount(this.container.nativeElement, props);
       } else {
         throw new Error(`Remote module ${this.mfe}/${this.component} does not export mount function.`);
