@@ -4,6 +4,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { vi } from 'vitest';
 import { AuthService } from '../../services/auth.service';
 import { SharedContextService } from '@polecatworks/mfe-shared';
+import { ChatService } from '../../services/chat.service';
+import { of } from 'rxjs';
 
 import { MainLayout } from './main-layout';
 
@@ -28,6 +30,13 @@ describe('MainLayout', () => {
           }
         },
         provideHttpClient(),
+        {
+          provide: ChatService,
+          useValue: {
+            threads$: of([]),
+            refreshThreads: vi.fn()
+          }
+        },
         {
           provide: AuthService,
           useValue: {

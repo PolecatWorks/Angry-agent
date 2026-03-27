@@ -87,6 +87,13 @@ export class ChatService {
   private threadsSubject = new BehaviorSubject<Thread[]>([]);
   threads$ = this.threadsSubject.asObservable();
 
+  private externalMessageSubject = new Subject<string>();
+  externalMessage$ = this.externalMessageSubject.asObservable();
+
+  triggerExternalMessage(threadId: string) {
+    this.externalMessageSubject.next(threadId);
+  }
+
   refreshThreads() {
     this.getThreads().subscribe({
       next: (res) => {
