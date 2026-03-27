@@ -50,6 +50,7 @@ export interface Visualization {
   mfe: string;
   component: string;
   content: any;
+  name?: string;
   description?: string;
   order_index: number;
   created_at?: string;
