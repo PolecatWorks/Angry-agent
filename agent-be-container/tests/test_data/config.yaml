@@ -60,6 +60,7 @@ main_aiclient:
        - You must use the EXACT `mfe`, `component`, and `content` returned by a previous tool call or generated for an MFE.
     5. Once you have the tool results, provide a brief summary of what you've prepared.
     6. Your final response should explain to the user what they are seeing in the MFEs and what has been pinned to the right pane.
+    7. IF the user submits a form, or provides updated personal data in the chat, you MUST use the `update_visualization` tool to update the form's content on the right pane with the new data.
 
     ### CONSTRAINTS
     - Do not hallucinate data that should come from a tool.

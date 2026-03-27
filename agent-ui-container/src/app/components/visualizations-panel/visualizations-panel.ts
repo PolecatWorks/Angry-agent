@@ -71,4 +71,16 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
       this.pollSubscription = undefined;
     }
   }
+
+  handleMfeAction(event: {action: string, payload: any}) {
+    if (!this.threadId) return;
+    
+    // Format the payload as a string that the LLM can easily understand
+    const messageContent = `[System: User submitted data via ${event.action} action inside the MFE visualization pane]\nData: ${JSON.stringify(event.payload, null, 2)}`;
+    
+    this.chatService.sendMessage(messageContent, this.threadId).subscribe({
+      next: () => console.log('Successfully sent MFE action to chat'),
+      error: (err) => console.error('Error sending MFE action:', err)
+    });
+  }
 }
