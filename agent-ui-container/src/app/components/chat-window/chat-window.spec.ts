@@ -20,7 +20,8 @@ describe('ChatWindow', () => {
       getHistory: vi.fn(),
       sendMessage: vi.fn(),
       notifyThreadCreated: vi.fn(),
-      refreshThreads: vi.fn()
+      refreshThreads: vi.fn(),
+      externalMessage$: of()
     };
     routerSpy = {
       navigate: vi.fn()

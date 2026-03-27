@@ -38,6 +38,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     sending: boolean = false;
     pollingSubscription?: Subscription;
     durationSubscription?: Subscription;
+    externalMessageSub?: Subscription;
     pollCount: number = 0;
     pollingError: string | null = null;
     serverOffset: number = 0;
@@ -55,6 +56,14 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     ) { }
 
     ngOnInit() {
+        this.externalMessageSub = this.chatService.externalMessage$.subscribe(threadId => {
+            if (this.threadId && this.threadId === threadId) {
+                if (!this.sending) {
+                    this.startPolling(this.threadId);
+                }
+            }
+        });
+
         this.route.paramMap.subscribe(params => {
             const newThreadId = params.get('threadId');
 
@@ -81,6 +90,9 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
 
     ngOnDestroy() {
         this.stopPolling();
+        if (this.externalMessageSub) {
+            this.externalMessageSub.unsubscribe();
+        }
     }
 
     scrollToBottom(): void {
