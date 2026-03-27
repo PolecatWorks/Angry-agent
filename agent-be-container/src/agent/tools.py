@@ -42,9 +42,12 @@ from .structs import MFEContent
 class JsonInput(BaseModel):
     json_content: Any = Field(description="The JSON object to render")
     title: str = Field(description="The title of the JSON object")
+    pin_to_pane: bool = Field(default=False, description="Set this to True if the user explicitly requested the visualization to be placed in the right visualization pane.")
+    name: str | None = Field(default=None, description="A unique name for the visual element, required if pin_to_pane is True.")
+    description: str | None = Field(default=None, description="A description for the visual element, required if pin_to_pane is True.")
 
 @tool(args_schema=JsonInput)
-def generate_mfe_of_json(json_content: Any, title: str) -> dict:
+def generate_mfe_of_json(json_content: Any, title: str, pin_to_pane: bool = False, name: str | None = None, description: str | None = None) -> dict:
     """
     Generate a pretty rendered version of the input JSON.
     """
@@ -54,37 +57,44 @@ def generate_mfe_of_json(json_content: Any, title: str) -> dict:
         "component": "./JsonShowWrapper",
         "content": {
             "content": json_content
-        }
+        },
+        "pin_to_pane": pin_to_pane,
+        "name": name,
+        "description": description
     }
-
 
 class MarkdownInput(BaseModel):
     markdown_content: str = Field(description="The full markdown string to be rendered in the UI.")
+    pin_to_pane: bool = Field(default=False, description="Set this to True if the user explicitly requested the visualization to be placed in the right visualization pane.")
+    name: str | None = Field(default=None, description="A unique name for the visual element, required if pin_to_pane is True.")
+    description: str | None = Field(default=None, description="A description for the visual element, required if pin_to_pane is True.")
 
 @tool(args_schema=MarkdownInput)
-def generate_mfe_of_markdown(markdown_content: str) -> dict:
+def generate_mfe_of_markdown(markdown_content: str, pin_to_pane: bool = False, name: str | None = None, description: str | None = None) -> dict:
     """
     Render and display markdown text in the UI.
     Use this tool for ANY formatted text, headers, or lists.
     """
-    # The LLM doesn't actually 'see' the execution logic below,
-    # only the docstring and the MarkdownInput schema.
-
     logger.info(f"Tool generate_mfe_of_markdown called: {markdown_content}")
     return {
         "mfe": "mfe1",
         "component": "./MarkdownShowWrapper",
         "content": {
             "content": markdown_content
-        }
+        },
+        "pin_to_pane": pin_to_pane,
+        "name": name,
+        "description": description
     }
-
 
 class TextInput(BaseModel):
     text_content: str = Field(description="The full plain text string to be rendered in the UI.")
+    pin_to_pane: bool = Field(default=False, description="Set this to True if the user explicitly requested the visualization to be placed in the right visualization pane.")
+    name: str | None = Field(default=None, description="A unique name for the visual element, required if pin_to_pane is True.")
+    description: str | None = Field(default=None, description="A description for the visual element, required if pin_to_pane is True.")
 
 @tool(args_schema=TextInput)
-def generate_mfe_of_text(text_content: str) -> dict:
+def generate_mfe_of_text(text_content: str, pin_to_pane: bool = False, name: str | None = None, description: str | None = None) -> dict:
     """
     Render and display plain text in the UI.
     Use this tool for logs, raw output, or simple text that should not be interpreted as markdown.
@@ -97,9 +107,11 @@ def generate_mfe_of_text(text_content: str) -> dict:
         "component": "./TextShowWrapper",
         "content": {
             "content": text_content
-        }
+        },
+        "pin_to_pane": pin_to_pane,
+        "name": name,
+        "description": description
     }
-
 
 class PersonalDataFormInput(BaseModel):
     first_name: str | None = Field(default=None, description="The customer's first name, if known.")
@@ -107,6 +119,9 @@ class PersonalDataFormInput(BaseModel):
     email: str | None = Field(default=None, description="The customer's email address, if known.")
     phone_number: str | None = Field(default=None, description="The customer's phone number, if known.")
     address: str | None = Field(default=None, description="The customer's physical address, if known.")
+    pin_to_pane: bool = Field(default=False, description="Set this to True if the user explicitly requested the visualization to be placed in the right visualization pane.")
+    name: str | None = Field(default=None, description="A unique name for the visual element, required if pin_to_pane is True.")
+    description: str | None = Field(default=None, description="A description for the visual element, required if pin_to_pane is True.")
 
 @tool(args_schema=PersonalDataFormInput)
 def generate_personal_data_form(
@@ -115,6 +130,9 @@ def generate_personal_data_form(
     email: str | None = None,
     phone_number: str | None = None,
     address: str | None = None,
+    pin_to_pane: bool = False,
+    name: str | None = None,
+    description: str | None = None
 ) -> MFEContent:
     """
     Generate a personal data form to be displayed in the UI.
@@ -131,16 +149,21 @@ def generate_personal_data_form(
             "phoneNumber": phone_number or "",
             "address": address or "",
             "actions": ["submit", "cancel"]
-        }
+        },
+        pin_to_pane=pin_to_pane,
+        name=name,
+        description=description
     )
-
 
 class MermaidInput(BaseModel):
     mermaid_content: str = Field(description="The full mermaid string to be rendered in the UI. Do not include ```mermaid ... ``` markers in the content.")
     title: str = Field(description="The title of the mermaid diagram")
+    pin_to_pane: bool = Field(default=False, description="Set this to True if the user explicitly requested the visualization to be placed in the right visualization pane.")
+    name: str | None = Field(default=None, description="A unique name for the visual element, required if pin_to_pane is True.")
+    description: str | None = Field(default=None, description="A description for the visual element, required if pin_to_pane is True.")
 
 @tool(args_schema=MermaidInput)
-def generate_mfe_of_mermaid(mermaid_content: str, title: str) -> dict:
+def generate_mfe_of_mermaid(mermaid_content: str, title: str, pin_to_pane: bool = False, name: str | None = None, description: str | None = None) -> dict:
     """
     Generate a pretty rendered version of the input mermaid diagram.
     """
@@ -151,9 +174,11 @@ def generate_mfe_of_mermaid(mermaid_content: str, title: str) -> dict:
         "content": {
             "title": title,
             "content": mermaid_content
-        }
+        },
+        "pin_to_pane": pin_to_pane,
+        "name": name,
+        "description": description
     }
-
 
 class DataPoint(BaseModel):
     x: Any = Field(description="The X value (number, string, or date string)")
@@ -168,15 +193,17 @@ class DataVizInput(BaseModel):
     title: str = Field(description="The title of the visualization")
     datasets: List[Dataset] = Field(description="List of datasets to plot")
     x_axis_type: Literal["linear", "time", "band"] = Field(default="linear", description="Scale type for X axis")
+    pin_to_pane: bool = Field(default=False, description="Set this to True if the user explicitly requested the visualization to be placed in the right visualization pane.")
+    name: str | None = Field(default=None, description="A unique name for the visual element, required if pin_to_pane is True.")
+    description: str | None = Field(default=None, description="A description for the visual element, required if pin_to_pane is True.")
 
 @tool(args_schema=DataVizInput)
-def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type: str = "linear") -> dict:
+def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type: str = "linear", pin_to_pane: bool = False, name: str | None = None, description: str | None = None) -> dict:
     """
     Generates a high-quality data visualization (line graph) in the UI.
     Use this tool when the user asks for charts, graphs, trends, or data comparisons.
     """
     logger.info(f"Tool generate_data_visualization called: {title}")
-    # Convert datasets back to dicts for the MFE
     datasets_dict = [d.model_dump() for d in datasets]
     return {
         "mfe": "mfe1",
@@ -185,7 +212,10 @@ def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type
             "title": title,
             "content": datasets_dict,
             "xType": x_axis_type
-        }
+        },
+        "pin_to_pane": pin_to_pane,
+        "name": name,
+        "description": description
     }
 
 
