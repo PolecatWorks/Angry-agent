@@ -11,7 +11,8 @@ import re
 import json
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langgraph.prebuilt import ToolNode, tools_condition
-from .tools import get_tools
+from langchain_core.runnables import RunnableConfig
+from .tools import get_tools, save_visualization_to_db
 from .structs import MFEContent, MFEContainer, FollowUpQuestions, AgentState
 import logging
 import uuid
@@ -252,7 +253,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
         return {"messages": [response]}
 
 
-    async def packager_node(state: AgentState):
+    async def packager_node(state: AgentState, config: RunnableConfig):
 
         for i, message in enumerate(state.messages):
             logger.info(f"Message {i}: {type(message)} {message}")
@@ -302,7 +303,27 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             # We return a message with the SAME ID to update it in the state history
             # This follows the add_messages reducer pattern for updates
             updated_kwargs = last_ai_message.additional_kwargs.copy() if last_ai_message.additional_kwargs else {}
-            updated_kwargs["mfe_contents"] = [mfe.model_dump() for mfe in response_mfe_container.mfes]
+            
+            thread_id = config.get("configurable", {}).get("thread_id")
+            inline_mfes = []
+            pinned_names = []
+
+            if hasattr(response_mfe_container, "mfes") and response_mfe_container.mfes:
+                for mfe in response_mfe_container.mfes:
+                    if mfe.pin_to_pane:
+                        name = mfe.name or "Visualization"
+                        desc = mfe.description or ""
+                        # save to DB directly, don't display inline
+                        await save_visualization_to_db(thread_id, mfe.mfe, mfe.component, mfe.content, name, desc)
+                        pinned_names.append(name)
+                    else:
+                        inline_mfes.append(mfe.model_dump())
+
+            if inline_mfes:
+                updated_kwargs["mfe_contents"] = inline_mfes
+            else:
+                updated_kwargs.pop("mfe_contents", None)
+                
             updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
             updated_kwargs["packaged"] = True
 
@@ -312,9 +333,14 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
                 updated_kwargs["mermaid_diagrams"] = mermaid_diagrams
                 logger.info(f"Packager: Extracted {len(mermaid_diagrams)} mermaid diagrams")
 
+            # Update the message text to show what was pinned
+            new_content = last_ai_message.content
+            if pinned_names:
+                new_content += "\n\n**Visualizations pinned to panel:**\n- " + "\n- ".join(pinned_names)
+
             logger.info(f"Packager: Final combined usage: {total_usage}")
             updated_msg = AIMessage(
-                content=last_ai_message.content,
+                content=new_content,
                 id=last_ai_message.id,
                 tool_calls=getattr(last_ai_message, 'tool_calls', []),
                 additional_kwargs=updated_kwargs,
