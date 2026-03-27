@@ -12,7 +12,7 @@ import json
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langgraph.prebuilt import ToolNode, tools_condition
 from .tools import get_tools
-from .structs import MFEContent, MFEContainer, AgentState
+from .structs import MFEContent, MFEContainer, FollowUpQuestions, AgentState
 import logging
 import uuid
 
@@ -199,6 +199,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
 
     # This LLM is forced to output the Pydantic model. It is used for the packager to finalise the MFE output
     packager_llm_with_mfe_container_schema = packager_llm.with_structured_output(MFEContainer, include_raw=True)
+    follow_up_llm_with_schema = packager_llm.with_structured_output(FollowUpQuestions, include_raw=True)
 
 
     async def llm_node(state: AgentState):
@@ -302,8 +303,6 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             # This follows the add_messages reducer pattern for updates
             updated_kwargs = last_ai_message.additional_kwargs.copy() if last_ai_message.additional_kwargs else {}
             updated_kwargs["mfe_contents"] = [mfe.model_dump() for mfe in response_mfe_container.mfes]
-            if hasattr(response_mfe_container, "follow_up_questions") and response_mfe_container.follow_up_questions:
-                updated_kwargs["follow_up_questions"] = response_mfe_container.follow_up_questions
             updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
             updated_kwargs["packaged"] = True
 
@@ -338,6 +337,61 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             )]
         }
 
+    async def follow_up_node(state: AgentState):
+        logger.info("Running FollowUp Questions node")
+        
+        # Accumulate usage metadata from all AIMessages in THE CURRENT TURN
+        total_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        messages_since_human = []
+        for m in reversed(state.messages):
+            if isinstance(m, HumanMessage):
+                break
+            messages_since_human.append(m)
+
+        for m in reversed(messages_since_human):
+            if isinstance(m, AIMessage) and hasattr(m, 'usage_metadata') and m.usage_metadata:
+                total_usage = merge_usage_metadata(total_usage, m.usage_metadata)
+
+        system_instruction = SystemMessage(content="You are a helpful assistant. Generate exactly 3 highly relevant follow-up questions the user might ask next based on the conversation history.")
+        relevant_history = [
+            m for m in state.messages
+            if isinstance(m, (HumanMessage, AIMessage, ToolMessage))
+        ]
+        messages = [system_instruction] + relevant_history
+        
+        raw_response = await follow_up_llm_with_schema.ainvoke(messages)
+        
+        if isinstance(raw_response, dict) and "parsed" in raw_response:
+            response_follow_ups = raw_response["parsed"]
+            follow_up_usage = raw_response["raw"].usage_metadata if hasattr(raw_response["raw"], 'usage_metadata') else None
+            total_usage = merge_usage_metadata(total_usage, follow_up_usage)
+        else:
+            response_follow_ups = raw_response
+
+        # Find the last AIMessage to update it with the follow up questions
+        last_ai_message = None
+        for m in reversed(state.messages):
+            if isinstance(m, AIMessage):
+                last_ai_message = m
+                break
+
+        if last_ai_message:
+            updated_kwargs = last_ai_message.additional_kwargs.copy() if last_ai_message.additional_kwargs else {}
+            if hasattr(response_follow_ups, "follow_up_questions") and response_follow_ups.follow_up_questions:
+                updated_kwargs["follow_up_questions"] = response_follow_ups.follow_up_questions
+            
+            logger.info(f"FollowUp: Final combined usage: {total_usage}")
+            updated_msg = AIMessage(
+                content=last_ai_message.content,
+                id=last_ai_message.id,
+                tool_calls=getattr(last_ai_message, 'tool_calls', []),
+                additional_kwargs=updated_kwargs,
+                usage_metadata=total_usage
+            )
+            return {"messages": [updated_msg]}
+
+        return {}
+
 
     builder.add_node("initial", initial_node)
     builder.add_node("intent", intent_node)
@@ -347,6 +401,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
     builder.add_node("llm", llm_node)
     builder.add_node("tools", ToolNode(tools))
     builder.add_node("packager", packager_node)
+    builder.add_node("follow_up", follow_up_node)
     # builder.add_node("post_process", post_process_node)
 
     builder.add_edge(START, "initial")
@@ -375,7 +430,8 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
     builder.add_edge("tools", "llm")
     builder.add_edge("hello", END)
     builder.add_edge("image", END)
-    builder.add_edge("packager", END)
+    builder.add_edge("packager", "follow_up")
+    builder.add_edge("follow_up", END)
     builder.add_edge("echo", END)
 
     return builder.compile(checkpointer=checkpointer)

@@ -13,7 +13,11 @@ class MFEContent(BaseModel):
 class MFEContainer(BaseModel):
     """The final response object containing all Micro-Frontend components."""
     mfes: List[MFEContent] = Field(description="A list of MFE components to render in the UI")
-    follow_up_questions: List[str] = Field(description="A list of 3 suggested follow-up questions that the user could ask based on the conversation context", default_factory=list)
+
+
+class FollowUpQuestions(BaseModel):
+    """Suggested follow-up questions for the user to ask the AI agent based on the conversation history."""
+    follow_up_questions: List[str] = Field(description="Exactly 3 highly contextual and relevant follow-up questions the user could ask next.")
 
 
 class AgentState(BaseModel):
