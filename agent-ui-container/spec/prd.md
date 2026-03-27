@@ -29,7 +29,7 @@ The primary interface is a chat window that allows users to send messages to the
 The interface supports rendering rich media:
 - **Image Blocks**: Renders full-width images via `image_url` metadata.
 - **Mermaid Diagrams**: Renders interactive Mermaid diagrams using the `MermaidShow` component from the `mfe1` remote. Diagrams are dynamically loaded for any message containing `mermaid_diagrams` metadata.
-- **Dynamic MFE Rendering**: Supports loading and rendering any remote MFE component dynamically via the `MfeRenderer`. This is used to display interactive or structured content (e.g., `JsonShow` from `mfe1`) based on `mfe_contents` metadata returned by agent tools.
+- **Dynamic MFE Rendering**: Supports loading and rendering any remote MFE component dynamically via the `MfeRenderer`. These rendered visualization components are labeled using a backend-provided `name` rather than relying on the MFE itself. This is used to display interactive or structured content (e.g., `JsonShow` from `mfe1`) based on `mfe_contents` metadata returned by agent tools.
 - **Conditional Content Rendering**: To reduce visual redundancy, the text content of an AI message is automatically hidden if it contains one or more `mfe_contents`. In these cases, the MFE is shown as the primary response.
 
 ### 4.2 Multi-User Isolation

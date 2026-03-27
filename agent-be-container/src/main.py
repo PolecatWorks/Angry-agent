@@ -336,7 +336,7 @@ async def get_visualizations(request):
 
         # Fetch visualizations for the thread
         query = """
-            SELECT id, thread_id, mfe, component, content, description, order_index, created_at, updated_at
+            SELECT id, thread_id, mfe, component, content, name, description, order_index, created_at, updated_at
             FROM visualizations
             WHERE thread_id = $1
             ORDER BY order_index ASC, created_at ASC

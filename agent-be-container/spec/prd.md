@@ -50,7 +50,7 @@ The backend includes specific routing and post-processing mechanisms for process
     - `generate_mfe_of_json`: For general JSON/structured data via `JsonShowWrapper`.
     - `generate_data_visualization`: For D3-based graphs via `DataShowWrapper`.
     - `generate_mfe_of_mermaid` and `visualize_graph`: For Mermaid diagrams via `MermaidShowWrapper`.
-    - `create_visualization`: To pin a visualization to the thread's right pane.
+    - `create_visualization`: To pin a visualization to the thread's right pane. Includes a `name` parameter to label the MFE element in the visualization pane, ensuring the agent controls the display name.
     - `update_visualization`: To modify a pinned visualization.
     - `delete_visualization`: To remove a pinned visualization.
 

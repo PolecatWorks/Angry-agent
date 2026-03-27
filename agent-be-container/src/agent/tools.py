@@ -199,10 +199,11 @@ class CreateVisualizationInput(BaseModel):
     mfe: str = Field(description="The source MFE where the component is defined (e.g. 'mfe1')")
     component: str = Field(description="The name of the MFE component to render")
     content: dict = Field(description="The content to render in the MFE")
+    name: str = Field(description="The display name or label for the visualization")
     description: str = Field(description="A description of the visualization to help keep context")
 
 @tool(args_schema=CreateVisualizationInput)
-async def create_visualization(mfe: str, component: str, content: dict, description: str, config: RunnableConfig) -> str:
+async def create_visualization(mfe: str, component: str, content: dict, name: str, description: str, config: RunnableConfig) -> str:
     """
     Creates a new visualization for the current thread and pins it to the right pane.
     Use this when the user wants to save or build a new visualization tool or interactive component.
@@ -222,10 +223,10 @@ async def create_visualization(mfe: str, component: str, content: dict, descript
 
         await conn.execute(
             """
-            INSERT INTO visualizations (id, thread_id, mfe, component, content, description, order_index)
-            VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7)
+            INSERT INTO visualizations (id, thread_id, mfe, component, content, name, description, order_index)
+            VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7, $8)
             """,
-            viz_id, thread_id, mfe, component, content_json, description, next_idx
+            viz_id, thread_id, mfe, component, content_json, name, description, next_idx
         )
 
     logger.info(f"Tool create_visualization called: Created {viz_id} for thread {thread_id}")
@@ -235,10 +236,11 @@ async def create_visualization(mfe: str, component: str, content: dict, descript
 class UpdateVisualizationInput(BaseModel):
     id: str = Field(description="The ID of the visualization to update")
     content: dict = Field(description="The new content for the MFE")
+    name: str | None = Field(default=None, description="Optional new display name for the visualization")
     description: str | None = Field(default=None, description="Optional new description")
 
 @tool(args_schema=UpdateVisualizationInput)
-async def update_visualization(id: str, content: dict, description: str | None, config: RunnableConfig) -> str:
+async def update_visualization(id: str, content: dict, name: str | None, description: str | None, config: RunnableConfig) -> str:
     """
     Updates the content or description of an existing visualization.
     Use this when the user asks to modify or update a visualization that is already on the right pane.
@@ -251,7 +253,16 @@ async def update_visualization(id: str, content: dict, description: str | None, 
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        if description is not None:
+        if description is not None and name is not None:
+            result = await conn.execute(
+                """
+                UPDATE visualizations
+                SET content = $1::jsonb, name = $2, description = $3, updated_at = NOW()
+                WHERE id = $4::uuid AND thread_id = $5
+                """,
+                content_json, name, description, id, thread_id
+            )
+        elif description is not None:
             result = await conn.execute(
                 """
                 UPDATE visualizations
@@ -259,6 +270,15 @@ async def update_visualization(id: str, content: dict, description: str | None, 
                 WHERE id = $3::uuid AND thread_id = $4
                 """,
                 content_json, description, id, thread_id
+            )
+        elif name is not None:
+            result = await conn.execute(
+                """
+                UPDATE visualizations
+                SET content = $1::jsonb, name = $2, updated_at = NOW()
+                WHERE id = $3::uuid AND thread_id = $4
+                """,
+                content_json, name, id, thread_id
             )
         else:
             result = await conn.execute(
