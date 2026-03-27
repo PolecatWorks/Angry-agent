@@ -121,8 +121,8 @@ async def test_conversation_flow(mock_llm):
 @pytest.mark.asyncio
 async def test_mfe_tool_call(mock_llm):
     tool_call = {
-        "name": "get_mfe_content",
-        "args": {},
+        "name": "generate_mfe_of_json",
+        "args": {"json_content": {"key": "val"}, "title": "JSON Data", "pin_to_pane": False, "name": "Test MFE", "description": "Test MFE Description"},
         "id": "call_123",
         "type": "tool_call"
     }
