@@ -2,7 +2,7 @@
 Tests for the agent conversation flow
 """
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock, AsyncMock, patch
 import sys
 import os
 from langchain_core.messages import HumanMessage, AIMessage
@@ -50,6 +50,8 @@ def mock_llm():
                     mfes.append(MFEContent(mfe="mfe1", component="./JsonShowWrapper", content={"key": "val"}))
                 elif '"component": "./MarkdownShowWrapper"' in m.content or "generate_mfe_of_markdown" in m.content or "poem" in m.content.lower():
                     mfes.append(MFEContent(mfe="mfe1", component="./MarkdownShowWrapper", content={"markdown_content": "Content"}))
+                if "pin_this" in m.content.lower():
+                    mfes.append(MFEContent(mfe="mfe1", component="./PinnedWrapper", content={"key": "val"}, pin_to_pane=True, name="Pinned Visual", description="Pinned description"))
         
         # Deduplicate
         seen_components = set()
@@ -236,3 +238,31 @@ async def test_non_mfe_tool_output_ignored(mock_llm):
     assert "mfe_contents" in messages[-1].additional_kwargs
     # Content preserved
     assert messages[-1].content == "No MFE here."
+
+
+@pytest.mark.asyncio
+async def test_mfe_pin_to_pane(mock_llm):
+    """Test that setting pin_to_pane=True on an MFE avoids inline rendering and calls DB."""
+    mock_llm.ainvoke.side_effect = [
+        AIMessage(content="I will pin_this for you."),
+        AIMessage(content="Visual created.")
+    ]
+    checkpointer = MemorySaver()
+    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
+    config = {"configurable": {"thread_id": "test-pin-mfe"}}
+    
+    with patch('agent.save_visualization_to_db', new_callable=AsyncMock) as mock_save:
+        result = await agent.ainvoke({"messages": [HumanMessage(content="pin_this")]}, config=config)
+        messages = result["messages"]
+        
+        # Verify it's NOT in mfe_contents
+        assert "mfe_contents" not in messages[-1].additional_kwargs
+        
+        # Verify message text mentions it
+        assert "Visualizations pinned to panel" in messages[-1].content
+        assert "Pinned Visual" in messages[-1].content
+        
+        # Verify save_visualization_to_db was called
+        mock_save.assert_called_once_with(
+            "test-pin-mfe", "mfe1", "./PinnedWrapper", {"key": "val"}, "Pinned Visual", "Pinned description"
+        )

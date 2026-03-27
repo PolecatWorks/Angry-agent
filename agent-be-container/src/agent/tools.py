@@ -195,6 +195,25 @@ import re
 from langchain_core.runnables import RunnableConfig
 from src.database import get_db_pool
 
+async def save_visualization_to_db(thread_id: str, mfe: str, component: str, content: dict, name: str, description: str) -> str:
+    viz_id = str(uuid.uuid4())
+    content_json = json.dumps(content)
+
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        # Get the max order_index to append
+        row = await conn.fetchrow("SELECT MAX(order_index) as max_idx FROM visualizations WHERE thread_id = $1", thread_id)
+        next_idx = (row["max_idx"] + 1) if row and row["max_idx"] is not None else 0
+
+        await conn.execute(
+            """
+            INSERT INTO visualizations (id, thread_id, mfe, component, content, name, description, order_index)
+            VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7, $8)
+            """,
+            viz_id, thread_id, mfe, component, content_json, name, description, next_idx
+        )
+    return viz_id
+
 class CreateVisualizationInput(BaseModel):
     mfe: str = Field(description="The source MFE where the component is defined (e.g. 'mfe1')")
     component: str = Field(description="The name of the MFE component to render")
@@ -212,22 +231,7 @@ async def create_visualization(mfe: str, component: str, content: dict, name: st
     if not thread_id:
         return "Error: thread_id not found in context."
 
-    viz_id = str(uuid.uuid4())
-    content_json = json.dumps(content)
-
-    pool = await get_db_pool()
-    async with pool.acquire() as conn:
-        # Get the max order_index to append
-        row = await conn.fetchrow("SELECT MAX(order_index) as max_idx FROM visualizations WHERE thread_id = $1", thread_id)
-        next_idx = (row["max_idx"] + 1) if row and row["max_idx"] is not None else 0
-
-        await conn.execute(
-            """
-            INSERT INTO visualizations (id, thread_id, mfe, component, content, name, description, order_index)
-            VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7, $8)
-            """,
-            viz_id, thread_id, mfe, component, content_json, name, description, next_idx
-        )
+    viz_id = await save_visualization_to_db(thread_id, mfe, component, content, name, description)
 
     logger.info(f"Tool create_visualization called: Created {viz_id} for thread {thread_id}")
     return f"Successfully created visualization with ID: {viz_id}"
