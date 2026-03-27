@@ -3,8 +3,8 @@ import { CommonModule } from '@angular/common';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ChatService, Visualization } from '../../services/chat.service';
 import { MfeRenderer } from '../mfe-renderer/mfe-renderer';
-import { Subscription, interval, of } from 'rxjs';
-import { switchMap, startWith, catchError, filter } from 'rxjs/operators';
+import { Subscription, interval, of, merge } from 'rxjs';
+import { switchMap, startWith, catchError, filter, map } from 'rxjs/operators';
 
 @Component({
   selector: 'app-visualizations-panel',
@@ -50,13 +50,23 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
       Promise.resolve().then(() => this.loading = true);
     }
 
-    this.pollSubscription = interval(3000).pipe(
+    // Set up polling triggered by chat service updates or fallback interval
+    const refresh$ = this.chatService.visualizationsUpdated$.pipe(
+      filter(tid => tid === this.threadId),
+      map(() => 'update')
+    );
+
+    const fallback$ = interval(10000).pipe(
       startWith(0),
+      map(() => 'interval')
+    );
+
+    this.pollSubscription = merge(refresh$, fallback$).pipe(
       filter(() => !!this.threadId),
       switchMap(() => this.chatService.getVisualizations(this.threadId!).pipe(
         catchError(err => {
           console.error('Error fetching visualizations:', err);
-          return of({ visualizations: [] }); // Continue polling on error
+          return of({ visualizations: [] });
         })
       ))
     ).subscribe((res: any) => {
@@ -72,11 +82,11 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  handleMfeAction(event: {action: string, payload: any}) {
+  handleMfeAction(event: {action: string, payload: any}, vizId: string) {
     if (!this.threadId) return;
     
-    // Format the payload as a string that the LLM can easily understand
-    const messageContent = `[System: User submitted data via ${event.action} action inside the MFE visualization pane]\nData: ${JSON.stringify(event.payload, null, 2)}`;
+    // Format the payload as a string that the LLM can easily understand including the visualization ID
+    const messageContent = `[System: User submitted data via ${event.action} action inside visualization MFE with ID: ${vizId}]\nData: ${JSON.stringify(event.payload, null, 2)}`;
     
     this.chatService.sendMessage(messageContent, this.threadId).subscribe({
       next: () => {
