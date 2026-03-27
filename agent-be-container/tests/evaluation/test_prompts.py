@@ -3,6 +3,7 @@ import os
 import yaml
 from pathlib import Path
 from langchain_core.messages import HumanMessage, SystemMessage
+from unittest.mock import patch, AsyncMock
 
 from src.agent import create_agent, llm_model
 from src.config import ServiceConfig
@@ -79,7 +80,8 @@ async def test_system_prompt_adherence_mfe(mock_config):
     )
     
     state = {"messages": [HumanMessage(content=prompt)]}
-    response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mfe_thread"}})
+    with patch('src.agent.save_visualization_to_db', new_callable=AsyncMock) as mock_save:
+        response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mfe_thread"}})
     
     last_msg = response_state["messages"][-1]
     
@@ -110,7 +112,8 @@ async def test_system_prompt_adherence_mermaid(mock_config):
     )
     
     state = {"messages": [HumanMessage(content=prompt)]}
-    response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mermaid_thread"}})
+    with patch('src.agent.save_visualization_to_db', new_callable=AsyncMock) as mock_save:
+        response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mermaid_thread"}})
     
     last_msg = response_state["messages"][-1]
     
