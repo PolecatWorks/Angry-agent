@@ -79,7 +79,10 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
     const messageContent = `[System: User submitted data via ${event.action} action inside the MFE visualization pane]\nData: ${JSON.stringify(event.payload, null, 2)}`;
     
     this.chatService.sendMessage(messageContent, this.threadId).subscribe({
-      next: () => console.log('Successfully sent MFE action to chat'),
+      next: () => {
+        console.log('Successfully sent MFE action to chat');
+        this.chatService.triggerExternalMessage(this.threadId!);
+      },
       error: (err) => console.error('Error sending MFE action:', err)
     });
   }
