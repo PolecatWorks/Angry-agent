@@ -260,6 +260,8 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
 
                 if (messages.length > 0) {
                     this.messages = messages;
+                    this.chatService.triggerVisualizationsRefresh(threadId);
+                    
                     const lastMsg = messages[messages.length - 1];
                     if (lastMsg.type === 'ai' || lastMsg.type === 'error') {
                         if (lastMsg.additional_kwargs?.['packaged']) {
@@ -275,6 +277,25 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                     this.focusInput();
                 }
             });
+        });
+    }
+
+    handleMfeAction(event: {action: string, payload: any}, mfeId?: string) {
+        if (!this.threadId) return;
+
+        // Use ID if available, otherwise just say "inline MFE"
+        const identifier = mfeId ? `MFE with ID: ${mfeId}` : 'inline MFE';
+        const messageContent = `[System: User submitted data via ${event.action} action inside ${identifier}]\nData: ${JSON.stringify(event.payload, null, 2)}`;
+        
+        this.sending = true;
+        this.chatService.sendMessage(messageContent, this.threadId).subscribe({
+            next: () => {
+                this.startPolling(this.threadId!);
+            },
+            error: (err) => {
+                console.error('Error sending MFE action:', err);
+                this.sending = false;
+            }
         });
     }
 

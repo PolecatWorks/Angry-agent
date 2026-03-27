@@ -3,14 +3,23 @@ import os
 
 # Set dummy environment variables to pass validation
 os.environ["APP_MAIN_AICLIENT__CONTEXT_LENGTH"] = "8192"
+os.environ["APP_MAIN_AICLIENT__MODEL_PROVIDER"] = "google_genai"
 os.environ["APP_MAIN_AICLIENT__GOOGLE_API_KEY"] = "dummy"
 os.environ["APP_PACKAGER_AICLIENT__CONTEXT_LENGTH"] = "8192"
+os.environ["APP_PACKAGER_AICLIENT__MODEL_PROVIDER"] = "google_genai"
 os.environ["APP_PACKAGER_AICLIENT__GOOGLE_API_KEY"] = "dummy"
 os.environ["APP_EMBEDDING_CLIENT__MODEL_PROVIDER"] = "google_genai"
 os.environ["APP_EMBEDDING_CLIENT__MODEL"] = "text-embedding-004"
 os.environ["APP_EMBEDDING_CLIENT__GOOGLE_API_KEY"] = "dummy"
 os.environ["APP_HAMS__URL"] = "http://localhost:8079"
 os.environ["APP_WEBSERVICE__URL"] = "http://localhost:8080"
+os.environ["APP_WEBSERVICE__PREFIX"] = ""
+os.environ["APP_HAMS__PREFIX"] = "hams"
+os.environ["APP_HAMS__SHUTDOWNDURATION"] = "PT10S"
+os.environ["APP_HAMS__CHECKS__TIMEOUT"] = "5"
+os.environ["APP_HAMS__CHECKS__FAILS"] = "2"
+os.environ["APP_HAMS__CHECKS__PREFLIGHTS"] = "[]"
+os.environ["APP_HAMS__CHECKS__SHUTDOWNS"] = "[]"
 os.environ["APP_PERSISTENCE__DB__POOL_SIZE"] = "10"
 os.environ["APP_PERSISTENCE__DB__AUTOMIGRATE"] = "false"
 os.environ["APP_PERSISTENCE__DB__ACQUIRE_TIMEOUT"] = "10"
@@ -33,7 +42,7 @@ async def main():
         handler = LLMHandler(db_dsn=config.persistence.db.connection.dsn)
         await handler.initialize()
         
-        thread_id = '44121d38-cf62-466d-b606-e672eb8b25c0'
+        thread_id = '2da8ca03-a664-4108-b1d6-6d9b7c63caa3'
         state = await handler.get_thread_state(thread_id)
         
         print("\n--- Agent State Values ---")
@@ -41,7 +50,12 @@ async def main():
             messages = state.values.get("messages", [])
             print(f"Messages count: {len(messages)}")
             for i, m in enumerate(messages):
-                print(f"{i}: {type(m).__name__} | {m.content[:50]}")
+                print(f"{i}: {type(m).__name__}")
+                print(f"  Content: {repr(m.content)}")
+                if hasattr(m, 'additional_kwargs') and m.additional_kwargs:
+                    print(f"  Kwargs: {m.additional_kwargs.keys()}")
+                if hasattr(m, 'tool_calls') and m.tool_calls:
+                    print(f"  ToolCalls: {len(m.tool_calls)}")
         else:
             print("No state values found.")
             

@@ -41,7 +41,7 @@
                     </div>
 
                     <div *ngFor="let mfe of msg.additional_kwargs?.['mfe_contents']" class="mt-4">
-                        <app-mfe-renderer [mfe]="mfe.mfe" [component]="mfe.component" [content]="mfe.content"></app-mfe-renderer>
+                        <app-mfe-renderer [mfe]="mfe.mfe" [component]="mfe.component" [content]="mfe.content" [id]="mfe.id" (action)="handleMfeAction($event, mfe.id)"></app-mfe-renderer>
                     </div>
 
                     <!-- Mermaid Diagrams -->

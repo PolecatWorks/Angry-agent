@@ -313,9 +313,14 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
                     if mfe.pin_to_pane:
                         name = mfe.name or "Visualization"
                         desc = mfe.description or ""
-                        # save to DB directly, don't display inline
-                        await save_visualization_to_db(thread_id, mfe.mfe, mfe.component, mfe.content, name, desc)
-                        pinned_names.append(name)
+                        # If the MFE already has an ID, it means it was saved by a tool call.
+                        viz_id = getattr(mfe, 'id', None)
+                        if not viz_id:
+                            # Save to DB if not already saved
+                            viz_id = await save_visualization_to_db(thread_id, mfe.mfe, mfe.component, mfe.content, name, desc)
+                            mfe.id = viz_id
+                        
+                        pinned_names.append(f"{name} (ID: {viz_id})")
                     else:
                         inline_mfes.append(mfe.model_dump())
 
