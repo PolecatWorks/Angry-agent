@@ -47,12 +47,12 @@ class JsonInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=JsonInput)
-def generate_mfe_of_json(json_content: Any, title: str, pin_to_pane: bool, name: str, description: str) -> dict:
+async def generate_mfe_of_json(json_content: Any, title: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> dict:
     """
     Generate a pretty rendered version of the input JSON.
     """
     logger.info(f"Tool generate_mfe_of_json called: {json_content}")
-    return {
+    res = {
         "mfe": "mfe1",
         "component": "./JsonShowWrapper",
         "content": {
@@ -60,8 +60,15 @@ def generate_mfe_of_json(json_content: Any, title: str, pin_to_pane: bool, name:
         },
         "pin_to_pane": pin_to_pane,
         "name": name,
-        "description": description
+        "description": description,
+        "id": None
     }
+    if pin_to_pane:
+        thread_id = config.get("configurable", {}).get("thread_id")
+        if thread_id:
+            viz_id = await save_visualization_to_db(thread_id, res["mfe"], res["component"], res["content"], name, description)
+            res["id"] = viz_id
+    return res
 
 class MarkdownInput(BaseModel):
     markdown_content: str = Field(description="The full markdown string to be rendered in the UI.")
@@ -70,13 +77,13 @@ class MarkdownInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=MarkdownInput)
-def generate_mfe_of_markdown(markdown_content: str, pin_to_pane: bool, name: str, description: str) -> dict:
+async def generate_mfe_of_markdown(markdown_content: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> dict:
     """
     Render and display markdown text in the UI.
     Use this tool for ANY formatted text, headers, or lists.
     """
     logger.info(f"Tool generate_mfe_of_markdown called: {markdown_content}")
-    return {
+    res = {
         "mfe": "mfe1",
         "component": "./MarkdownShowWrapper",
         "content": {
@@ -84,8 +91,15 @@ def generate_mfe_of_markdown(markdown_content: str, pin_to_pane: bool, name: str
         },
         "pin_to_pane": pin_to_pane,
         "name": name,
-        "description": description
+        "description": description,
+        "id": None
     }
+    if pin_to_pane:
+        thread_id = config.get("configurable", {}).get("thread_id")
+        if thread_id:
+            viz_id = await save_visualization_to_db(thread_id, res["mfe"], res["component"], res["content"], name, description)
+            res["id"] = viz_id
+    return res
 
 class TextInput(BaseModel):
     text_content: str = Field(description="The full plain text string to be rendered in the UI.")
@@ -94,7 +108,7 @@ class TextInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=TextInput)
-def generate_mfe_of_text(text_content: str, pin_to_pane: bool, name: str, description: str) -> dict:
+async def generate_mfe_of_text(text_content: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> dict:
     """
     Render and display plain text in the UI.
     Use this tool for logs, raw output, or simple text that should not be interpreted as markdown.
@@ -102,7 +116,7 @@ def generate_mfe_of_text(text_content: str, pin_to_pane: bool, name: str, descri
     It only supports line wrapping and basic styling.
     """
     logger.info(f"Tool generate_mfe_of_text called: {text_content}")
-    return {
+    res = {
         "mfe": "mfe1",
         "component": "./TextShowWrapper",
         "content": {
@@ -110,8 +124,15 @@ def generate_mfe_of_text(text_content: str, pin_to_pane: bool, name: str, descri
         },
         "pin_to_pane": pin_to_pane,
         "name": name,
-        "description": description
+        "description": description,
+        "id": None
     }
+    if pin_to_pane:
+        thread_id = config.get("configurable", {}).get("thread_id")
+        if thread_id:
+            viz_id = await save_visualization_to_db(thread_id, res["mfe"], res["component"], res["content"], name, description)
+            res["id"] = viz_id
+    return res
 
 class PersonalDataFormInput(BaseModel):
     first_name: str | None = Field(default=None, description="The customer's first name, if known.")
@@ -124,12 +145,13 @@ class PersonalDataFormInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=PersonalDataFormInput)
-def generate_personal_data_form(
+async def generate_personal_data_form(
     first_name: str,
     last_name: str,
     pin_to_pane: bool,
     name: str,
     description: str,
+    config: RunnableConfig,
     email: str | None = None,
     phone_number: str | None = None,
     address: str | None = None
@@ -139,20 +161,31 @@ def generate_personal_data_form(
     Use this tool when the user needs to 'fill out customer data', update personal information, or provide contact details.
     """
     logger.info(f"Tool generate_personal_data_form called")
+    content = {
+        "firstName": first_name or "",
+        "lastName": last_name or "",
+        "email": email or "",
+        "phoneNumber": phone_number or "",
+        "address": address or "",
+        "actions": ["submit", "cancel"]
+    }
+    mfe = "mfe1"
+    component = "./PersonalDataFormWrapper"
+    
+    viz_id = None
+    if pin_to_pane:
+        thread_id = config.get("configurable", {}).get("thread_id")
+        if thread_id:
+            viz_id = await save_visualization_to_db(thread_id, mfe, component, content, name, description)
+
     return MFEContent(
-        mfe="mfe1",
-        component="./PersonalDataFormWrapper",
-        content={
-            "firstName": first_name or "",
-            "lastName": last_name or "",
-            "email": email or "",
-            "phoneNumber": phone_number or "",
-            "address": address or "",
-            "actions": ["submit", "cancel"]
-        },
+        mfe=mfe,
+        component=component,
+        content=content,
         pin_to_pane=pin_to_pane,
         name=name,
-        description=description
+        description=description,
+        id=viz_id
     )
 
 class MermaidInput(BaseModel):
@@ -163,12 +196,12 @@ class MermaidInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=MermaidInput)
-def generate_mfe_of_mermaid(mermaid_content: str, title: str, pin_to_pane: bool, name: str, description: str) -> dict:
+async def generate_mfe_of_mermaid(mermaid_content: str, title: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> dict:
     """
     Generate a pretty rendered version of the input mermaid diagram.
     """
     logger.info(f"Tool generate_mfe_of_mermaid called: {mermaid_content}")
-    return {
+    res = {
         "mfe": "mfe1",
         "component": "./MermaidShowWrapper",
         "content": {
@@ -177,8 +210,15 @@ def generate_mfe_of_mermaid(mermaid_content: str, title: str, pin_to_pane: bool,
         },
         "pin_to_pane": pin_to_pane,
         "name": name,
-        "description": description
+        "description": description,
+        "id": None
     }
+    if pin_to_pane:
+        thread_id = config.get("configurable", {}).get("thread_id")
+        if thread_id:
+            viz_id = await save_visualization_to_db(thread_id, res["mfe"], res["component"], res["content"], name, description)
+            res["id"] = viz_id
+    return res
 
 class DataPoint(BaseModel):
     x: Any = Field(description="The X value (number, string, or date string)")
@@ -198,14 +238,14 @@ class DataVizInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=DataVizInput)
-def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type: str, pin_to_pane: bool, name: str, description: str) -> dict:
+async def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> dict:
     """
     Generates a high-quality data visualization (line graph) in the UI.
     Use this tool when the user asks for charts, graphs, trends, or data comparisons.
     """
     logger.info(f"Tool generate_data_visualization called: {title}")
     datasets_dict = [d.model_dump() for d in datasets]
-    return {
+    res = {
         "mfe": "mfe1",
         "component": "./DataShowWrapper",
         "content": {
@@ -215,8 +255,15 @@ def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type
         },
         "pin_to_pane": pin_to_pane,
         "name": name,
-        "description": description
+        "description": description,
+        "id": None
     }
+    if pin_to_pane:
+        thread_id = config.get("configurable", {}).get("thread_id")
+        if thread_id:
+            viz_id = await save_visualization_to_db(thread_id, res["mfe"], res["component"], res["content"], name, description)
+            res["id"] = viz_id
+    return res
 
 
 import json
@@ -368,6 +415,7 @@ def get_tools(builder):
         generate_mfe_of_json,
         generate_mfe_of_mermaid,
         generate_personal_data_form,
+        create_visualization,
         update_visualization,
         delete_visualization
     ]

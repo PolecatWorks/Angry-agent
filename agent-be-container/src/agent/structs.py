@@ -11,6 +11,7 @@ class MFEContent(BaseModel):
     pin_to_pane: bool = Field(default=False, description="Set this to True ONLY if the user explicitly requested the visualization to be placed in the right visualization pane instead of the chat.")
     name: str | None = Field(default=None, description="A unique name for the visual element, required if pin_to_pane is True.")
     description: str | None = Field(default=None, description="A description for the visual element, required if pin_to_pane is True.")
+    id: str | None = Field(default=None, description="The ID of the visualization from the database, if it's pinned to the pane.")
 
 
 class MFEContainer(BaseModel):

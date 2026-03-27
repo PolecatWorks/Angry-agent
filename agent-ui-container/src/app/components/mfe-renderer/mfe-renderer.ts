@@ -11,6 +11,7 @@ export class MfeRenderer implements AfterViewInit, OnDestroy {
   @Input() component: string = '';
   @Input() content: any;
   @Input() data: any; // Keep for backward compatibility
+  @Input() id: string | null = null;
   @Output() action = new EventEmitter<{action: string, payload: any}>();
 
   @ViewChild('container', { static: true }) container! : ElementRef;
@@ -27,9 +28,10 @@ export class MfeRenderer implements AfterViewInit, OnDestroy {
       });
 
       if (m && m.mount) {
-        // Pass the content directly as props
+        // Pass the content directly as props, including the ID
         const props = {
           ...(this.content || { content: this.data } || {}),
+          id: this.id,
           onAction: (actionStr: string, payload: any) => {
             this.action.emit({ action: actionStr, payload });
           }

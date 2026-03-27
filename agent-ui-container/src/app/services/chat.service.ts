@@ -94,6 +94,13 @@ export class ChatService {
     this.externalMessageSubject.next(threadId);
   }
 
+  private visualizationsSubject = new Subject<string>();
+  visualizationsUpdated$ = this.visualizationsSubject.asObservable();
+
+  triggerVisualizationsRefresh(threadId: string) {
+    this.visualizationsSubject.next(threadId);
+  }
+
   refreshThreads() {
     this.getThreads().subscribe({
       next: (res) => {
