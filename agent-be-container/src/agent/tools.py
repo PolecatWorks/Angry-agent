@@ -338,7 +338,6 @@ def get_tools(builder):
         generate_mfe_of_json,
         generate_mfe_of_mermaid,
         generate_personal_data_form,
-        create_visualization,
         update_visualization,
         delete_visualization
     ]
@@ -348,7 +347,6 @@ def get_tools(builder):
         """
         Returns a mermaid diagram showing the internal structure and flow of this AI agent's LangGraph.
         Use this when the user asks 'how do you work?', 'show me your graph', or 'what is your architecture?'.
-        You can use the result of this tool to pin the architecture to the right pane using 'create_visualization'.
         """
         logger.info("Tool visualize_graph called")
         # StateGraph builder doesn't have get_graph() in all versions;
