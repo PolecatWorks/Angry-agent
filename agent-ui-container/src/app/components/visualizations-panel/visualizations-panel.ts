@@ -3,8 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ChatService, Visualization } from '../../services/chat.service';
 import { MfeRenderer } from '../mfe-renderer/mfe-renderer';
-import { Subscription, interval, of, merge } from 'rxjs';
-import { switchMap, startWith, catchError, filter, map } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-visualizations-panel',
@@ -50,27 +49,8 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
       Promise.resolve().then(() => this.loading = true);
     }
 
-    // Set up polling triggered by chat service updates or fallback interval
-    const refresh$ = this.chatService.visualizationsUpdated$.pipe(
-      filter(tid => tid === this.threadId),
-      map(() => 'update')
-    );
-
-    const fallback$ = interval(10000).pipe(
-      startWith(0),
-      map(() => 'interval')
-    );
-
-    this.pollSubscription = merge(refresh$, fallback$).pipe(
-      filter(() => !!this.threadId),
-      switchMap(() => this.chatService.getVisualizations(this.threadId!).pipe(
-        catchError(err => {
-          console.error('Error fetching visualizations:', err);
-          return of({ visualizations: [] });
-        })
-      ))
-    ).subscribe((res: any) => {
-      this.visualizations = res.visualizations;
+    this.pollSubscription = this.chatService.currentVisualizations$.subscribe((visualizations) => {
+      this.visualizations = visualizations || [];
       Promise.resolve().then(() => this.loading = false);
     });
   }

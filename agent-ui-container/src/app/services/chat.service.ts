@@ -42,6 +42,7 @@ export interface Message {
 export interface HistoryResponse {
   thread?: Thread;
   messages: Message[];
+  visualizations?: Visualization[];
 }
 
 export interface Visualization {
@@ -94,11 +95,11 @@ export class ChatService {
     this.externalMessageSubject.next(threadId);
   }
 
-  private visualizationsSubject = new Subject<string>();
-  visualizationsUpdated$ = this.visualizationsSubject.asObservable();
+  private currentVisualizationsSubject = new BehaviorSubject<Visualization[]>([]);
+  currentVisualizations$ = this.currentVisualizationsSubject.asObservable();
 
-  triggerVisualizationsRefresh(threadId: string) {
-    this.visualizationsSubject.next(threadId);
+  updateVisualizations(visualizations: Visualization[]) {
+    this.currentVisualizationsSubject.next(visualizations);
   }
 
   refreshThreads() {
