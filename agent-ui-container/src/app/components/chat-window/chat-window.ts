@@ -112,6 +112,9 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 this.currentStatusMsg = res.thread?.status_msg || null;
                 this.lastStatusUpdatedAtStr = res.thread?.status_updated_at || null;
                 this.messages = res.messages;
+                if (res.visualizations) {
+                    this.chatService.updateVisualizations(res.visualizations);
+                }
                 this.loading = false;
                 this.pollCount = 0;
                 this.pollingError = null;
@@ -260,7 +263,9 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
 
                 if (messages.length > 0) {
                     this.messages = messages;
-                    this.chatService.triggerVisualizationsRefresh(threadId);
+                    if (res.visualizations) {
+                        this.chatService.updateVisualizations(res.visualizations);
+                    }
                     
                     const lastMsg = messages[messages.length - 1];
                     if (lastMsg.type === 'ai' || lastMsg.type === 'error') {
