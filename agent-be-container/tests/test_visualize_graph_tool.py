@@ -7,10 +7,11 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, END
 
 # Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
+# Add container root to path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from agent import create_agent
-from agent.tools import get_tools
+from src.agent import create_agent
+from src.agent.tools import get_tools
 
 def test_visualize_graph_tool_registration():
     # Test that when a builder is passed, the tool is included
@@ -54,7 +55,7 @@ async def test_agent_uses_visualize_graph_tool():
     # Setup LLM to call the visualize_graph tool
     from unittest.mock import MagicMock, AsyncMock
     from langchain_core.language_models import BaseChatModel
-    from agent.structs import MFEContainer, MFEContent
+    from src.agent.structs import MFEContainer, MFEContent
     
     llm = MagicMock(spec=BaseChatModel)
     llm.bind_tools.return_value = llm
@@ -64,7 +65,7 @@ async def test_agent_uses_visualize_graph_tool():
     async def mock_packager_invoke(messages):
         # Return a simple mock MFEContainer
         return {"parsed": MFEContainer(mfes=[
-            MFEContent(mfe="mfe1", component="./MermaidShowWrapper", content={"content": "graph TD; A-->B"})
+            MFEContent(mfe="mfe1", component="./MermaidShowWrapper", content={"content": "graph TD; A-->B"}, pin_to_pane=False, name="Graph", description="Graph")
         ]), "raw": AIMessage(content="Packaged response")}
 
     structured_mock.ainvoke = AsyncMock(side_effect=mock_packager_invoke)
