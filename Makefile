@@ -56,7 +56,7 @@ $(foreach app,$(PYTHON_APPS),$(app)-dev):%-dev:%-venv/bin/adev
 # Run tests
 $(foreach app,$(PYTHON_APPS),$(app)-test):%-test:%-venv/bin/pytest
 	cd $*-container && \
-	PYTHONPATH=src ../$*-venv/bin/pytest
+	PYTHONPATH=. ../$*-venv/bin/pytest
 
 # --- Node/Frontend Patterns ---
 

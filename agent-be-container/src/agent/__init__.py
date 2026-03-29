@@ -12,7 +12,7 @@ import json
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.runnables import RunnableConfig
-from .tools import get_tools, save_visualization_to_db
+from .tools import get_tools
 from .structs import MFEContent, MFEContainer, FollowUpQuestions, AgentState
 import logging
 import uuid
@@ -307,20 +307,21 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             thread_id = config.get("configurable", {}).get("thread_id")
             inline_mfes = []
             pinned_names = []
+            pinned_mfes = []
 
             if hasattr(response_mfe_container, "mfes") and response_mfe_container.mfes:
                 for mfe in response_mfe_container.mfes:
                     if mfe.pin_to_pane:
                         name = mfe.name or "Visualization"
                         desc = mfe.description or ""
-                        # If the MFE already has an ID, it means it was saved by a tool call.
+                        
                         viz_id = getattr(mfe, 'id', None)
                         if not viz_id:
-                            # Save to DB if not already saved
-                            viz_id = await save_visualization_to_db(thread_id, mfe.mfe, mfe.component, mfe.content, name, desc)
+                            viz_id = uuid.uuid4().hex
                             mfe.id = viz_id
                         
                         pinned_names.append(f"{name} (ID: {viz_id})")
+                        pinned_mfes.append(mfe)
                     else:
                         inline_mfes.append(mfe.model_dump())
 
@@ -351,8 +352,13 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
                 additional_kwargs=updated_kwargs,
                 usage_metadata=total_usage
             )
+
+            result = {"messages": [updated_msg]}
+            if pinned_mfes:
+                result["visualizations"] = pinned_mfes
+                
             logger.info(f"Packager: Updating existing Turn AIMessage ID={last_ai_message.id} with packaged MFEs and metadata")
-            return {"messages": [updated_msg]}
+            return result
 
         # Fallback (should not be reached in normal flow)
         logger.warning("No AIMessage found to update in packager_node, creating new one.")

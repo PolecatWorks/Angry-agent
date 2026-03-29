@@ -9,9 +9,10 @@ import sys
 import os
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
+# Add container root to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from config import ServiceConfig
+from src.config import ServiceConfig
 from aiohttp import web
 from langgraph.checkpoint.memory import MemorySaver
 

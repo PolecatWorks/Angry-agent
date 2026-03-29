@@ -11,9 +11,10 @@ from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.memory import MemorySaver
 
 # Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
+# Add container root to path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from agent import create_agent
+from src.agent import create_agent
 @pytest.fixture
 def mock_llm():
     llm = MagicMock(spec=BaseChatModel)
@@ -22,7 +23,7 @@ def mock_llm():
     # Mock with_structured_output for the packager_node
     # It should return a mock that when ainvoked returns an MFEContainer
     structured_mock = MagicMock()
-    from agent.structs import MFEContainer, MFEContent
+    from src.agent.structs import MFEContainer, MFEContent
     
     async def smart_packager_invoke(messages):
         mfes = []
@@ -36,20 +37,20 @@ def mock_llm():
                 for tc in m.tool_calls:
                     name = tc.get("name")
                     if name == "generate_data_visualization":
-                        mfes.append(MFEContent(mfe="mfe1", component="./DataShowWrapper", content={"title": "Sales Performance"}))
+                        mfes.append(MFEContent(mfe="mfe1", component="./DataShowWrapper", content={"title": "Sales Performance"}, pin_to_pane=False, name="Data Viz", description="Data Viz"))
                     elif name in ["get_mfe_content", "generate_mfe_of_json"]:
-                         mfes.append(MFEContent(mfe="mfe1", component="./JsonShowWrapper", content={"key": "val"}))
+                         mfes.append(MFEContent(mfe="mfe1", component="./JsonShowWrapper", content={"key": "val"}, pin_to_pane=False, name="JSON", description="JSON"))
                     elif name == "generate_mfe_of_markdown":
-                         mfes.append(MFEContent(mfe="mfe1", component="./MarkdownShowWrapper", content={"markdown_content": "Content"}))
+                         mfes.append(MFEContent(mfe="mfe1", component="./MarkdownShowWrapper", content={"markdown_content": "Content"}, pin_to_pane=False, name="Markdown", description="Markdown"))
             
             # Check ToolMessage content or malformed AI content
             if hasattr(m, "content") and isinstance(m.content, str) and m.content:
                 if '"component": "./DataShowWrapper"' in m.content or "generate_data_visualization" in m.content:
-                    mfes.append(MFEContent(mfe="mfe1", component="./DataShowWrapper", content={"title": "Sales Performance"}))
+                    mfes.append(MFEContent(mfe="mfe1", component="./DataShowWrapper", content={"title": "Sales Performance"}, pin_to_pane=False, name="Data Viz", description="Data Viz"))
                 elif '"component": "./JsonShowWrapper"' in m.content or "get_mfe_content" in m.content or "generate_mfe_of_json" in m.content:
-                    mfes.append(MFEContent(mfe="mfe1", component="./JsonShowWrapper", content={"key": "val"}))
+                    mfes.append(MFEContent(mfe="mfe1", component="./JsonShowWrapper", content={"key": "val"}, pin_to_pane=False, name="JSON", description="JSON"))
                 elif '"component": "./MarkdownShowWrapper"' in m.content or "generate_mfe_of_markdown" in m.content or "poem" in m.content.lower():
-                    mfes.append(MFEContent(mfe="mfe1", component="./MarkdownShowWrapper", content={"markdown_content": "Content"}))
+                    mfes.append(MFEContent(mfe="mfe1", component="./MarkdownShowWrapper", content={"markdown_content": "Content"}, pin_to_pane=False, name="Markdown", description="Markdown"))
                 if "pin_this" in m.content.lower():
                     mfes.append(MFEContent(mfe="mfe1", component="./PinnedWrapper", content={"key": "val"}, pin_to_pane=True, name="Pinned Visual", description="Pinned description"))
         
@@ -251,18 +252,18 @@ async def test_mfe_pin_to_pane(mock_llm):
     agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": "test-pin-mfe"}}
     
-    with patch('agent.save_visualization_to_db', new_callable=AsyncMock) as mock_save:
-        result = await agent.ainvoke({"messages": [HumanMessage(content="pin_this")]}, config=config)
-        messages = result["messages"]
-        
-        # Verify it's NOT in mfe_contents
-        assert "mfe_contents" not in messages[-1].additional_kwargs
-        
-        # Verify message text mentions it
-        assert "Visualizations pinned to panel" in messages[-1].content
-        assert "Pinned Visual" in messages[-1].content
-        
-        # Verify save_visualization_to_db was called
-        mock_save.assert_called_once_with(
-            "test-pin-mfe", "mfe1", "./PinnedWrapper", {"key": "val"}, "Pinned Visual", "Pinned description"
-        )
+    result = await agent.ainvoke({"messages": [HumanMessage(content="pin_this")]}, config=config)
+    messages = result["messages"]
+    
+    # Verify it's NOT in mfe_contents
+    assert "mfe_contents" not in messages[-1].additional_kwargs
+    
+    # Verify message text mentions it
+    assert "Visualizations pinned to panel" in messages[-1].content
+    assert "Pinned Visual" in messages[-1].content
+    
+    # Verify visualizations in state
+    assert "visualizations" in result
+    assert len(result["visualizations"]) == 1
+    assert result["visualizations"][0].name == "Pinned Visual"
+    assert result["visualizations"][0].description == "Pinned description"
