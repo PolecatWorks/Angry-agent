@@ -254,6 +254,12 @@ async def get_history(request):
                 msg_dict["usage_metadata"] = usage
 
             messages_list.append(msg_dict)
+    visualizations_list = []
+    if state.values and "visualizations" in state.values:
+        for v in state.values["visualizations"]:
+            v_dict = v.model_dump()
+            visualizations_list.append(v_dict)
+
     return web.json_response({
             "thread": {
                 "thread_id": thread_id,
@@ -263,7 +269,8 @@ async def get_history(request):
                 "status_updated_at": str(row["status_updated_at"]) if row["status_updated_at"] else None,
                 "current_server_time": datetime.now(timezone.utc).isoformat()
             },
-            "messages": messages_list
+            "messages": messages_list,
+            "visualizations": visualizations_list
         })
 
 async def delete_thread(request):
@@ -334,25 +341,14 @@ async def get_visualizations(request):
             if not access_row:
                 return web.json_response({"visualizations": []})
 
-        # Fetch visualizations for the thread
-        query = """
-            SELECT id, thread_id, mfe, component, content, name, description, order_index, created_at, updated_at
-            FROM visualizations
-            WHERE thread_id = $1
-            ORDER BY order_index ASC, created_at ASC
-        """
-        rows = await conn.fetch(query, thread_id)
-        visualizations = []
-        for r in rows:
-            v = dict(r)
-            if v.get("id"): v["id"] = str(v["id"])
-            if v.get("content") and isinstance(v["content"], str):
-                v["content"] = json.loads(v["content"])
-            if v.get("created_at"): v["created_at"] = str(v["created_at"])
-            if v.get("updated_at"): v["updated_at"] = str(v["updated_at"])
-            visualizations.append(v)
+    llm_handler: LLMHandler = request.app["llm_handler"]
+    state = await llm_handler.get_thread_state(thread_id)
+    visualizations_list = []
+    if state.values and "visualizations" in state.values:
+        for v in state.values["visualizations"]:
+            visualizations_list.append(v.model_dump())
 
-    return web.json_response({"visualizations": visualizations})
+    return web.json_response({"visualizations": visualizations_list})
 
 async def on_startup(app):
     config: ServiceConfig = app[keys.config]

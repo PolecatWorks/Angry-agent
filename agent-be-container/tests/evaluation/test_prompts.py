@@ -80,8 +80,7 @@ async def test_system_prompt_adherence_mfe(mock_config):
     )
     
     state = {"messages": [HumanMessage(content=prompt)]}
-    with patch('src.agent.save_visualization_to_db', new_callable=AsyncMock) as mock_save:
-        response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mfe_thread"}})
+    response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mfe_thread"}})
     
     last_msg = response_state["messages"][-1]
     
@@ -112,8 +111,7 @@ async def test_system_prompt_adherence_mermaid(mock_config):
     )
     
     state = {"messages": [HumanMessage(content=prompt)]}
-    with patch('src.agent.save_visualization_to_db', new_callable=AsyncMock) as mock_save:
-        response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mermaid_thread"}})
+    response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_mermaid_thread"}})
     
     last_msg = response_state["messages"][-1]
     
