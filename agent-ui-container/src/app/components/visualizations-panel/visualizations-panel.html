@@ -14,10 +14,20 @@
           <p class="text-[10px] font-bold text-outline uppercase tracking-tight">{{ viz.name || viz.mfe || 'AI Component' }}</p>
           <h4 class="font-headline font-bold text-on-surface line-clamp-1">{{ viz.description || 'Live Module' }}</h4>
         </div>
-        <span class="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-opacity" data-icon="north_east">north_east</span>
+        <div class="flex items-center gap-2">
+          <button (click)="toggleJsonView(viz.id); $event.stopPropagation()" class="p-1.5 hover:bg-primary/10 rounded-lg transition-all flex items-center justify-center text-primary" [title]="isJsonView(viz.id) ? 'View Module' : 'View Raw JSON'">
+            <span class="material-symbols-outlined text-lg" [attr.data-icon]="isJsonView(viz.id) ? 'visibility' : 'database'">{{ isJsonView(viz.id) ? 'visibility' : 'database' }}</span>
+          </button>
+          <span class="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-opacity" data-icon="north_east">north_east</span>
+        </div>
       </div>
       <div class="overflow-x-auto">
-        <app-mfe-renderer [mfe]="viz.mfe" [component]="viz.component" [content]="viz.content" [id]="viz.id" (action)="handleMfeAction($event, viz.id)"></app-mfe-renderer>
+        <div *ngIf="!isJsonView(viz.id)">
+          <app-mfe-renderer [mfe]="viz.mfe" [component]="viz.component" [content]="viz.content" [id]="viz.id" (action)="handleMfeAction($event, viz.id)"></app-mfe-renderer>
+        </div>
+        <div *ngIf="isJsonView(viz.id)" class="json-viewer-container">
+          <pre><code>{{ getFormattedJson(viz) }}</code></pre>
+        </div>
       </div>
     </div>
     <div class="bg-primary/5 p-4 flex justify-between items-center border-t border-white/40 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -18,6 +18,7 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
 
   visualizations: Visualization[] = [];
   loading: boolean = false;
+  showJsonIds: Set<string> = new Set<string>();
   private pollSubscription?: Subscription;
 
   constructor(private chatService: ChatService) {}
@@ -39,6 +40,7 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
 
   private restartPolling() {
     this.stopPolling();
+    this.showJsonIds.clear();
     this.startPolling();
   }
 
@@ -60,6 +62,22 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
       this.pollSubscription.unsubscribe();
       this.pollSubscription = undefined;
     }
+  }
+
+  toggleJsonView(id: string) {
+    if (this.showJsonIds.has(id)) {
+      this.showJsonIds.delete(id);
+    } else {
+      this.showJsonIds.add(id);
+    }
+  }
+
+  isJsonView(id: string): boolean {
+    return this.showJsonIds.has(id);
+  }
+
+  getFormattedJson(viz: Visualization): string {
+    return JSON.stringify(viz, null, 2);
   }
 
   handleMfeAction(event: {action: string, payload: any}, vizId: string) {
