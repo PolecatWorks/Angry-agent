@@ -23,9 +23,11 @@ class LLMHandler:
         self.db_dsn = db_dsn
         self.main_prompt = main_prompt
         self.packager_prompt = packager_prompt
+
         if main_llm is None:
             main_llm = FakeListChatModel(responses=["I am a placeholder LLM. Please configure a real model."])
         self.main_llm = main_llm
+
         if packager_llm is None:
             packager_llm = FakeListChatModel(responses=["I am a placeholder LLM. Please configure a real model."])
         self.packager_llm = packager_llm
@@ -57,17 +59,17 @@ class LLMHandler:
         self.agent = create_agent(self.main_llm, self.packager_llm, self.main_prompt, self.packager_prompt, self.checkpointer)
 
 
-    async def chat(self, thread_id: str, message: str) -> str:
-        """Invokes the chat agent with the given message."""
-        if not self.agent:
-            raise RuntimeError("LLMHandler is not initialized. Call initialize() first.")
+    # async def chat(self, thread_id: str, message: str) -> str:
+    #     """Invokes the chat agent with the given message."""
+    #     if not self.agent:
+    #         raise RuntimeError("LLMHandler is not initialized. Call initialize() first.")
 
-        agent_config = {"configurable": {"thread_id": thread_id}}
-        final_res = await self.agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=agent_config)
+    #     agent_config = {"configurable": {"thread_id": thread_id}}
+    #     final_res = await self.agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=agent_config)
 
-        messages = final_res.get("messages", [])
-        last_msg = messages[-1] if messages else None
-        return last_msg.content if last_msg else ""
+    #     messages = final_res.get("messages", [])
+    #     last_msg = messages[-1] if messages else None
+    #     return last_msg.content if last_msg else ""
 
     async def chat_async(self, thread_id: str, message: str) -> None:
         """Starts the chat agent in the background."""
@@ -76,8 +78,24 @@ class LLMHandler:
 
         agent_config = {"configurable": {"thread_id": thread_id}}
 
+        # Fetch the current state to extract active visualizations
+        state = await self.agent.aget_state(agent_config)
+        visualizations = state.values.get("visualizations", [])
+
+        # Format visualizations into context string
+        viz_context = ""
+        if visualizations:
+            viz_lines = []
+            for v in visualizations:
+                name = getattr(v, "name", "Unnamed")
+                desc = getattr(v, "description", "No description")
+                vid = getattr(v, "id", "No ID")
+                viz_lines.append(f"- {name} (ID: {vid}): {desc}")
+
+            viz_context = "\n\n### Current Visualizations Pinned to Workspace:\n" + "\n".join(viz_lines)
+
         msg = HumanMessage(
-            content=message,
+            content=f"{message}{viz_context}",
             id=str(uuid.uuid4()),
             additional_kwargs={"timestamp": datetime.now(timezone.utc).isoformat()}
         )
