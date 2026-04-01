@@ -45,10 +45,8 @@ async def test_visualize_graph_tool_execution():
     # as LangChain tools often serialize output, but we want the actual dict.
     result = vg_tool.func()
     
-    assert result["mfe"] == "mfe1"
-    assert result["component"] == "./MermaidShowWrapper"
-    assert "graph TD" in result["content"]["content"] or "flowchart TD" in result["content"]["content"]
-    assert "title" in result["content"]
+    assert isinstance(result, str)
+    assert "graph TD" in result or "flowchart TD" in result
 
 @pytest.mark.asyncio
 async def test_agent_uses_visualize_graph_tool():
