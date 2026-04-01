@@ -1,4 +1,5 @@
 import logging
+import json
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from . import create_agent
 from typing import Optional
@@ -82,17 +83,21 @@ class LLMHandler:
         state = await self.agent.aget_state(agent_config)
         visualizations = state.values.get("visualizations", [])
 
-        # Format visualizations into context string
+        # Format visualizations into context string (Full JSON)
         viz_context = ""
         if visualizations:
-            viz_lines = []
+            viz_list = []
             for v in visualizations:
-                name = getattr(v, "name", "Unnamed")
-                desc = getattr(v, "description", "No description")
-                vid = getattr(v, "id", "No ID")
-                viz_lines.append(f"- {name} (ID: {vid}): {desc}")
+                if hasattr(v, "model_dump"):
+                    viz_list.append(v.model_dump())
+                elif isinstance(v, dict):
+                    viz_list.append(v)
+                else:
+                    # Fallback for unexpected types
+                    viz_list.append(vars(v) if hasattr(v, "__dict__") else str(v))
 
-            viz_context = "\n\n### Current Visualizations Pinned to Workspace:\n" + "\n".join(viz_lines)
+            viz_json = json.dumps(viz_list, indent=2)
+            viz_context = f"\n\n### Current Visualizations Pinned to Workspace (JSON):\n```json\n{viz_json}\n```"
 
         msg = HumanMessage(
             content=f"{message}{viz_context}",
