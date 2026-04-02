@@ -304,26 +304,60 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             # This follows the add_messages reducer pattern for updates
             updated_kwargs = last_ai_message.additional_kwargs.copy() if last_ai_message.additional_kwargs else {}
             
-            thread_id = config.get("configurable", {}).get("thread_id")
+            # --- Visualization State Management ---
+            # Get existing visualizations from the state
+            current_viz_list = list(state.visualizations)
+            viz_map = {v.id: v for v in current_viz_list if v.id}
+            
             inline_mfes = []
             pinned_names = []
-            pinned_mfes = []
 
+            # 1. Process explicit tool actions (Add, Update, Delete) from the current turn
+            # We look at ToolMessages from the current turn to catch explicit CRUD signals
+            for m in messages_since_human:
+                if isinstance(m, ToolMessage):
+                    try:
+                        # Attempt to parse the tool output as a JSON signal
+                        data = json.loads(str(m.content))
+                        if isinstance(data, dict) and "action" in data:
+                            action = data["action"]
+                            viz_id = data.get("id")
+                            
+                            if action == "delete" and viz_id:
+                                viz_map.pop(viz_id, None)
+                                logger.info(f"Packager: Detected delete for {viz_id}")
+                            elif action in ("add", "update") and viz_id:
+                                # Create or update the MFEContent object
+                                try:
+                                    mfe_obj = MFEContent.model_validate(data)
+                                    viz_map[viz_id] = mfe_obj
+                                    logger.info(f"Packager: Detected {action} for {viz_id}")
+                                except Exception as e:
+                                    logger.error(f"Packager: Failed to validate MFE signal: {e}")
+                    except Exception:
+                        # Not a JSON signal from our tools, ignore
+                        pass
+
+            # 2. Add any NEW visualizations found by the packager LLM that weren't captured by explicit tools
             if hasattr(response_mfe_container, "mfes") and response_mfe_container.mfes:
                 for mfe in response_mfe_container.mfes:
                     if mfe.pin_to_pane:
                         name = mfe.name or "Visualization"
-                        desc = mfe.description or ""
-                        
-                        viz_id = getattr(mfe, 'id', None)
+                        viz_id = mfe.id
                         if not viz_id:
                             viz_id = uuid.uuid4().hex
                             mfe.id = viz_id
                         
                         pinned_names.append(f"{name} (ID: {viz_id})")
-                        pinned_mfes.append(mfe)
+                        viz_map[viz_id] = mfe
                     else:
                         inline_mfes.append(mfe.model_dump())
+
+            # Convert back to list and set order indices if needed
+            final_visualizations = []
+            for i, (vid, vobj) in enumerate(viz_map.items()):
+                vobj.order_index = i
+                final_visualizations.append(vobj)
 
             if inline_mfes:
                 updated_kwargs["mfe_contents"] = inline_mfes
@@ -353,11 +387,13 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
                 usage_metadata=total_usage
             )
 
-            result = {"messages": [updated_msg]}
-            if pinned_mfes:
-                result["visualizations"] = pinned_mfes
-                
-            logger.info(f"Packager: Updating existing Turn AIMessage ID={last_ai_message.id} with packaged MFEs and metadata")
+            # Return the updated messages AND the full visualizations list to REPLACE the state
+            result = {
+                "messages": [updated_msg],
+                "visualizations": final_visualizations
+            }
+            
+            logger.info(f"Packager: Updating state with {len(final_visualizations)} visualizations")
             return result
 
         # Fallback (should not be reached in normal flow)

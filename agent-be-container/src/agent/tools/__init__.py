@@ -3,7 +3,13 @@ import logging
 import re
 from langchain_core.runnables import RunnableConfig
 
-# MFE DB tools removed
+from .mfe import (
+    browse_visualizations,
+    read_visualization,
+    edit_visualization,
+    add_visualization,
+    delete_visualization
+)
 from .generate import (
     generate_mfe_of_markdown,
     generate_mfe_of_text,
@@ -23,7 +29,12 @@ def get_tools(builder):
         generate_mfe_of_text,
         generate_mfe_of_json,
         generate_mfe_of_mermaid,
-        generate_mfe_of_personal_data_form
+        generate_mfe_of_personal_data_form,
+        browse_visualizations,
+        read_visualization,
+        edit_visualization,
+        add_visualization,
+        delete_visualization
     ]
 
     @tool

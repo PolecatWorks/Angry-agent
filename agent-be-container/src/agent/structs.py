@@ -28,4 +28,4 @@ class FollowUpQuestions(BaseModel):
 
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
-    visualizations: Annotated[List[MFEContent], operator.add] = Field(default_factory=list)
+    visualizations: List[MFEContent] = Field(default_factory=list)
