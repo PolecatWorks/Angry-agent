@@ -204,7 +204,23 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
 
 
     async def llm_node(state: AgentState):
-        system_instruction = SystemMessage(content=main_prompt)
+        visualizations = state.visualizations
+        viz_context = ""
+        if visualizations:
+            viz_list = []
+            for v in visualizations:
+                if hasattr(v, "model_dump"):
+                    viz_list.append(v.model_dump())
+                elif isinstance(v, dict):
+                    viz_list.append(v)
+                else:
+                    viz_list.append(vars(v) if hasattr(v, "__dict__") else str(v))
+
+            viz_json = json.dumps(viz_list, indent=2)
+            viz_context = f"\n\n### Current Visualizations Pinned to Workspace (JSON):\n```json\n{viz_json}\n```"
+
+        final_prompt = f"{main_prompt}{viz_context}"
+        system_instruction = SystemMessage(content=final_prompt)
         messages = [system_instruction] + state.messages
 
         logger.info(f"LLM Node: Invoking LLM with {len(messages)} messages (including System Prompt)")
@@ -304,41 +320,13 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             # This follows the add_messages reducer pattern for updates
             updated_kwargs = last_ai_message.additional_kwargs.copy() if last_ai_message.additional_kwargs else {}
             
-            # --- Visualization State Management ---
-            # Get existing visualizations from the state
-            current_viz_list = list(state.visualizations)
-            viz_map = {v.id: v for v in current_viz_list if v.id}
-            
             inline_mfes = []
+
+            # The tools already update the visualizations via the reducer.
+            # We just handle unpinned (inline) visualizations returned by the packager here.
+            new_visualizations = []
             pinned_names = []
 
-            # 1. Process explicit tool actions (Add, Update, Delete) from the current turn
-            # We look at ToolMessages from the current turn to catch explicit CRUD signals
-            for m in messages_since_human:
-                if isinstance(m, ToolMessage):
-                    try:
-                        # Attempt to parse the tool output as a JSON signal
-                        data = json.loads(str(m.content))
-                        if isinstance(data, dict) and "action" in data:
-                            action = data["action"]
-                            viz_id = data.get("id")
-                            
-                            if action == "delete" and viz_id:
-                                viz_map.pop(viz_id, None)
-                                logger.info(f"Packager: Detected delete for {viz_id}")
-                            elif action in ("add", "update") and viz_id:
-                                # Create or update the MFEContent object
-                                try:
-                                    mfe_obj = MFEContent.model_validate(data)
-                                    viz_map[viz_id] = mfe_obj
-                                    logger.info(f"Packager: Detected {action} for {viz_id}")
-                                except Exception as e:
-                                    logger.error(f"Packager: Failed to validate MFE signal: {e}")
-                    except Exception:
-                        # Not a JSON signal from our tools, ignore
-                        pass
-
-            # 2. Add any NEW visualizations found by the packager LLM that weren't captured by explicit tools
             if hasattr(response_mfe_container, "mfes") and response_mfe_container.mfes:
                 for mfe in response_mfe_container.mfes:
                     if mfe.pin_to_pane:
@@ -349,15 +337,18 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
                             mfe.id = viz_id
                         
                         pinned_names.append(f"{name} (ID: {viz_id})")
-                        viz_map[viz_id] = mfe
+                        new_visualizations.append({
+                            "id": viz_id,
+                            "mfe": mfe.mfe,
+                            "component": mfe.component,
+                            "content": mfe.content,
+                            "name": mfe.name,
+                            "description": mfe.description,
+                            "pin_to_pane": True,
+                            "action": "add"
+                        })
                     else:
                         inline_mfes.append(mfe.model_dump())
-
-            # Convert back to list and set order indices if needed
-            final_visualizations = []
-            for i, (vid, vobj) in enumerate(viz_map.items()):
-                vobj.order_index = i
-                final_visualizations.append(vobj)
 
             if inline_mfes:
                 updated_kwargs["mfe_contents"] = inline_mfes
@@ -387,13 +378,12 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
                 usage_metadata=total_usage
             )
 
-            # Return the updated messages AND the full visualizations list to REPLACE the state
             result = {
-                "messages": [updated_msg],
-                "visualizations": final_visualizations
+                "messages": [updated_msg]
             }
+            if new_visualizations:
+                result["visualizations"] = new_visualizations
             
-            logger.info(f"Packager: Updating state with {len(final_visualizations)} visualizations")
             return result
 
         # Fallback (should not be reached in normal flow)

@@ -1,8 +1,66 @@
 import operator
-from typing import Annotated, List, Literal
+from typing import Annotated, List, Literal, Any, Dict
 from pydantic import BaseModel, Field
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+
+def visualizations_reducer(existing: List['MFEContent'], new: List['MFEContent'] | List[Dict[str, Any]] | Dict[str, Any]) -> List['MFEContent']:
+    """Reducer for managing the visualizations state list.
+
+    Expects new to be a list of commands or a single command dict, e.g.:
+    {"action": "add", "id": "...", ...}
+    {"action": "update", "id": "...", ...}
+    {"action": "delete", "id": "..."}
+    {"action": "replace", "visualizations": [...]}
+    """
+    if not existing:
+        existing = []
+
+    # If the new payload is a single dict, wrap it in a list to normalize
+    if isinstance(new, dict):
+        new_items = [new]
+    elif isinstance(new, list):
+        new_items = new
+    else:
+        return existing
+
+    viz_map = {v.id: v for v in existing if v.id}
+
+    for item in new_items:
+        if isinstance(item, MFEContent):
+            # If it's passed as MFEContent object directly, treat it as an add/update
+            viz_id = item.id
+            if viz_id:
+                viz_map[viz_id] = item
+        elif isinstance(item, dict):
+            action = item.get("action", "replace")
+
+            if action == "delete":
+                viz_id = item.get("id")
+                if viz_id:
+                    viz_map.pop(viz_id, None)
+            elif action in ("add", "update"):
+                viz_id = item.get("id")
+                if viz_id:
+                    # Filter out purely action-related keys before validation
+                    content_data = {k: v for k, v in item.items() if k != "action"}
+                    try:
+                        mfe_obj = MFEContent.model_validate(content_data)
+                        viz_map[viz_id] = mfe_obj
+                    except Exception as e:
+                        # Log error here if possible, but keep existing state on failure
+                        pass
+            elif action == "replace":
+                # Completely replace list
+                return item.get("visualizations", [])
+
+    # Convert back to list, sort or re-index if needed (we can just trust insertion/update order or re-assign order_index)
+    final_list = []
+    for i, (vid, vobj) in enumerate(viz_map.items()):
+        vobj.order_index = i
+        final_list.append(vobj)
+
+    return final_list
 
 
 class MFEContent(BaseModel):
@@ -28,4 +86,4 @@ class FollowUpQuestions(BaseModel):
 
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
-    visualizations: List[MFEContent] = Field(default_factory=list)
+    visualizations: Annotated[List[MFEContent], visualizations_reducer] = Field(default_factory=list)

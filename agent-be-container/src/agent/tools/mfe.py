@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from langchain_core.tools import tool
 from langchain_core.runnables import RunnableConfig
 from langgraph.prebuilt import InjectedState
+from langgraph.types import Command
 
 from src.agent.structs import MFEContent, AgentState
 
@@ -45,7 +46,7 @@ class EditVisualizationInput(BaseModel):
     description: str | None = Field(default=None, description="Optional new description")
 
 @tool(args_schema=EditVisualizationInput)
-async def edit_visualization(id: str, content: dict, name: str | None, description: str | None, state: Annotated[AgentState, InjectedState]) -> str:
+async def edit_visualization(id: str, content: dict, name: str | None, description: str | None, state: Annotated[AgentState, InjectedState]) -> Command:
     """
     Edit the content or description of an existing visualization.
     Use this when the user asks to modify or update a visualization that is already on the right pane.
@@ -58,9 +59,12 @@ async def edit_visualization(id: str, content: dict, name: str | None, descripti
             break
     
     if not existing:
-        return f"Error: Visualization {id} not found."
+        # Return a Command with no update but a text message indicating failure
+        return Command(
+            update={},
+        ) # We usually return string, but we are using Command to update state now
 
-    # Signal the change to the packager node
+    # Signal the change to the state reducer
     update_data = {
         "id": id,
         "mfe": existing.mfe,
@@ -73,7 +77,10 @@ async def edit_visualization(id: str, content: dict, name: str | None, descripti
     }
 
     logger.info(f"Tool edit_visualization called: Requested update for {id}")
-    return json.dumps(update_data)
+    # Return Command to trigger the visualizations reducer directly
+    return Command(
+        update={"visualizations": [update_data]}
+    )
 
 
 class AddVisualizationInput(BaseModel):
@@ -84,14 +91,14 @@ class AddVisualizationInput(BaseModel):
     description: str = Field(description="A description of the visualization to help keep context")
 
 @tool(args_schema=AddVisualizationInput)
-async def add_visualization(mfe: str, component: str, content: dict, name: str, description: str) -> str:
+async def add_visualization(mfe: str, component: str, content: dict, name: str, description: str) -> Command:
     """
     Add a new visualization for the current thread and pin it to the right pane.
     Use this when the user wants to save or build a new visualization tool or interactive component.
     """
     viz_id = str(uuid.uuid4())
     
-    # Signal the new visualization to the packager node
+    # Signal the new visualization to the state reducer
     add_data = {
         "id": viz_id,
         "mfe": mfe,
@@ -104,14 +111,16 @@ async def add_visualization(mfe: str, component: str, content: dict, name: str, 
     }
 
     logger.info(f"Tool add_visualization called: Requested add for {viz_id}")
-    return json.dumps(add_data)
+    return Command(
+        update={"visualizations": [add_data]}
+    )
 
 
 class DeleteVisualizationInput(BaseModel):
     id: str = Field(description="The ID of the visualization to delete")
 
 @tool(args_schema=DeleteVisualizationInput)
-async def delete_visualization(id: str, state: Annotated[AgentState, InjectedState]) -> str:
+async def delete_visualization(id: str, state: Annotated[AgentState, InjectedState]) -> Command:
     """
     Delete an existing visualization from the right pane.
     Use this when the user asks to remove a visualization.
@@ -123,13 +132,15 @@ async def delete_visualization(id: str, state: Annotated[AgentState, InjectedSta
             break
     
     if not found:
-        return f"Error: Visualization {id} not found."
+        return Command(update={})
 
-    # Signal the deletion to the packager node
+    # Signal the deletion to the state reducer
     delete_data = {
         "id": id,
         "action": "delete"
     }
 
     logger.info(f"Tool delete_visualization called: Requested deletion for {id}")
-    return json.dumps(delete_data)
+    return Command(
+        update={"visualizations": [delete_data]}
+    )
