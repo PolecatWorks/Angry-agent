@@ -27,10 +27,11 @@ def get_tools(builder):
     ]
 
     @tool
-    def visualize_graph() -> dict:
+    def visualize_graph() -> str:
         """
         Returns a mermaid diagram showing the internal structure and flow of this AI agent's LangGraph.
         Use this when the user asks 'how do you work?', 'show me your graph', or 'what is your architecture?'.
+        Returns: mermaid diagram as a string.
         """
         logger.info("Tool visualize_graph called")
         # StateGraph builder doesn't have get_graph() in all versions;
@@ -44,14 +45,7 @@ def get_tools(builder):
         # e.g. LangGraph often adds <p> tags in labels
         mermaid_code = re.sub(r'<[^>]+>', '', mermaid_code)
 
-        return {
-            "mfe": "mfe1",
-            "component": "./MermaidShowWrapper",
-            "content": {
-                "title": "Agent Architecture",
-                "content": mermaid_code
-            }
-        }
+        return mermaid_code
 
     tools.append(visualize_graph)
 
