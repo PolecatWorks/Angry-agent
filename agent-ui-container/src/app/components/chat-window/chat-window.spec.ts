@@ -153,4 +153,40 @@ describe('ChatWindow', () => {
     const contentElement = fixture.debugElement.query(By.css('.markdown-body'));
     expect(contentElement).toBeTruthy();
   });
+
+  describe('Scrolling', () => {
+    it('should set element.scrollTop to scrollHeight when scrollToBottom(true) is called', () => {
+      const scrollContainer = component['scrollContainer'].nativeElement;
+      Object.defineProperty(scrollContainer, 'scrollHeight', { value: 1000, configurable: true });
+      Object.defineProperty(scrollContainer, 'scrollTop', { value: 0, writable: true, configurable: true });
+
+      component.scrollToBottom(true);
+      expect(scrollContainer.scrollTop).toBe(1000);
+      expect((component as any).userAtBottom).toBe(true);
+    });
+
+    it('should NOT set element.scrollTop to scrollHeight when scrollToBottom() is called and userAtBottom is false', () => {
+      const scrollContainer = component['scrollContainer'].nativeElement;
+      Object.defineProperty(scrollContainer, 'scrollHeight', { value: 1000, configurable: true });
+      Object.defineProperty(scrollContainer, 'scrollTop', { value: 0, writable: true, configurable: true });
+
+      (component as any).userAtBottom = false;
+      component.scrollToBottom();
+      expect(scrollContainer.scrollTop).toBe(0);
+    });
+
+    it('should set userAtBottom based on scroll position in onScroll', () => {
+      const scrollContainer = component['scrollContainer'].nativeElement;
+      Object.defineProperty(scrollContainer, 'scrollHeight', { value: 1000, configurable: true });
+      Object.defineProperty(scrollContainer, 'clientHeight', { value: 500, configurable: true });
+      Object.defineProperty(scrollContainer, 'scrollTop', { value: 550, writable: true, configurable: true }); // Near bottom (1000 - 550 - 500 = -50 < 50)
+
+      component.onScroll();
+      expect((component as any).userAtBottom).toBe(true);
+
+      Object.defineProperty(scrollContainer, 'scrollTop', { value: 100, writable: true, configurable: true }); // Far from bottom (1000 - 100 - 500 = 400 > 50)
+      component.onScroll();
+      expect((component as any).userAtBottom).toBe(false);
+    });
+  });
 });

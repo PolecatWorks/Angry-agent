@@ -1,5 +1,5 @@
 <div class="flex flex-col h-full relative" [style.--chat-color]="threadColor || '#003ec7'">
-    <div class="flex-1 overflow-y-auto p-8 space-y-8 pb-32" #scrollContainer>
+    <div class="flex-1 overflow-y-auto p-8 space-y-8 pb-32" #scrollContainer (scroll)="onScroll()">
         <div *ngIf="loading" class="flex justify-center p-8">
             <mat-spinner diameter="40"></mat-spinner>
         </div>
