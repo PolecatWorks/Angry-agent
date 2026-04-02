@@ -44,6 +44,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     serverOffset: number = 0;
 
     @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
+    private userAtBottom = true;
 
     @ViewChild('messageInput') private messageInput!: ElementRef;
 
@@ -88,6 +89,14 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.scrollToBottom();
     }
 
+    onScroll() {
+        if (this.scrollContainer) {
+            const element = this.scrollContainer.nativeElement;
+            const atBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 50;
+            this.userAtBottom = atBottom;
+        }
+    }
+
     ngOnDestroy() {
         this.stopPolling();
         if (this.externalMessageSub) {
@@ -95,10 +104,16 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         }
     }
 
-    scrollToBottom(): void {
-        try {
-            this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
-        } catch (err) { }
+    scrollToBottom(force: boolean = false): void {
+        if (force) {
+            this.userAtBottom = true;
+        }
+
+        if (this.userAtBottom) {
+            try {
+                this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
+            } catch (err) { }
+        }
     }
 
     loadHistory(threadId: string) {
@@ -130,7 +145,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                     this.startPolling(threadId);
                 }
 
-                this.scrollToBottom();
+                this.scrollToBottom(true);
                 this.cdr.detectChanges();
                 this.focusInput();
             },
@@ -175,7 +190,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
 
         // Optimistic add
         this.messages.push({ type: 'human', content });
-        this.scrollToBottom();
+        this.scrollToBottom(true);
 
         this.chatService.sendMessage(content, this.threadId || undefined).subscribe({
             next: (res) => {
