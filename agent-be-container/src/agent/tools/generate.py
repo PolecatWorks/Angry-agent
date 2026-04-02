@@ -18,7 +18,7 @@ class JsonInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=JsonInput)
-async def generate_mfe_of_json(json_content: Any, title: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> dict:
+async def generate_mfe_of_json(json_content: Any, title: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> MFEContent:
     """
     Generate a pretty rendered version of the input JSON.
     """
@@ -47,7 +47,7 @@ class MarkdownInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=MarkdownInput)
-async def generate_mfe_of_markdown(markdown_content: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> dict:
+async def generate_mfe_of_markdown(markdown_content: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> MFEContent:
     """
     Render and display markdown text in the UI.
     Use this tool for ANY formatted text, headers, or lists.
@@ -76,7 +76,7 @@ class TextInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=TextInput)
-async def generate_mfe_of_text(text_content: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> dict:
+async def generate_mfe_of_text(text_content: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> MFEContent:
     """
     Render and display plain text in the UI.
     Use this tool for logs, raw output, or simple text that should not be interpreted as markdown.
@@ -161,7 +161,7 @@ class MermaidInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=MermaidInput)
-async def generate_mfe_of_mermaid(mermaid_content: str, title: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> dict:
+async def generate_mfe_of_mermaid(mermaid_content: str, title: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> MFEContent:
     """
     Generate a pretty rendered version of the input mermaid diagram.
     """
