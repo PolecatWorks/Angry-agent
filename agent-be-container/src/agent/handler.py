@@ -79,28 +79,8 @@ class LLMHandler:
 
         agent_config = {"configurable": {"thread_id": thread_id}}
 
-        # Fetch the current state to extract active visualizations
-        state = await self.agent.aget_state(agent_config)
-        visualizations = state.values.get("visualizations", [])
-
-        # Format visualizations into context string (Full JSON)
-        viz_context = ""
-        if visualizations:
-            viz_list = []
-            for v in visualizations:
-                if hasattr(v, "model_dump"):
-                    viz_list.append(v.model_dump())
-                elif isinstance(v, dict):
-                    viz_list.append(v)
-                else:
-                    # Fallback for unexpected types
-                    viz_list.append(vars(v) if hasattr(v, "__dict__") else str(v))
-
-            viz_json = json.dumps(viz_list, indent=2)
-            viz_context = f"\n\n### Current Visualizations Pinned to Workspace (JSON):\n```json\n{viz_json}\n```"
-
         msg = HumanMessage(
-            content=f"{message}{viz_context}",
+            content=message,
             id=str(uuid.uuid4()),
             additional_kwargs={"timestamp": datetime.now(timezone.utc).isoformat()}
         )
