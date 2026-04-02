@@ -207,15 +207,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
         visualizations = state.visualizations
         viz_context = ""
         if visualizations:
-            viz_list = []
-            for v in visualizations:
-                if hasattr(v, "model_dump"):
-                    viz_list.append(v.model_dump())
-                elif isinstance(v, dict):
-                    viz_list.append(v)
-                else:
-                    viz_list.append(vars(v) if hasattr(v, "__dict__") else str(v))
-
+            viz_list = [v.model_dump() for v in visualizations]
             viz_json = json.dumps(viz_list, indent=2)
             viz_context = f"\n\n### Current Visualizations Pinned to Workspace (JSON):\n```json\n{viz_json}\n```"
 
