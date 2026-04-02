@@ -155,38 +155,40 @@ describe('ChatWindow', () => {
   });
 
   describe('Scrolling', () => {
-    it('should set element.scrollTop to scrollHeight when scrollToBottom(true) is called', () => {
+    it('should set forceScroll to true when scrollToBottom(true) is called', () => {
       const scrollContainer = component['scrollContainer'].nativeElement;
       Object.defineProperty(scrollContainer, 'scrollHeight', { value: 1000, configurable: true });
       Object.defineProperty(scrollContainer, 'scrollTop', { value: 0, writable: true, configurable: true });
 
       component.scrollToBottom(true);
+      expect((component as any).forceScroll).toBe(true);
       expect(scrollContainer.scrollTop).toBe(1000);
-      expect((component as any).userAtBottom).toBe(true);
     });
 
-    it('should NOT set element.scrollTop to scrollHeight when scrollToBottom() is called and userAtBottom is false', () => {
+    it('should autoscroll when scrollHeight changes and user was at bottom', () => {
       const scrollContainer = component['scrollContainer'].nativeElement;
-      Object.defineProperty(scrollContainer, 'scrollHeight', { value: 1000, configurable: true });
-      Object.defineProperty(scrollContainer, 'scrollTop', { value: 0, writable: true, configurable: true });
-
-      (component as any).userAtBottom = false;
-      component.scrollToBottom();
-      expect(scrollContainer.scrollTop).toBe(0);
-    });
-
-    it('should set userAtBottom based on scroll position in onScroll', () => {
-      const scrollContainer = component['scrollContainer'].nativeElement;
-      Object.defineProperty(scrollContainer, 'scrollHeight', { value: 1000, configurable: true });
+      (component as any).lastScrollHeight = 1000;
+      Object.defineProperty(scrollContainer, 'scrollHeight', { value: 1500, configurable: true });
       Object.defineProperty(scrollContainer, 'clientHeight', { value: 500, configurable: true });
-      Object.defineProperty(scrollContainer, 'scrollTop', { value: 550, writable: true, configurable: true }); // Near bottom (1000 - 550 - 500 = -50 < 50)
+      Object.defineProperty(scrollContainer, 'scrollTop', { value: 500, writable: true, configurable: true }); // At bottom of 1000 (500 + 500 = 1000)
 
-      component.onScroll();
-      expect((component as any).userAtBottom).toBe(true);
+      (component as any).handleAutoScroll();
 
-      Object.defineProperty(scrollContainer, 'scrollTop', { value: 100, writable: true, configurable: true }); // Far from bottom (1000 - 100 - 500 = 400 > 50)
-      component.onScroll();
-      expect((component as any).userAtBottom).toBe(false);
+      expect(scrollContainer.scrollTop).toBe(1500);
+      expect((component as any).lastScrollHeight).toBe(1500);
+    });
+
+    it('should NOT autoscroll when scrollHeight changes but user was NOT at bottom', () => {
+      const scrollContainer = component['scrollContainer'].nativeElement;
+      (component as any).lastScrollHeight = 1000;
+      Object.defineProperty(scrollContainer, 'scrollHeight', { value: 1500, configurable: true });
+      Object.defineProperty(scrollContainer, 'clientHeight', { value: 500, configurable: true });
+      Object.defineProperty(scrollContainer, 'scrollTop', { value: 100, writable: true, configurable: true }); // NOT at bottom (100 + 500 = 600 << 1000)
+
+      (component as any).handleAutoScroll();
+
+      expect(scrollContainer.scrollTop).toBe(100); // Unchanged
+      expect((component as any).lastScrollHeight).toBe(1500);
     });
   });
 });
