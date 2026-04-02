@@ -44,7 +44,8 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     serverOffset: number = 0;
 
     @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
-    private userAtBottom = true;
+    private lastScrollHeight = 0;
+    private forceScroll = false;
 
     @ViewChild('messageInput') private messageInput!: ElementRef;
 
@@ -86,14 +87,24 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     }
 
     ngAfterViewChecked() {
-        this.scrollToBottom();
+        this.handleAutoScroll();
     }
 
-    onScroll() {
-        if (this.scrollContainer) {
-            const element = this.scrollContainer.nativeElement;
-            const atBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 50;
-            this.userAtBottom = atBottom;
+    private handleAutoScroll() {
+        if (!this.scrollContainer) return;
+        const element = this.scrollContainer.nativeElement;
+        const currentScrollHeight = element.scrollHeight;
+
+        if (currentScrollHeight !== this.lastScrollHeight) {
+            // Check if we were near bottom of the OLD height
+            const position = element.scrollTop + element.clientHeight;
+            const wasNearBottom = this.lastScrollHeight - position < 200;
+
+            if (wasNearBottom || this.forceScroll) {
+                element.scrollTop = currentScrollHeight;
+                this.forceScroll = false;
+            }
+            this.lastScrollHeight = currentScrollHeight;
         }
     }
 
@@ -106,13 +117,11 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
 
     scrollToBottom(force: boolean = false): void {
         if (force) {
-            this.userAtBottom = true;
-        }
-
-        if (this.userAtBottom) {
-            try {
-                this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
-            } catch (err) { }
+            this.forceScroll = true;
+            if (this.scrollContainer) {
+                const element = this.scrollContainer.nativeElement;
+                element.scrollTop = element.scrollHeight;
+            }
         }
     }
 
