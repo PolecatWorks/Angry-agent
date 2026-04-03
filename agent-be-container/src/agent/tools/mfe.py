@@ -73,7 +73,10 @@ async def edit_visualization(mfe: MFEContent, state: Annotated[AgentState, Injec
     logger.info(f"Tool edit_visualization called: Requested update for {id}")
     # Return Command to trigger the visualizations reducer directly
     return Command(
-        update={"visualizations": [update_data]}
+        update={
+            "visualizations": [update_data],
+            "messages": [ToolMessage(content=f"Visualization {id} updated successfully.", tool_call_id=tool_call_id)]
+        }
     )
 
 
@@ -98,7 +101,11 @@ class DeleteVisualizationInput(BaseModel):
     id: str = Field(description="The ID of the visualization to delete")
 
 @tool(args_schema=DeleteVisualizationInput)
-async def delete_visualization(id: str, state: Annotated[AgentState, InjectedState]) -> Command:
+async def delete_visualization(
+    id: str,
+    state: Annotated[AgentState, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
     """
     Delete an existing visualization.
     Use this when the user asks to remove a visualization.
@@ -120,5 +127,8 @@ async def delete_visualization(id: str, state: Annotated[AgentState, InjectedSta
 
     logger.info(f"Tool delete_visualization called: Requested deletion for {id}")
     return Command(
-        update={"visualizations": [delete_data]}
+        update={
+            "visualizations": [delete_data],
+            "messages": [ToolMessage(content=f"Visualization {id} deleted successfully.", tool_call_id=tool_call_id)]
+        }
     )
