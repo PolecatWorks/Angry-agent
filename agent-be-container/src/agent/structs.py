@@ -1,4 +1,5 @@
 import operator
+import uuid
 from typing import Annotated, List, Literal, Any, Dict
 from pydantic import BaseModel, Field
 from langgraph.graph.message import add_messages
@@ -72,7 +73,7 @@ class MFEContent(MFEBase):
     provider: str = Field(description="The MFE provider that will render the component (e.g. 'mfe1'). This MUST be taken verbatim from the tool results")
     component: str = Field(description="The name of the MFE component to use for rendering. This MUST be taken verbatim from the tool results.")
     content: Any = Field(description="The content to render in the MFE. This MUST be taken verbatim from the tool results.")
-    id: str = Field(efault_factory=lambda: uuid.uuid4().hex, description="The ID of the visualization from the database, if it's pinned to the pane.")
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex, description="The ID of the visualization from the database, if it's pinned to the pane.")
     order_index: int | None = Field(default=None, description="The display order of the visualization in the right pane.")
 
 
