@@ -2,6 +2,7 @@ from langchain_core.tools import tool
 import logging
 import re
 from langchain_core.runnables import RunnableConfig
+from langgraph.graph import StateGraph
 
 from .mfe import (
     browse_visualizations,
