@@ -1,6 +1,11 @@
 # Agent Backend
 
-This service provides the core AI agent logic using LangGraph and aiohttp.
+## 🚀 Core Technology
+- **Framework**: [Aiohttp](https://docs.aiohttp.org/) (Asynchronous HTTP Server)
+- **AI Engine**: [LangGraph](https://langchain-ai.github.io/langgraph/) (Stateful Multi-Agent Orchestration)
+- **Database**: [PostgreSQL](https://www.postgresql.org/) (State Persistence and Checkpointing)
+
+For detailed functional and architectural specifications, see the [PRD](./spec/prd.md).
 
 ## 🐳 Docker Build
 

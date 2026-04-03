@@ -41,6 +41,7 @@ Access the application at `http://localhost:4200`.
 - **Multi-User Isolation**: Chats are isolated by User ID (Mocked via Login screen).
 - **Persistent History**: Chat history is stored in PostgreSQL.
 - **LangGraph Agent**: Uses LangGraph with Postgres Checkpointing.
+- **Interactive Workspace**: A dynamic panel for pinning, editing, and reordering visualizations (Charts, JSON, Mermaid diagrams) using a BREAD (Browse, Read, Edit, Add, Delete) toolset.
 
 ## Data Persistence Architecture
 
