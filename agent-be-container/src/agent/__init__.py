@@ -199,22 +199,9 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             if content:
                 mfe = _try_parse_mfe_content(content)
                 if mfe:
-                    logger.info(f"Detected MFEContent in message type={type(m).__name__}: {mfe.component} (pin={mfe.pin_to_pane})")
-                    if mfe.pin_to_pane:
-                        # Register pinned visualizations
-                        viz_id = mfe.id or uuid.uuid4().hex
-                        new_visualizations.append({
-                            "id": viz_id,
-                            "provider": mfe.provider,
-                            "component": mfe.component,
-                            "content": mfe.content,
-                            "name": mfe.name,
-                            "description": mfe.description,
-                            "pin_to_pane": True,
-                            "action": "add"
-                        })
-                    else:
-                        mfe_contents.append(mfe.model_dump())
+                    logger.info(f"Detected MFEContent in message type={type(m).__name__}: {mfe.component}")
+                    # Always treat detected MFEContent in messages as inline/unpinned
+                    mfe_contents.append(mfe.model_dump())
                 # 2. Extract Mermaid diagrams from text content
                 if isinstance(content, str):
                     diagrams = extract_mermaid(content)

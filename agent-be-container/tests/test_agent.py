@@ -46,13 +46,13 @@ def mock_llm():
             # Check ToolMessage content or malformed AI content
             if hasattr(m, "content") and isinstance(m.content, str) and m.content:
                 if '"component": "./DataShowWrapper"' in m.content or "generate_data_visualization" in m.content:
-                    mfes.append(MFEContent(provider="mfe1", component="./DataShowWrapper", content={"title": "Sales Performance"}, title="Data Viz", pin_to_pane=False, name="Data Viz", description="Data Viz"))
+                    mfes.append(MFEContent(provider="mfe1", component="./DataShowWrapper", content={"title": "Sales Performance"}, title="Data Viz", name="Data Viz", description="Data Viz"))
                 elif '"component": "./JsonShowWrapper"' in m.content or "get_mfe_content" in m.content or "generate_mfe_of_json" in m.content:
-                    mfes.append(MFEContent(provider="mfe1", component="./JsonShowWrapper", content={"key": "val"}, title="JSON", pin_to_pane=False, name="JSON", description="JSON"))
+                    mfes.append(MFEContent(provider="mfe1", component="./JsonShowWrapper", content={"key": "val"}, title="JSON", name="JSON", description="JSON"))
                 elif '"component": "./MarkdownShowWrapper"' in m.content or "generate_mfe_of_markdown" in m.content or "poem" in m.content.lower():
-                    mfes.append(MFEContent(provider="mfe1", component="./MarkdownShowWrapper", content={"markdown_content": "Content"}, title="Markdown", pin_to_pane=False, name="Markdown", description="Markdown"))
+                    mfes.append(MFEContent(provider="mfe1", component="./MarkdownShowWrapper", content={"markdown_content": "Content"}, title="Markdown", name="Markdown", description="Markdown"))
                 if "pin_this" in m.content.lower():
-                    mfes.append(MFEContent(provider="mfe1", component="./PinnedWrapper", content={"key": "val"}, title="Pinned Visual", pin_to_pane=True, name="Pinned Visual", description="Pinned description"))
+                    mfes.append(MFEContent(provider="mfe1", component="./PinnedWrapper", content={"key": "val"}, title="Pinned Visual", name="Pinned Visual", description="Pinned description"))
         
         # Deduplicate
         seen_components = set()
@@ -123,7 +123,7 @@ async def test_conversation_flow(mock_llm):
 async def test_mfe_tool_call(mock_llm):
     tool_call = {
         "name": "generate_mfe_of_json",
-        "args": {"content": {"key": "val"}, "title": "JSON Data", "pin_to_pane": False, "name": "Test MFE", "description": "Test MFE Description"},
+        "args": {"content": {"key": "val"}, "title": "JSON Data", "name": "Test MFE", "description": "Test MFE Description"},
         "id": "call_123",
         "type": "tool_call"
     }
@@ -156,7 +156,6 @@ async def test_data_viz_tool_call(mock_llm):
             "title": "Sales Performance",
             "datasets": [{"label": "Direct", "values": [{"x": 1, "y": 100}]}],
             "x_axis_type": "linear",
-            "pin_to_pane": False,
             "name": "Sales Chart",
             "description": "Chart showing sales"
         },
@@ -193,7 +192,6 @@ async def test_mfe_content_detected_from_json_string(mock_llm):
         "mfe": "mfe1", 
         "component": "./JsonShowWrapper", 
         "content": {"key": "val"},
-        "pin_to_pane": False,
         "name": "JSON MFE",
         "description": "JSON MFE Description"
     })
@@ -201,7 +199,6 @@ async def test_mfe_content_detected_from_json_string(mock_llm):
         "name": "generate_mfe_of_json",
         "args": {
             "content": {"key": "val"},
-            "pin_to_pane": False,
             "name": "JSON",
             "description": "JSON",
             "title": "Title"
@@ -264,7 +261,6 @@ async def test_mfe_pin_to_pane(mock_llm):
             "name": "generate_mfe_of_json",
             "args": {
                 "content": {"key": "val"},
-                "pin_to_pane": True,
                 "name": "Pinned Visual",
                 "description": "Pinned Description",
                 "title": "Pinned Title"

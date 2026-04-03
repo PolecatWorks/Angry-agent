@@ -38,9 +38,9 @@ def visualizations_reducer(existing: List['MFEContent'], new: List[Dict[str, Any
     for item in new_items:
         if not isinstance(item, dict):
             continue
-        
+
         action = item.get("action", "update")
-        
+
         if action == "add":
             # Add new item. Filter out action key before validation.
             content_data = {k: v for k, v in item.items() if k != "action"}
@@ -62,10 +62,10 @@ def visualizations_reducer(existing: List['MFEContent'], new: List[Dict[str, Any
                 for k, v in item.items():
                     if k not in ("action", "order_index", "index"):
                         current_data[k] = v
-                
+
                 try:
                     updated_obj = MFEContent.model_validate(current_data)
-                    
+
                     # Handle reordering if requested in the update
                     new_pos = item.get("order_index") if item.get("order_index") is not None else item.get("index")
                     if new_pos is not None:
@@ -109,7 +109,6 @@ class MFEBase(BaseModel):
     name: str = Field(description="A unique name for the visual element")
     title: str = Field(description="The title of the visual element")
     description: str = Field(description="A description for the visual element")
-    pin_to_pane: bool = Field(default=False, description="Whether to pin the visualization to the workspace panel")
 
 class MFEContent(MFEBase):
     provider: str = Field(description="The MFE provider that will render the component (e.g. 'mfe1'). This MUST be taken verbatim from the tool results")
