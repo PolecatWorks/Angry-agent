@@ -13,8 +13,8 @@ These tests should verify that the tools successfully transform input Pydantic m
     *   [x] Test happy path: Pass a valid `JsonInput` with some JSON-like dictionary content. Verify the returned `MFEContent` has `provider="mfe1"`, `component="./JsonShowWrapper"`, and the content matches the input.
     *   [x] Test with an empty dictionary as the content payload.
 
-2.  [ ] **`generate_mfe_of_markdown`**
-    *   [ ] Test happy path: Pass a `MarkdownInput` with a string of markdown text. Verify the returned `MFEContent` has `provider="mfe1"`, `component="./MarkdownShowWrapper"`, and the content matches the input markdown.
+2.  [x] **`generate_mfe_of_markdown`**
+    *   [x] Test happy path: Pass a `MarkdownInput` with a string of markdown text. Verify the returned `MFEContent` has `provider="mfe1"`, `component="./MarkdownShowWrapper"`, and the content matches the input markdown.
 
 3.  [ ] **`generate_mfe_of_text`**
     *   [ ] Test happy path: Pass a `TextInput` with a plain string. Verify the returned `MFEContent` has `provider="mfe1"`, `component="./TextShowWrapper"`, and the content matches the input text.
