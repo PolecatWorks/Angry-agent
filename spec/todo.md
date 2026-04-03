@@ -26,8 +26,8 @@ These tests should verify that the tools successfully transform input Pydantic m
 5.  [ ] **`generate_mfe_of_mermaid`**
     *   [ ] Test happy path: Pass a `MermaidInput` containing a basic mermaid string (e.g., `graph TD; A-->B;`). Verify it returns an `MFEContent` with `component="./MermaidShowWrapper"`.
 
-6.  [ ] **`generate_data_visualization`**
-    *   [ ] Test happy path: Construct a `DataVizInput` with a `DataViz` object containing multiple `Dataset`s, `DataPoint`s, an `x_axis_type` (e.g., "linear"), and a title. Verify the output uses `component="./DataShowWrapper"` and that the data structure is preserved in the output content.
+6.  [x] **`generate_data_visualization`**
+    *   [x] Test happy path: Construct a `DataVizInput` with a `DataViz` object containing multiple `Dataset`s, `DataPoint`s, an `x_axis_type` (e.g., "linear"), and a title. Verify the output uses `component="./DataShowWrapper"` and that the data structure is preserved in the output content.
 
 ---
 
