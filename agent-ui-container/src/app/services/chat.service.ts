@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, BehaviorSubject, Subject, map, shareReplay, switchMap } from 'rxjs';
+import { Observable, BehaviorSubject, Subject, map, shareReplay, switchMap, tap } from 'rxjs';
 import { AuthService } from './auth.service';
 
 export interface Thread {
@@ -126,7 +126,21 @@ export class ChatService {
 
   getHistory(threadId: string): Observable<HistoryResponse> {
     return this.apiUrl$.pipe(
-      switchMap(apiUrl => this.http.get<HistoryResponse>(`${apiUrl}/threads/${threadId}/history`, { headers: this.getHeaders() }))
+      switchMap(apiUrl => this.http.get<HistoryResponse>(`${apiUrl}/threads/${threadId}/history`, { headers: this.getHeaders() })),
+      tap((res) => {
+        if (res.visualizations) {
+          this.updateVisualizations(res.visualizations);
+        }
+        if (res.thread) {
+          const currentThreads = this.threadsSubject.getValue();
+          const threadIndex = currentThreads.findIndex(t => t.thread_id === res.thread?.thread_id);
+          if (threadIndex !== -1) {
+            const updatedThreads = [...currentThreads];
+            updatedThreads[threadIndex] = { ...updatedThreads[threadIndex], ...res.thread };
+            this.threadsSubject.next(updatedThreads);
+          }
+        }
+      })
     );
   }
 
