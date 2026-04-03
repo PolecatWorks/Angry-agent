@@ -63,15 +63,18 @@ def visualizations_reducer(existing: List['MFEContent'], new: List['MFEContent']
     return final_list
 
 
-class MFEContent(BaseModel):
-    mfe: str = Field(description="The source MFE where the component is defined (e.g. 'mfe1'). This MUST be taken verbatim from the tool results. DO NOT use 'default'.")
-    component: str = Field(description="The name of the MFE component to render. This MUST be taken verbatim from the tool results.")
-    content: dict = Field(description="The content to render in the MFE. This MUST be taken verbatim from the tool results.")
-    pin_to_pane: bool = Field(description="Set this to True if the visualization is to be placed in the right visualization pane.")
-    name: str = Field(description="A unique name for the visual element.")
-    description: str = Field(description="A description for the visual element.")
-    id: str | None = Field(default=None, description="The ID of the visualization from the database, if it's pinned to the pane.")
+class MFEBase(BaseModel):
+    name: str = Field(description="A unique name for the visual element")
+    title: str = Field(description="The title of the visual element")
+    description: str = Field(description="A description for the visual element")
+
+class MFEContent(MFEBase):
+    provider: str = Field(description="The MFE provider that will render the component (e.g. 'mfe1'). This MUST be taken verbatim from the tool results")
+    component: str = Field(description="The name of the MFE component to use for rendering. This MUST be taken verbatim from the tool results.")
+    content: Any = Field(description="The content to render in the MFE. This MUST be taken verbatim from the tool results.")
+    id: str = Field(efault_factory=lambda: uuid.uuid4().hex, description="The ID of the visualization from the database, if it's pinned to the pane.")
     order_index: int | None = Field(default=None, description="The display order of the visualization in the right pane.")
+
 
 
 class MFEContainer(BaseModel):

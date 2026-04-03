@@ -40,23 +40,15 @@ def get_tools(builder):
     @tool
     def visualize_graph() -> str:
         """
-        Returns a mermaid diagram showing the internal structure and flow of this AI agent's LangGraph.
-        Use this when the user asks 'how do you work?', 'show me your graph', or 'what is your architecture?'.
-        Returns: mermaid diagram as a string.
+        Returns a mermaid diagram as a string describing the LangGraph architecture. This describes the graph describing how the agent works.
         """
-        logger.info("Tool visualize_graph called")
-        # StateGraph builder doesn't have get_graph() in all versions;
-        # CompiledGraph does. If it's the builder, we compile it briefly to get the graph structure.
+
         if hasattr(builder, 'get_graph'):
             mermaid_code = builder.get_graph().draw_mermaid()
         else:
             mermaid_code = builder.compile().get_graph().draw_mermaid()
 
-        # Clean up mermaid code: remove HTML tags that might break some mermaid renderers
-        # e.g. LangGraph often adds <p> tags in labels
-        mermaid_code = re.sub(r'<[^>]+>', '', mermaid_code)
-
-        return f"```mermaid\n{mermaid_code}\n```"
+        return mermaid_code
 
     tools.append(visualize_graph)
 
