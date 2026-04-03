@@ -53,7 +53,7 @@ spec:
       retries: 3
   values:
     image:
-      tag: sha-b6674720519f95bb551a3207360cfbbe1575bd11
+      tag: sha-f2cfcf6a7de93c9e865a046c0202313ade587898
       pullPolicy: Always
     configs:
       webservice:
