@@ -278,7 +278,13 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             if isinstance(m, AIMessage) and hasattr(m, 'usage_metadata') and m.usage_metadata:
                 total_usage = merge_usage_metadata(total_usage, m.usage_metadata)
 
-        system_instruction = SystemMessage(content=packager_prompt)
+        packager_guidance = (
+            "\n\nIMPORTANT: When packaging MFE components, you MUST preserve the 'mfe', 'component', and 'content' fields "
+            "EXACTLY as they were returned by the tools in the history. DO NOT invent or default these values. "
+            "For example, if a tool returned 'mfe': 'mfe1', do NOT change it to 'default' or 'default_api'."
+        )
+        system_instruction = SystemMessage(content=packager_prompt + packager_guidance)
+        
         relevant_history = [
             m for m in state.messages
             if isinstance(m, (HumanMessage, AIMessage, ToolMessage))
@@ -350,11 +356,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
             updated_kwargs["packaged"] = True
 
-            # Extract any mermaid diagrams from the conversational content
-            mermaid_diagrams = extract_mermaid(last_ai_message.content)
-            if mermaid_diagrams:
-                updated_kwargs["mermaid_diagrams"] = mermaid_diagrams
-                logger.info(f"Packager: Extracted {len(mermaid_diagrams)} mermaid diagrams")
+            # Mermaid extraction removed as per request
 
             # Update the message text to show what was pinned
             new_content = last_ai_message.content
@@ -435,6 +437,11 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             if hasattr(response_follow_ups, "follow_up_questions") and response_follow_ups.follow_up_questions:
                 updated_kwargs["follow_up_questions"] = response_follow_ups.follow_up_questions
             
+            updated_kwargs["packaged"] = True
+            updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
+            
+            # Mermaid extraction removed as per request
+
             logger.info(f"FollowUp: Final combined usage: {total_usage}")
             updated_msg = AIMessage(
                 content=last_ai_message.content,
@@ -478,14 +485,14 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
         tools_condition,
         {
             "tools": "tools",
-            END: "packager",
+            END: "follow_up",
         }
     )
 
     builder.add_edge("tools", "llm")
     builder.add_edge("hello", END)
     builder.add_edge("image", END)
-    builder.add_edge("packager", "follow_up")
+    # builder.add_edge("packager", "follow_up")
     builder.add_edge("follow_up", END)
     builder.add_edge("echo", END)
 

@@ -23,20 +23,15 @@ async def generate_mfe_of_json(json_content: Any, title: str, pin_to_pane: bool,
     Generate a pretty rendered version of the input JSON.
     """
     logger.info(f"Tool generate_mfe_of_json called: {json_content}")
-    res = {
-        "mfe": "mfe1",
-        "component": "./JsonShowWrapper",
-        "content": {
-            "content": json_content
-        },
-        "pin_to_pane": pin_to_pane,
-        "name": name,
-        "description": description,
-        "id": None
-    }
-    if pin_to_pane:
-        res["id"] = uuid.uuid4().hex
-    return res
+    return MFEContent(
+        mfe="mfe1",
+        component="./JsonShowWrapper",
+        content={"content": json_content},
+        pin_to_pane=pin_to_pane,
+        name=name,
+        description=description,
+        id=uuid.uuid4().hex if pin_to_pane else None
+    )
 
 
 
@@ -53,20 +48,15 @@ async def generate_mfe_of_markdown(markdown_content: str, pin_to_pane: bool, nam
     Use this tool for ANY formatted text, headers, or lists.
     """
     logger.info(f"Tool generate_mfe_of_markdown called: {markdown_content}")
-    res = {
-        "mfe": "mfe1",
-        "component": "./MarkdownShowWrapper",
-        "content": {
-            "content": markdown_content
-        },
-        "pin_to_pane": pin_to_pane,
-        "name": name,
-        "description": description,
-        "id": None
-    }
-    if pin_to_pane:
-        res["id"] = uuid.uuid4().hex
-    return res
+    return MFEContent(
+        mfe="mfe1",
+        component="./MarkdownShowWrapper",
+        content={"content": markdown_content},
+        pin_to_pane=pin_to_pane,
+        name=name,
+        description=description,
+        id=uuid.uuid4().hex if pin_to_pane else None
+    )
 
 
 class TextInput(BaseModel):
@@ -84,20 +74,15 @@ async def generate_mfe_of_text(text_content: str, pin_to_pane: bool, name: str, 
     It only supports line wrapping and basic styling.
     """
     logger.info(f"Tool generate_mfe_of_text called: {text_content}")
-    res = {
-        "mfe": "mfe1",
-        "component": "./TextShowWrapper",
-        "content": {
-            "content": text_content
-        },
-        "pin_to_pane": pin_to_pane,
-        "name": name,
-        "description": description,
-        "id": None
-    }
-    if pin_to_pane:
-        res["id"] = uuid.uuid4().hex
-    return res
+    return MFEContent(
+        mfe="mfe1",
+        component="./TextShowWrapper",
+        content={"content": text_content},
+        pin_to_pane=pin_to_pane,
+        name=name,
+        description=description,
+        id=uuid.uuid4().hex if pin_to_pane else None
+    )
 
 
 class PersonalDataFormInput(BaseModel):
@@ -166,21 +151,21 @@ async def generate_mfe_of_mermaid(mermaid_content: str, title: str, pin_to_pane:
     Generate a pretty rendered version of the input mermaid diagram.
     """
     logger.info(f"Tool generate_mfe_of_mermaid called: {mermaid_content}")
-    res = {
-        "mfe": "mfe1",
-        "component": "./MermaidShowWrapper",
-        "content": {
+    reply = MFEContent(
+        mfe="mfe1",
+        component="./MermaidShowWrapper",
+        content={
             "title": title,
             "content": mermaid_content
         },
-        "pin_to_pane": pin_to_pane,
-        "name": name,
-        "description": description,
-        "id": None
-    }
-    if pin_to_pane:
-        res["id"] = uuid.uuid4().hex
-    return res
+        pin_to_pane=pin_to_pane,
+        name=name,
+        description=description,
+        id=uuid.uuid4().hex if pin_to_pane else None
+    )
+    logger.warning(f"Tool generate_mfe_of_mermaid called: {reply}")
+
+    return reply
 
 
 class DataPoint(BaseModel):
@@ -201,26 +186,23 @@ class DataVizInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=DataVizInput)
-async def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> dict:
+async def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> MFEContent:
     """
     Generates a high-quality data visualization (line graph) in the UI.
     Use this tool when the user asks for charts, graphs, trends, or data comparisons.
     """
     logger.info(f"Tool generate_data_visualization called: {title}")
     datasets_dict = [d.model_dump() for d in datasets]
-    res = {
-        "mfe": "mfe1",
-        "component": "./DataShowWrapper",
-        "content": {
+    return MFEContent(
+        mfe="mfe1",
+        component="./DataShowWrapper",
+        content={
             "title": title,
             "content": datasets_dict,
             "xType": x_axis_type
         },
-        "pin_to_pane": pin_to_pane,
-        "name": name,
-        "description": description,
-        "id": None
-    }
-    if pin_to_pane:
-        res["id"] = uuid.uuid4().hex
-    return res
+        pin_to_pane=pin_to_pane,
+        name=name,
+        description=description,
+        id=uuid.uuid4().hex if pin_to_pane else None
+    )

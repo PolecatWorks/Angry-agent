@@ -128,3 +128,48 @@ async def test_system_prompt_adherence_mermaid(mock_config):
     
     # 2. Check for typical mermaid sequence diagram keywords
     assert "sequence" in diagram_content or "participant" in diagram_content
+
+
+@pytest.mark.asyncio
+async def test_system_prompt_adherence_agent_state_mermaid(mock_config):
+    """
+    Test that when visualizing the agent state model as mermaid, 'mfe' is not 'default'.
+    """
+    prompt = "display a visualisation of the agent state model as a mermaid diagram"
+    
+    llm = llm_model(mock_config.main_aiclient)
+    packager_llm = llm_model(mock_config.packager_aiclient)
+    agent = create_agent(
+        main_llm=llm,
+        packager_llm=packager_llm,
+        main_prompt=mock_config.main_aiclient.system_prompt,
+        packager_prompt=mock_config.packager_aiclient.system_prompt
+    )
+    
+    state = {"messages": [HumanMessage(content=prompt)]}
+    response_state = await agent.ainvoke(state, config={"configurable": {"thread_id": "test_agent_state_thread"}})
+    
+    # Check visualizations in state (pinned)
+    visualizations = response_state.get("visualizations", [])
+    
+    # Check mfes in last message (unpinned)
+    last_msg = response_state["messages"][-1]
+    mfe_contents = last_msg.additional_kwargs.get("mfe_contents", [])
+    
+    all_mfes = []
+    for v in visualizations:
+        all_mfes.append(v)
+    for m in mfe_contents:
+        all_mfes.append(m)
+        
+    assert len(all_mfes) > 0, f"No visualizations or MFEs found. Content: {last_msg.content}. Kwargs: {last_msg.additional_kwargs}"
+    
+    for viz in all_mfes:
+        # If it's a dict (from mfe_contents)
+        if isinstance(viz, dict):
+            mfe_val = viz.get("mfe")
+        else:
+            mfe_val = viz.mfe
+            
+        assert mfe_val != "default", f"MFE attribute should not be 'default', got {mfe_val}"
+        assert mfe_val == "mfe1", f"MFE attribute should be 'mfe1', got {mfe_val}"

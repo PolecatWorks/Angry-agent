@@ -45,8 +45,8 @@ class EditVisualizationInput(BaseModel):
     name: str | None = Field(default=None, description="Optional new display name for the visualization")
     description: str | None = Field(default=None, description="Optional new description")
 
-@tool(args_schema=EditVisualizationInput)
-async def edit_visualization(id: str, content: dict, name: str | None, description: str | None, state: Annotated[AgentState, InjectedState]) -> Command:
+@tool()
+async def edit_visualization(mfe: MFEContent, state: Annotated[AgentState, InjectedState]) -> Command:
     """
     Edit the content or description of an existing visualization.
     Use this when the user asks to modify or update a visualization that is already on the right pane.
@@ -57,7 +57,7 @@ async def edit_visualization(id: str, content: dict, name: str | None, descripti
         if v.id == id:
             existing = v
             break
-    
+
     if not existing:
         # Return a Command with no update but a text message indicating failure
         return Command(
@@ -84,35 +84,22 @@ async def edit_visualization(id: str, content: dict, name: str | None, descripti
 
 
 class AddVisualizationInput(BaseModel):
-    mfe: str = Field(description="The source MFE where the component is defined (e.g. 'mfe1')")
-    component: str = Field(description="The name of the MFE component to render")
-    content: dict = Field(description="The content to render in the MFE")
+    mfe: str = Field(description="The source MFE where the component is defined (e.g. 'mfe1'). This MUST be taken verbatim from the output of the tool that generated the content. DO NOT use 'default'.")
+    component: str = Field(description="The name of the MFE component to render. This MUST be taken verbatim from the output of the tool that generated the content.")
+    content: dict = Field(description="The content to render in the MFE. This MUST be taken verbatim from the output of the tool that generated the content.")
     name: str = Field(description="The display name or label for the visualization")
     description: str = Field(description="A description of the visualization to help keep context")
 
-@tool(args_schema=AddVisualizationInput)
-async def add_visualization(mfe: str, component: str, content: dict, name: str, description: str) -> Command:
+@tool()
+async def add_visualization(mfe: MFEContent) -> Command:
     """
     Add a new visualization for the current thread and pin it to the right pane.
     Use this when the user wants to save or build a new visualization tool or interactive component.
     """
-    viz_id = str(uuid.uuid4())
-    
-    # Signal the new visualization to the state reducer
-    add_data = {
-        "id": viz_id,
-        "mfe": mfe,
-        "component": component,
-        "content": content,
-        "name": name,
-        "description": description,
-        "pin_to_pane": True,
-        "action": "add"
-    }
 
-    logger.info(f"Tool add_visualization called: Requested add for {viz_id}")
+    logger.warning(f"Tool add_visualization called: Requested add for {mfe}")
     return Command(
-        update={"visualizations": [add_data]}
+        update={"visualizations": [mfe]}
     )
 
 
@@ -130,7 +117,7 @@ async def delete_visualization(id: str, state: Annotated[AgentState, InjectedSta
         if v.id == id:
             found = True
             break
-    
+
     if not found:
         return Command(update={})
 
