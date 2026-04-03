@@ -10,7 +10,7 @@ import logging.config
 from ruamel.yaml import YAML
 import io
 
-from .config import ServiceConfig
+from src.config import ServiceConfig
 
 
 # https://stackoverflow.com/questions/242485/starting-python-debugger-automatically-on-error
@@ -77,7 +77,7 @@ def parse(ctx, config, secrets):
 @shared_options
 def start(ctx, config, secrets):
     """Start the service"""
-    from . import app_start
+    from src import app_start
 
     yaml = YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
@@ -229,6 +229,195 @@ def load_agent(ctx, config, secrets, filepath, agent_name):
             await close_db_pool()
 
     asyncio.run(_load())
+
+
+@cli.command()
+@shared_options
+def list_threads(ctx, config, secrets):
+    """List recent threads"""
+    import asyncio
+    from psycopg_pool import AsyncConnectionPool
+    from psycopg.rows import dict_row
+
+    configObj: ServiceConfig = ServiceConfig.from_yaml_and_secrets_dir(config.name, secrets)
+    logging.config.dictConfig(configObj.logging)
+
+    async def _list():
+        dsn = configObj.persistence.db.connection.dsn
+        async with AsyncConnectionPool(conninfo=dsn, row_factory=dict_row) as pool:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch_all("SELECT thread_id, title, user_id FROM threads ORDER BY created_at DESC LIMIT 5")
+                click.echo("--- Recent threads ---")
+                for r in rows:
+                    click.echo(f"{r['thread_id']} | {r['user_id']} | {r['title']}")
+
+    asyncio.run(_list())
+
+
+@cli.command()
+@shared_options
+def test_pool(ctx, config, secrets):
+    """Test database connection pooling"""
+    import asyncio
+    from psycopg_pool import AsyncConnectionPool
+    from psycopg.rows import dict_row
+
+    configObj: ServiceConfig = ServiceConfig.from_yaml_and_secrets_dir(config.name, secrets)
+    logging.config.dictConfig(configObj.logging)
+
+    async def _test():
+        dsn = configObj.persistence.db.connection.dsn
+        pool_kwargs = {
+            "autocommit": True,
+            "prepare_threshold": 0,
+            "row_factory": dict_row,
+        }
+
+        pool = AsyncConnectionPool(
+            conninfo=dsn,
+            kwargs=pool_kwargs,
+            check=AsyncConnectionPool.check_connection
+        )
+        import pprint
+        pprint.pprint(dir(pool))
+
+    asyncio.run(_test())
+
+
+@cli.command()
+@click.option("--thread-id", required=True, type=str, help="The ID of the thread to inspect")
+@shared_options
+def inspect_state(ctx, config, secrets, thread_id):
+    """Inspect the state of a thread"""
+    import asyncio
+    from src.database import init_db_pool, close_db_pool
+    from src.agent.handler import LLMHandler
+
+    configObj: ServiceConfig = ServiceConfig.from_yaml_and_secrets_dir(config.name, secrets)
+    logging.config.dictConfig(configObj.logging)
+
+    async def _inspect():
+        try:
+            await init_db_pool(configObj.persistence.db)
+            handler = LLMHandler(db_dsn=configObj.persistence.db.connection.dsn)
+            await handler.initialize()
+
+            state = await handler.get_thread_state(thread_id)
+
+            click.echo("\n--- Agent State Values ---")
+            if state:
+                click.echo(state.values)
+                click.echo("\n--- Agent State Next Node ---")
+                click.echo(state.next)
+            else:
+                click.echo(f"No state found for thread {thread_id}")
+
+            await handler.close()
+        except Exception as e:
+            click.echo(f"Error: {e}")
+        finally:
+            await close_db_pool()
+
+    asyncio.run(_inspect())
+
+
+@cli.command()
+@click.option("--thread-id", required=True, type=str, help="The ID of the thread to inspect fully")
+@shared_options
+def inspect_full_state(ctx, config, secrets, thread_id):
+    """Inspect the full state of a thread including detailed message contents"""
+    import asyncio
+    from src.database import init_db_pool, close_db_pool
+    from src.agent.handler import LLMHandler
+
+    configObj: ServiceConfig = ServiceConfig.from_yaml_and_secrets_dir(config.name, secrets)
+    logging.config.dictConfig(configObj.logging)
+
+    async def _inspect_full():
+        try:
+            await init_db_pool(configObj.persistence.db)
+            handler = LLMHandler(db_dsn=configObj.persistence.db.connection.dsn)
+            await handler.initialize()
+
+            state = await handler.get_thread_state(thread_id)
+
+            click.echo("\n--- Agent State Values ---")
+            if state and state.values:
+                messages = state.values.get("messages", [])
+                click.echo(f"Messages count: {len(messages)}")
+                for i, m in enumerate(messages):
+                    click.echo(f"{i}: {type(m).__name__}")
+                    click.echo(f"  Content: {repr(m.content)}")
+                    if hasattr(m, 'additional_kwargs') and m.additional_kwargs:
+                        click.echo(f"  Kwargs: {m.additional_kwargs.keys()}")
+                    if hasattr(m, 'tool_calls') and m.tool_calls:
+                        click.echo(f"  ToolCalls: {len(m.tool_calls)}")
+            else:
+                click.echo("No state values found.")
+
+            click.echo("\n--- Agent State Next Node ---")
+            click.echo(state.next if state else "None")
+
+            await handler.close()
+        except Exception as e:
+            click.echo(f"Error: {e}")
+        finally:
+            await close_db_pool()
+
+    asyncio.run(_inspect_full())
+
+
+@cli.command()
+@click.option("--thread-id", required=True, type=str, help="The ID of the thread to inspect checkpoints for")
+@shared_options
+def inspect_checkpoint(ctx, config, secrets, thread_id):
+    """Inspect the checkpoint of a thread directly from AsyncPostgresSaver"""
+    import asyncio
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+    from psycopg_pool import AsyncConnectionPool
+    from psycopg.rows import dict_row
+
+    configObj: ServiceConfig = ServiceConfig.from_yaml_and_secrets_dir(config.name, secrets)
+    logging.config.dictConfig(configObj.logging)
+
+    async def _inspect_cp():
+        dsn = configObj.persistence.db.connection.dsn
+        pool_kwargs = {
+            "prepare_threshold": 0,
+            "row_factory": dict_row,
+        }
+
+        async with AsyncConnectionPool(
+            conninfo=dsn,
+            max_size=5,
+            kwargs=pool_kwargs,
+            check=AsyncConnectionPool.check_connection
+        ) as pool:
+            checkpointer = AsyncPostgresSaver(pool)
+            await checkpointer.setup()
+
+            config = {"configurable": {"thread_id": thread_id}}
+
+            state = await checkpointer.aget(config)
+
+            if not state:
+                click.echo(f"No state found for thread {thread_id}")
+                return
+
+            click.echo("\n--- Checkpoint Found ---")
+
+            values = state.get('values', {})
+            messages = values.get('messages', [])
+
+            click.echo(f"\n--- Messages ({len(messages)}) ---")
+            for i, m in enumerate(messages):
+                m_type = type(m).__name__
+                content = getattr(m, 'content', str(m))
+                click.echo(f"{i}: {m_type} - {content[:100]}...")
+                if hasattr(m, 'additional_kwargs') and m.additional_kwargs:
+                    click.echo(f"   kwargs: {m.additional_kwargs}")
+
+    asyncio.run(_inspect_cp())
 
 
 # ------------- CLI commands above here -------------
