@@ -70,48 +70,6 @@ def _try_parse_mfe_content(content) -> MFEContent | None:
     return None
 
 
-async def post_process_node(state: AgentState):
-    """Post-processes messages after the LLM/tool loop.
-
-    Walks messages in reverse from the last message back to the most recent
-    HumanMessage (exclusive).  For each ToolMessage it inspects the content
-    to see if it can be validated as an MFEContent instance (via Pydantic).
-    Detected MFE payloads and mermaid diagrams are attached to the final
-    AIMessage's additional_kwargs.
-
-    Original message content is never suppressed or removed.
-    """
-    messages = state.messages
-    if not messages:
-        return {}
-
-    for i, message in enumerate(state.messages):
-        logger.info(f"Message {i}: {type(message)} {message}")
-
-    last_msg = messages[-1]
-    if not isinstance(last_msg, AIMessage):
-        return {}
-
-    updated_messages = []
-
-    for m in reversed(messages[:-1]):
-        if isinstance(m, HumanMessage):
-            break
-
-        if isinstance(m, AIMessage):
-            logger.info(f"Inspecting AIMessage (content = {m})")
-
-            mfe = _try_parse_mfe_content(m.content)
-            if mfe:
-                logger.info(f"Detected MFEContent: mfe={mfe.mfe}, component={mfe.component}")
-                mfe_contents.append(mfe.model_dump())
-
-    if mfe_contents:
-        logger.info(f"Adding {len(mfe_contents)} MFE blocks to message metadata")
-        last_msg.additional_kwargs = last_msg.additional_kwargs or {}
-        last_msg.additional_kwargs["mfe_contents"] = mfe_contents
-
-    return {"messages": [last_msg]}
 
 async def initial_node(state: AgentState):
     """Initial setup node."""
@@ -198,9 +156,115 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
     tools = get_tools(builder)
     main_llm_with_tools = main_llm.bind_tools(tools)
 
-    # This LLM is forced to output the Pydantic model. It is used for the packager to finalise the MFE output
-    packager_llm_with_mfe_container_schema = packager_llm.with_structured_output(MFEContainer, include_raw=True)
     follow_up_llm_with_schema = packager_llm.with_structured_output(FollowUpQuestions, include_raw=True)
+
+
+    async def post_process_node(state: AgentState):
+        """Post-processes messages after the LLM/tool loop.
+
+        Walks messages in the current turn to extract MFE content and mermaid diagrams.
+        Detected payloads are attached to the final AIMessage's additional_kwargs.
+        Pinned visualizations are added to the visualizations state.
+
+        Original message content is preserved.
+        """
+        logger.info("Entering post_process_node")
+        messages = state.messages
+        if not messages:
+            return {}
+
+        # Find the last AIMessage to update
+        last_ai_msg = None
+        for m in reversed(messages):
+            if isinstance(m, AIMessage):
+                last_ai_msg = m
+                break
+        
+        if not last_ai_msg:
+            return {}
+
+        mfe_contents = []
+        mermaid_diagrams = []
+        new_visualizations = []
+
+        # Process all messages since the last HumanMessage (the current turn)
+        current_turn_messages = []
+        for m in reversed(messages):
+            if isinstance(m, HumanMessage):
+                break
+            current_turn_messages.append(m)
+        
+        # Process in chronological order to maintain sequence
+        for m in reversed(current_turn_messages):
+            # 1. Try to extract MFEContent from message content
+            content = getattr(m, "content", None)
+            if content:
+                mfe = _try_parse_mfe_content(content)
+                if mfe:
+                    logger.info(f"Detected MFEContent in message type={type(m).__name__}: {mfe.component} (pin={mfe.pin_to_pane})")
+                    if mfe.pin_to_pane:
+                        # Register pinned visualizations
+                        viz_id = mfe.id or uuid.uuid4().hex
+                        new_visualizations.append({
+                            "id": viz_id,
+                            "mfe": mfe.mfe,
+                            "component": mfe.component,
+                            "content": mfe.content,
+                            "name": mfe.name,
+                            "description": mfe.description,
+                            "pin_to_pane": True,
+                            "action": "add"
+                        })
+                    else:
+                        mfe_contents.append(mfe.model_dump())
+            
+                # 2. Extract Mermaid diagrams from text content
+                if isinstance(content, str):
+                    diagrams = extract_mermaid(content)
+                    if diagrams:
+                        logger.info(f"Extracted {len(diagrams)} mermaid diagrams from message type={type(m).__name__}")
+                        mermaid_diagrams.extend(diagrams)
+
+        # 3. Update the last message's metadata
+        updated_kwargs = last_ai_msg.additional_kwargs.copy() if last_ai_msg.additional_kwargs else {}
+        
+        changed = False
+        if mfe_contents:
+            updated_kwargs["mfe_contents"] = mfe_contents
+            print(f"DEBUG: Added {len(mfe_contents)} inline MFEs to metadata")
+            changed = True
+        if mermaid_diagrams:
+            updated_kwargs["mermaid_diagrams"] = mermaid_diagrams
+            print(f"DEBUG: Added {len(mermaid_diagrams)} mermaid diagrams to metadata")
+            changed = True
+        
+        # 4. Add summary for pinned visualizations to the message text
+        pinned_names = [v["name"] for v in new_visualizations]
+        updated_content = last_ai_msg.content or ""
+        if pinned_names:
+            if updated_content:
+                updated_content += "\n\n"
+            updated_content += "**Visualizations pinned to panel:**\n- " + "\n- ".join(pinned_names)
+            changed = True
+
+        # Standard metadata
+        updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
+        updated_kwargs["packaged"] = True
+
+        updated_msg = AIMessage(
+            content=updated_content,
+            id=last_ai_msg.id,
+            tool_calls=getattr(last_ai_msg, "tool_calls", []),
+            additional_kwargs=updated_kwargs,
+            usage_metadata=getattr(last_ai_msg, "usage_metadata", None)
+        )
+
+        result = {"messages": [updated_msg]}
+        if new_visualizations:
+            result["visualizations"] = new_visualizations
+        
+        print("DEBUG: Exiting post_process_node successfully")
+        return result
 
 
     async def llm_node(state: AgentState):
@@ -261,138 +325,6 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
         return {"messages": [response]}
 
 
-    async def packager_node(state: AgentState, config: RunnableConfig):
-
-        for i, message in enumerate(state.messages):
-            logger.info(f"Message {i}: {type(message)} {message}")
-
-        # Accumulate usage metadata from all AIMessages in THE CURRENT TURN
-        total_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
-        messages_since_human = []
-        for m in reversed(state.messages):
-            if isinstance(m, HumanMessage):
-                break
-            messages_since_human.append(m)
-
-        for m in reversed(messages_since_human):
-            if isinstance(m, AIMessage) and hasattr(m, 'usage_metadata') and m.usage_metadata:
-                total_usage = merge_usage_metadata(total_usage, m.usage_metadata)
-
-        packager_guidance = (
-            "\n\nIMPORTANT: When packaging MFE components, you MUST preserve the 'mfe', 'component', and 'content' fields "
-            "EXACTLY as they were returned by the tools in the history. DO NOT invent or default these values. "
-            "For example, if a tool returned 'mfe': 'mfe1', do NOT change it to 'default' or 'default_api'."
-        )
-        system_instruction = SystemMessage(content=packager_prompt + packager_guidance)
-        
-        relevant_history = [
-            m for m in state.messages
-            if isinstance(m, (HumanMessage, AIMessage, ToolMessage))
-        ]
-        messages = [system_instruction] + relevant_history
-
-        # We ask it to look at the TOOL results and package them
-        # Note: with include_raw=True, this returns a dict with "raw" and "parsed" keys
-        raw_response = await packager_llm_with_mfe_container_schema.ainvoke(messages)
-
-        # If include_raw=True was set successfuly, we extract from the dict
-        if isinstance(raw_response, dict) and "parsed" in raw_response:
-            response_mfe_container = raw_response["parsed"]
-            packager_usage = raw_response["raw"].usage_metadata if hasattr(raw_response["raw"], 'usage_metadata') else None
-            total_usage = merge_usage_metadata(total_usage, packager_usage)
-        else:
-            # Fallback if with_structured_output didn't return the expected dict structure
-            response_mfe_container = raw_response
-
-        logger.info(f"MFE packager node response: {response_mfe_container}")
-
-        # Find the last AIMessage to update it with the packaged contents
-        last_ai_message = None
-        for m in reversed(state.messages):
-            if isinstance(m, AIMessage):
-                last_ai_message = m
-                break
-
-        if last_ai_message:
-            # We return a message with the SAME ID to update it in the state history
-            # This follows the add_messages reducer pattern for updates
-            updated_kwargs = last_ai_message.additional_kwargs.copy() if last_ai_message.additional_kwargs else {}
-            
-            inline_mfes = []
-
-            # The tools already update the visualizations via the reducer.
-            # We just handle unpinned (inline) visualizations returned by the packager here.
-            new_visualizations = []
-            pinned_names = []
-
-            if hasattr(response_mfe_container, "mfes") and response_mfe_container.mfes:
-                for mfe in response_mfe_container.mfes:
-                    if mfe.pin_to_pane:
-                        name = mfe.name or "Visualization"
-                        viz_id = mfe.id
-                        if not viz_id:
-                            viz_id = uuid.uuid4().hex
-                            mfe.id = viz_id
-                        
-                        pinned_names.append(f"{name} (ID: {viz_id})")
-                        new_visualizations.append({
-                            "id": viz_id,
-                            "mfe": mfe.mfe,
-                            "component": mfe.component,
-                            "content": mfe.content,
-                            "name": mfe.name,
-                            "description": mfe.description,
-                            "pin_to_pane": True,
-                            "action": "add"
-                        })
-                    else:
-                        inline_mfes.append(mfe.model_dump())
-
-            if inline_mfes:
-                updated_kwargs["mfe_contents"] = inline_mfes
-            else:
-                updated_kwargs.pop("mfe_contents", None)
-                
-            updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
-            updated_kwargs["packaged"] = True
-
-            # Mermaid extraction removed as per request
-
-            # Update the message text to show what was pinned
-            new_content = last_ai_message.content
-            if pinned_names:
-                new_content += "\n\n**Visualizations pinned to panel:**\n- " + "\n- ".join(pinned_names)
-
-            logger.info(f"Packager: Final combined usage: {total_usage}")
-            updated_msg = AIMessage(
-                content=new_content,
-                id=last_ai_message.id,
-                tool_calls=getattr(last_ai_message, 'tool_calls', []),
-                additional_kwargs=updated_kwargs,
-                usage_metadata=total_usage
-            )
-
-            result = {
-                "messages": [updated_msg]
-            }
-            if new_visualizations:
-                result["visualizations"] = new_visualizations
-            
-            return result
-
-        # Fallback (should not be reached in normal flow)
-        logger.warning("No AIMessage found to update in packager_node, creating new one.")
-
-        return {
-            "messages": [AIMessage(
-                content="I have prepared the following components for you.",
-                additional_kwargs={
-                    "mfe_contents": [mfe.model_dump() for mfe in response.mfes],
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "packaged": True
-                }
-            )]
-        }
 
     async def follow_up_node(state: AgentState):
         logger.info("Running FollowUp Questions node")
@@ -462,9 +394,8 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
     builder.add_node("image", image_node)
     builder.add_node("llm", llm_node)
     builder.add_node("tools", ToolNode(tools))
-    builder.add_node("packager", packager_node)
+    builder.add_node("post_process", post_process_node)
     builder.add_node("follow_up", follow_up_node)
-    # builder.add_node("post_process", post_process_node)
 
     builder.add_edge(START, "initial")
     builder.add_edge("initial", "intent")
@@ -480,21 +411,26 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
         }
     )
 
+    def route_after_llm(state: AgentState) -> Literal["tools", "post_process"]:
+        if tools_condition(state) == "tools":
+            return "tools"
+        return "post_process"
+
     builder.add_conditional_edges(
         "llm",
-        tools_condition,
+        route_after_llm,
         {
             "tools": "tools",
-            END: "follow_up",
+            "post_process": "post_process",
         }
     )
 
     builder.add_edge("tools", "llm")
-    builder.add_edge("hello", END)
-    builder.add_edge("image", END)
-    # builder.add_edge("packager", "follow_up")
+    builder.add_edge("hello", "post_process")
+    builder.add_edge("image", "post_process")
+    builder.add_edge("post_process", "follow_up")
     builder.add_edge("follow_up", END)
-    builder.add_edge("echo", END)
+    builder.add_edge("echo", "post_process")
 
     return builder.compile(checkpointer=checkpointer)
 

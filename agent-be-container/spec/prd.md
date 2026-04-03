@@ -39,17 +39,18 @@ The backend securely manages and isolates the state of individual users.
 ### 4.4 Intent Routing Logic & Post-Processing
 The backend includes specific routing and post-processing mechanisms for processing messages.
 - **Intent Routing**: Messages containing simple greetings (like 'hello') can be intercepted and handled directly. Specific keywords (e.g., 'draw', 'picture', 'image') are routed to an `image_node`.
-- **MFE Tool Support**: The agent has access to tools that can generate data for Micro-Frontend (MFE) components (like Markdown, JSON, Charts, or Mermaid diagrams).
-- **Packager Node**: A dedicated node (the "Packager") runs after the LLM/Tool loop to convert the conversation into a sequence of MFEContent objects.
-    - **Packaging**: It consolidates helpful AI text and ToolMessage results into a list of MFEs. It supports a `pin_to_pane` flag on `MFEContent` which automatically saves visual components directly to the AgentState visualizations list instead of rendering them inline.
-    - **Finalization**: It marks the final AIMessage with `packaged: True` in `additional_kwargs` to signal completion to the frontend.
-    - **Tool-Call Fallback**: It is responsible for detecting "lost" tool call attempts (where the LLM placed JSON in the message content instead of tool-calling metadata). It manually executes these tools and injects the results into the packager's view to ensure a consistent UI representation.
+- **MFE Tool Support**: The agent has access to tools that can generate data for Micro-Frontend (MFE) components (like Markdown, JSON, Charts, or Mermaid diagrams). Note: Tools return JSON-stringified MFEContent objects.
+- **Post-Process Node**: A deterministic Python-based node that runs after the LLM/Tool loop to finalize the response.
+    - **Extraction**: It scans all messages in the current turn to extract MFE content and mermaid diagrams from ToolMessage outputs or message text.
+    - **Metadata**: It populates `mfe_contents` and `mermaid_diagrams` in the final AIMessage's `additional_kwargs`.
+    - **Pinned Visualizations**: It automatically registers pinned visualizations (where `pin_to_pane` is True) into the `AgentState.visualizations` list, ensuring immediate UI updates.
+    - **Finalization**: It marks the final AIMessage with `packaged: True` and a `timestamp` in `additional_kwargs` to signal completion to the frontend.
+    - **Tool-Call Fallback**: The `llm_node` handles detecting "lost" tool call attempts (where the LLM placed JSON in the message content) and manually injects them as tool calls before the `post_process` stage.
 - **MFE Tools**:
     - `generate_mfe_of_markdown`: For rendering markdown text via `MarkdownShowWrapper`.
     - `generate_mfe_of_text`: For rendering plain text via `TextShowWrapper`.
     - `generate_mfe_of_json`: For general JSON/structured data via `JsonShowWrapper`.
     - `generate_data_visualization`: For D3-based graphs via `DataShowWrapper`.
-    - `generate_mfe_of_mermaid` and `visualize_graph`: For Mermaid diagrams via `MermaidShowWrapper`.
     - `generate_mfe_of_mermaid` and `visualize_graph`: For Mermaid diagrams via `MermaidShowWrapper`.
 
 ## 5. API Interface Expectations

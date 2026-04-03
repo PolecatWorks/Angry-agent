@@ -128,8 +128,8 @@ async def test_mfe_tool_call(mock_llm):
         "type": "tool_call"
     }
     mock_llm.ainvoke.side_effect = [
-        AIMessage(content="", tool_calls=[tool_call]),
-        AIMessage(content="Here is the MFE content you requested.")
+        AIMessage(content="", tool_calls=[tool_call], id="ai_msg_1"),
+        AIMessage(content="Here is the MFE content you requested.", id="ai_msg_2")
     ]
     
     checkpointer = MemorySaver()
@@ -155,14 +155,17 @@ async def test_data_viz_tool_call(mock_llm):
         "args": {
             "title": "Sales Performance",
             "datasets": [{"label": "Direct", "values": [{"x": 1, "y": 100}]}],
-            "x_axis_type": "linear"
+            "x_axis_type": "linear",
+            "pin_to_pane": False,
+            "name": "Sales Chart",
+            "description": "Chart showing sales"
         },
         "id": "call_456",
         "type": "tool_call"
     }
     mock_llm.ainvoke.side_effect = [
-        AIMessage(content="", tool_calls=[tool_call]),
-        AIMessage(content="Here is the chart.")
+        AIMessage(content="", tool_calls=[tool_call], id="ai_msg_1"),
+        AIMessage(content="Here is the chart.", id="ai_msg_2")
     ]
     
     checkpointer = MemorySaver()
@@ -186,16 +189,29 @@ async def test_data_viz_tool_call(mock_llm):
 async def test_mfe_content_detected_from_json_string(mock_llm):
     """Verify MFEContent serialised as a JSON string in ToolMessage is detected."""
     import json
-    mfe_json = json.dumps({"mfe": "mfe1", "component": "./JsonShowWrapper", "content": {"key": "val"}})
+    mfe_json = json.dumps({
+        "mfe": "mfe1", 
+        "component": "./JsonShowWrapper", 
+        "content": {"key": "val"},
+        "pin_to_pane": False,
+        "name": "JSON MFE",
+        "description": "JSON MFE Description"
+    })
     tool_call = {
-        "name": "get_mfe_content",
-        "args": {},
+        "name": "generate_mfe_of_json",
+        "args": {
+            "json_content": {"key": "val"},
+            "pin_to_pane": False,
+            "name": "JSON",
+            "description": "JSON",
+            "title": "Title"
+        },
         "id": "call_str_1",
         "type": "tool_call"
     }
     mock_llm.ainvoke.side_effect = [
-        AIMessage(content="", tool_calls=[tool_call]),
-        AIMessage(content="Done.")
+        AIMessage(content="", tool_calls=[tool_call], id="ai_msg_1"),
+        AIMessage(content="Done.", id="ai_msg_2")
     ]
 
     checkpointer = MemorySaver()
@@ -215,29 +231,28 @@ async def test_mfe_content_detected_from_json_string(mock_llm):
 @pytest.mark.asyncio
 async def test_non_mfe_tool_output_ignored(mock_llm):
     """Tool output that does not match MFEContent schema should not appear in mfe_contents."""
-    # The get_mfe_content tool returns a valid MFE dict, but we override the
-    # mock to make the LLM call a hypothetical tool returning non-MFE data.
+    # We use a tool that is registered but make it return non-JSON data
     tool_call = {
-        "name": "get_mfe_content",
+        "name": "visualize_graph",
         "args": {},
         "id": "call_non_mfe",
         "type": "tool_call"
     }
     mock_llm.ainvoke.side_effect = [
-        AIMessage(content="", tool_calls=[tool_call]),
-        AIMessage(content="No MFE here.")
+        AIMessage(content="", tool_calls=[tool_call], id="ai_msg_1"),
+        AIMessage(content="No MFE here.", id="ai_msg_2")
     ]
 
     checkpointer = MemorySaver()
     agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": "test-no-mfe"}}
 
-    result = await agent.ainvoke({"messages": [HumanMessage(content="show json")]}, config=config)
+    result = await agent.ainvoke({"messages": [HumanMessage(content="show graph")]}, config=config)
     messages = result["messages"]
 
-    # get_mfe_content returns valid MFE, so it WILL be detected
-    assert "mfe_contents" in messages[-1].additional_kwargs
-    # Content preserved
+    # mfe_contents should NOT be present (but mermaid_diagrams will be, as visualize_graph returns mermaid)
+    assert "mfe_contents" not in messages[-1].additional_kwargs
+    assert "mermaid_diagrams" in messages[-1].additional_kwargs
     assert messages[-1].content == "No MFE here."
 
 
@@ -245,8 +260,19 @@ async def test_non_mfe_tool_output_ignored(mock_llm):
 async def test_mfe_pin_to_pane(mock_llm):
     """Test that setting pin_to_pane=True on an MFE avoids inline rendering and calls DB."""
     mock_llm.ainvoke.side_effect = [
-        AIMessage(content="I will pin_this for you."),
-        AIMessage(content="Visual created.")
+        AIMessage(content="", tool_calls=[{
+            "name": "generate_mfe_of_json",
+            "args": {
+                "json_content": {"key": "val"},
+                "pin_to_pane": True,
+                "name": "Pinned Visual",
+                "description": "Pinned Description",
+                "title": "Pinned Title"
+            },
+            "id": "call_pin",
+            "type": "tool_call"
+        }], id="ai_msg_1"),
+        AIMessage(content="Visual created.", id="ai_msg_2")
     ]
     checkpointer = MemorySaver()
     agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
@@ -265,5 +291,7 @@ async def test_mfe_pin_to_pane(mock_llm):
     # Verify visualizations in state
     assert "visualizations" in result
     assert len(result["visualizations"]) == 1
-    assert result["visualizations"][0].name == "Pinned Visual"
-    assert result["visualizations"][0].description == "Pinned description"
+    # Check that NEW pinned visualizations were registered
+    pinned = result["visualizations"][0]
+    assert pinned.name == "Pinned Visual"
+    assert pinned.description == "Pinned Description"
