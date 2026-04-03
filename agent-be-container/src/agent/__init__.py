@@ -205,7 +205,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
                         viz_id = mfe.id or uuid.uuid4().hex
                         new_visualizations.append({
                             "id": viz_id,
-                            "mfe": mfe.mfe,
+                            "provider": mfe.provider,
                             "component": mfe.component,
                             "content": mfe.content,
                             "name": mfe.name,

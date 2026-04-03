@@ -167,9 +167,9 @@ async def test_system_prompt_adherence_agent_state_mermaid(mock_config):
     for viz in all_mfes:
         # If it's a dict (from mfe_contents)
         if isinstance(viz, dict):
-            mfe_val = viz.get("mfe")
+            provider_val = viz.get("provider")
         else:
-            mfe_val = viz.mfe
+            provider_val = viz.provider
             
-        assert mfe_val != "default", f"MFE attribute should not be 'default', got {mfe_val}"
-        assert mfe_val == "mfe1", f"MFE attribute should be 'mfe1', got {mfe_val}"
+        assert provider_val != "default", f"Provider attribute should not be 'default', got {provider_val}"
+        assert provider_val == "mfe1", f"Provider attribute should be 'mfe1', got {provider_val}"
