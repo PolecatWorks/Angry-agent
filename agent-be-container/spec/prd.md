@@ -34,33 +34,34 @@ The agent's personality and instructions are managed via system prompts.
 ### 4.3 Multi-User Isolation & State Checkpointing
 The backend securely manages and isolates the state of individual users.
 - Authentication currently relies on a mocked header (e.g., `X-User-ID`), but the architecture supports future integration with standard OAuth2 flows.
-- LangGraph integrates directly with a PostgreSQL backend to manage check-pointing. Chat history and current agent state are preserved across requests based on the user's session identifier.
+- LangGraph integrates directly with a PostgreSQL backend to manage check-pointing.
+- **Unified State Management**: All session data, including chat history and the current workspace of pinned visualizations, is stored within the `AgentState`. This state is persisted across requests using LangGraph's PostgreSQL checkpointing mechanism, eliminating the need for separate database tables for visualization metadata.
 
 ### 4.4 Intent Routing Logic & Post-Processing
 The backend includes specific routing and post-processing mechanisms for processing messages.
 - **Intent Routing**: Messages containing simple greetings (like 'hello') can be intercepted and handled directly. Specific keywords (e.g., 'draw', 'picture', 'image') are routed to an `image_node`.
+- **LLM Node & Tool-Call Recovery**: The `llm_node` handles primary agent logic and includes a repair mechanism for "lost" tool calls. If the LLM places a valid tool-call JSON structure within its message content instead of using the formal tool-calling API, the node manually injects these as tool calls before the `post_process` stage to ensure consistency.
 - **MFE Tool Support**: The agent has access to a variety of tools to manage and generate Micro-Frontend (MFE) components.
-    - **Stateful Tools**: Tools that modify the workspace (e.g., `add_visualization`, `edit_visualization`, `delete_visualization`) return LangGraph `Command` objects. These tools update the `AgentState.visualizations` list directly and append a `ToolMessage` to the conversation history.
-    - **Content Tools**: Tools like `generate_mfe_of_json` return `MFEContent` objects which are extracted by the post-processing node.
+    - **Stateful Tools (BREAD)**: Tools like `add_visualization`, `edit_visualization`, and `delete_visualization` return LangGraph `Command` objects. These commands trigger the `visualizations_reducer` to update the `AgentState.visualizations` list directly.
+    - **Visualizations Reducer**: A deterministic reducer that manages the workspace list. It supports granular actions: `add` (append), `update` (modify in-place), `delete` (remove), `reorder` (based on a list of IDs), and `replace` (full list override).
 - **Post-Process Node**: A deterministic Python-based node that runs after the LLM/Tool loop to finalize the response.
-    - **Extraction**: It scans all messages in the current turn to extract MFE content and mermaid diagrams from ToolMessage outputs or message text.
-    - **Metadata**: It populates `mfe_contents` and `mermaid_diagrams` in the final AIMessage's `additional_kwargs`.
-    - **Manual Control**: Automatic "auto-pinning" via a `pin_to_pane` flag has been removed. All workspace modifications must now be performed via explicit tool calls.
-    - **Finalization**: It marks the final AIMessage with `packaged: True` and a `timestamp` in `additional_kwargs` to signal completion to the frontend.
-    - **Tool-Call Fallback**: The `llm_node` handles detecting "lost" tool call attempts (where the LLM placed JSON in the message content) and manually injects them as tool calls before the `post_process` stage.
+    - **Extraction**: It scans all messages in the current turn (AIMessages and ToolMessages) to extract `MFEContent` and Mermaid diagrams. This allows tools to return structured data that is automatically bubbled up to the UI metadata.
+    - **Metadata Injection**: It populates `mfe_contents` and `mermaid_diagrams` in the final AIMessage's `additional_kwargs`. 
+    - **Workspace Summary**: If new visualizations were successfully pinned during the turn, the node appends a summary list to the final AI message content.
+    - **Finalization**: It marks the final AIMessage with `packaged: True` and a `timestamp` in `additional_kwargs` to signal completion to the frontend polling client.
 - **MFE Tools**:
     - **Workspace Management (BREAD)**:
-        - `browse_visualizations`: Lists all currently pinned items.
-        - `read_visualization`: Retrieves full details of a specific item.
-        - `add_visualization`: Pins a new visualization to the workspace.
-        - `edit_visualization`: Updates or reorders an existing visualization.
-        - `delete_visualization`: Removes an item from the workspace.
+        - `browse_visualizations`: Lists all currently pinned items from the state.
+        - `read_visualization`: Retrieves full details of a specific item from the state.
+        - `add_visualization`: Pins a new visualization to the workspace via a `Command`.
+        - `edit_visualization`: Updates or reorders an existing visualization via a `Command`.
+        - `delete_visualization`: Removes an item from the workspace via a `Command`.
     - **Content Generation**:
-        - `generate_mfe_of_markdown`: For rendering markdown text via `MarkdownShowWrapper`.
-        - `generate_mfe_of_text`: For rendering plain text via `TextShowWrapper`.
-        - `generate_mfe_of_json`: For general JSON/structured data via `JsonShowWrapper`.
-        - `generate_data_visualization`: For interactive charts via `DataShowWrapper`.
-        - `generate_mfe_of_mermaid` and `visualize_graph`: For Mermaid diagrams via `MermaidShowWrapper`.
+        - `generate_mfe_of_markdown`: For rendering markdown text.
+        - `generate_mfe_of_text`: For rendering plain text.
+        - `generate_mfe_of_json`: For general JSON/structured data.
+        - `generate_data_visualization`: For interactive charts.
+        - `generate_mfe_of_mermaid` and `visualize_graph`: For Mermaid diagrams.
 
 ## 5. API Interface Expectations
 - Specific keywords (e.g., 'draw', 'picture', 'image') are intercepted and routed to an `image_node` which currently returns a placeholder image via `additional_kwargs`.

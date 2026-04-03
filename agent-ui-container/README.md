@@ -55,6 +55,17 @@ ng e2e
 
 Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
 
-## Additional Resources
+## 🎨 AI Workspace
+The application features a "Digital Atrium" design with a dual-pane layout:
+- **Chat Window**: Primary conversational interface.
+- **AI Workspace**: A resizable visualization panel (320px - 850px) that renders dynamic Micro-Frontend (MFE) components and Mermaid diagrams.
 
+### Key Workspace Features:
+- **Reactive Updates**: Synchronized instantly with agent state via `BehaviorSubject`.
+- **JSON Inspector**: Toggleable raw data view for any pinned visualization.
+- **Two-Way Interaction**: MFEs can send actions back to the AI agent, allowing users to interact with generated data tools (e.g. submitting forms or filtering charts).
+- **Glassmorphism Design**: Editorial typography and semi-transparent UI elements for a premium feel.
+
+## Additional Resources
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- **Specifications**: See the [UI PRD](./spec/prd.md) for detailed requirements.
