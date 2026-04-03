@@ -179,7 +179,6 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             if isinstance(m, AIMessage):
                 last_ai_msg = m
                 break
-        
         if not last_ai_msg:
             return {}
 
@@ -193,7 +192,6 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             if isinstance(m, HumanMessage):
                 break
             current_turn_messages.append(m)
-        
         # Process in chronological order to maintain sequence
         for m in reversed(current_turn_messages):
             # 1. Try to extract MFEContent from message content
@@ -217,7 +215,6 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
                         })
                     else:
                         mfe_contents.append(mfe.model_dump())
-            
                 # 2. Extract Mermaid diagrams from text content
                 if isinstance(content, str):
                     diagrams = extract_mermaid(content)
@@ -227,7 +224,6 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
 
         # 3. Update the last message's metadata
         updated_kwargs = last_ai_msg.additional_kwargs.copy() if last_ai_msg.additional_kwargs else {}
-        
         changed = False
         if mfe_contents:
             updated_kwargs["mfe_contents"] = mfe_contents
@@ -237,7 +233,6 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             updated_kwargs["mermaid_diagrams"] = mermaid_diagrams
             print(f"DEBUG: Added {len(mermaid_diagrams)} mermaid diagrams to metadata")
             changed = True
-        
         # 4. Add summary for pinned visualizations to the message text
         pinned_names = [v["name"] for v in new_visualizations]
         updated_content = last_ai_msg.content or ""
@@ -262,7 +257,6 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
         result = {"messages": [updated_msg]}
         if new_visualizations:
             result["visualizations"] = new_visualizations
-        
         print("DEBUG: Exiting post_process_node successfully")
         return result
 
@@ -328,7 +322,6 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
 
     async def follow_up_node(state: AgentState):
         logger.info("Running FollowUp Questions node")
-        
         # Accumulate usage metadata from all AIMessages in THE CURRENT TURN
         total_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
         messages_since_human = []
@@ -347,9 +340,9 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             if isinstance(m, (HumanMessage, AIMessage, ToolMessage))
         ]
         messages = [system_instruction] + relevant_history
-        
+
         raw_response = await follow_up_llm_with_schema.ainvoke(messages)
-        
+
         if isinstance(raw_response, dict) and "parsed" in raw_response:
             response_follow_ups = raw_response["parsed"]
             follow_up_usage = raw_response["raw"].usage_metadata if hasattr(raw_response["raw"], 'usage_metadata') else None
@@ -368,10 +361,10 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             updated_kwargs = last_ai_message.additional_kwargs.copy() if last_ai_message.additional_kwargs else {}
             if hasattr(response_follow_ups, "follow_up_questions") and response_follow_ups.follow_up_questions:
                 updated_kwargs["follow_up_questions"] = response_follow_ups.follow_up_questions
-            
+
             updated_kwargs["packaged"] = True
             updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
-            
+
             # Mermaid extraction removed as per request
 
             logger.info(f"FollowUp: Final combined usage: {total_usage}")
