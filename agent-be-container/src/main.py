@@ -203,23 +203,23 @@ async def get_history(request):
 
     if state.values and "messages" in state.values:
         last_human_timestamp = None
+        ai_msg_with_tools = None
+
         for m in state.values["messages"]:
+
+            # If it's a tool response, map it back to the corresponding tool call in the previous ai message
+            if m.type == "tool" and ai_msg_with_tools is not None:
+                tool_call_id = getattr(m, "tool_call_id", None)
+                if tool_call_id and "tool_calls" in ai_msg_with_tools.get("additional_kwargs", {}):
+                    for tc in ai_msg_with_tools["additional_kwargs"]["tool_calls"]:
+                        if tc.get("id") == tool_call_id:
+                            tc["response"] = getattr(m, "content", "")
+                continue
 
             msg_dict = {"type": m.type, "content": getattr(m, "content", "")}
 
             if hasattr(m, "name") and m.name:
                 msg_dict["name"] = m.name
-
-            if m.type == "ai" and hasattr(m, "tool_calls") and m.tool_calls:
-                for tc in m.tool_calls:
-                    tc_dict = {
-                        "type": "tool",
-                        "content": "Tool call execution started...",
-                        "name": tc.get("name", "Unknown Tool")
-                    }
-                    if hasattr(m, "additional_kwargs") and m.additional_kwargs and "timestamp" in m.additional_kwargs:
-                        tc_dict["created_at"] = m.additional_kwargs["timestamp"]
-                    messages_list.append(tc_dict)
 
             msg_timestamp = None
 
@@ -228,6 +228,23 @@ async def get_history(request):
                     msg_timestamp = m.additional_kwargs["timestamp"]
                     msg_dict["created_at"] = msg_timestamp
                 msg_dict["additional_kwargs"] = m.additional_kwargs
+
+            if m.type == "ai" and hasattr(m, "tool_calls") and m.tool_calls:
+                tool_calls = []
+                for tc in m.tool_calls:
+                    tc_dict = {
+                        "id": tc.get("id"),
+                        "name": tc.get("name", "Unknown Tool"),
+                        "args": tc.get("args", {})
+                    }
+                    tool_calls.append(tc_dict)
+
+                if "additional_kwargs" not in msg_dict:
+                    msg_dict["additional_kwargs"] = {}
+                msg_dict["additional_kwargs"]["tool_calls"] = tool_calls
+                ai_msg_with_tools = msg_dict
+            elif m.type != "tool":
+                ai_msg_with_tools = None
 
             if m.type == "human" and msg_timestamp:
                 try:
