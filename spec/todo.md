@@ -9,9 +9,9 @@ These tests should verify that the tools successfully transform input Pydantic m
 *   You will need to import the respective Input classes (e.g., `JsonInput`, `MarkdownInput`) to construct the test inputs.
 *   The `config: RunnableConfig` argument can be mocked simply by passing an empty dictionary `{}` or a dummy config object, as these functions currently do not utilize the config.
 
-1.  [ ] **`generate_mfe_of_json`**
-    *   [ ] Test happy path: Pass a valid `JsonInput` with some JSON-like dictionary content. Verify the returned `MFEContent` has `provider="mfe1"`, `component="./JsonShowWrapper"`, and the content matches the input.
-    *   [ ] Test with an empty dictionary as the content payload.
+1.  [x] **`generate_mfe_of_json`**
+    *   [x] Test happy path: Pass a valid `JsonInput` with some JSON-like dictionary content. Verify the returned `MFEContent` has `provider="mfe1"`, `component="./JsonShowWrapper"`, and the content matches the input.
+    *   [x] Test with an empty dictionary as the content payload.
 
 2.  [ ] **`generate_mfe_of_markdown`**
     *   [ ] Test happy path: Pass a `MarkdownInput` with a string of markdown text. Verify the returned `MFEContent` has `provider="mfe1"`, `component="./MarkdownShowWrapper"`, and the content matches the input markdown.
