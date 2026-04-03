@@ -5,16 +5,17 @@ from pydantic import BaseModel, Field
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
-def visualizations_reducer(existing: List['MFEContent'], new: List['MFEContent'] | List[Dict[str, Any]] | Dict[str, Any]) -> List['MFEContent']:
+def visualizations_reducer(existing: List['MFEContent'], new: List[Dict[str, Any]] | Dict[str, Any]) -> List['MFEContent']:
     """Reducer for managing the visualizations state list.
 
     Expects new to be a list of commands or a single command dict, e.g.:
-    {"action": "add", "id": "...", ...}
-    {"action": "update", "id": "...", ...}
-    {"action": "delete", "id": "..."}
-    {"action": "replace", "visualizations": [...]}
+    {"action": "add", "id": "...", ...}   -> appends to the end
+    {"action": "update", "id": "...", ...} -> updates in place, or moves if 'index' or 'order_index' is set
+    {"action": "delete", "id": "..."}      -> removes from the list
+    {"action": "reorder", "ids": [...]}    -> reorders existing items by their IDs
+    {"action": "replace", "visualizations": [...]} -> replaces the entire list
     """
-    if not existing:
+    if existing is None:
         existing = []
 
     # If the new payload is a single dict, wrap it in a list to normalize
@@ -25,43 +26,83 @@ def visualizations_reducer(existing: List['MFEContent'], new: List['MFEContent']
     else:
         return existing
 
-    viz_map = {v.id: v for v in existing if v.id}
+    # Create a shadow copy of the list to work with
+    current_list = list(existing)
+
+    def find_index(id_: str) -> int | None:
+        for i, item in enumerate(current_list):
+            if item.id == id_:
+                return i
+        return None
 
     for item in new_items:
-        if isinstance(item, MFEContent):
-            # If it's passed as MFEContent object directly, treat it as an add/update
-            viz_id = item.id
+        if not isinstance(item, dict):
+            continue
+        
+        action = item.get("action", "update")
+        
+        if action == "add":
+            # Add new item. Filter out action key before validation.
+            content_data = {k: v for k, v in item.items() if k != "action"}
+            try:
+                mfe_obj = MFEContent.model_validate(content_data)
+                current_list.append(mfe_obj)
+            except Exception:
+                pass
+
+        elif action == "update":
+            viz_id = item.get("id")
+            if not viz_id:
+                continue
+            idx = find_index(viz_id)
+            if idx is not None:
+                # Update item data
+                current_data = current_list[idx].model_dump()
+                # Merging (excluding action and positional keys)
+                for k, v in item.items():
+                    if k not in ("action", "order_index", "index"):
+                        current_data[k] = v
+                
+                try:
+                    updated_obj = MFEContent.model_validate(current_data)
+                    
+                    # Handle reordering if requested in the update
+                    new_pos = item.get("order_index") if item.get("order_index") is not None else item.get("index")
+                    if new_pos is not None:
+                        current_list.pop(idx)
+                        # Clamp position
+                        target = max(0, min(int(new_pos), len(current_list)))
+                        current_list.insert(target, updated_obj)
+                    else:
+                        current_list[idx] = updated_obj
+                except Exception:
+                    pass
+
+        elif action == "delete":
+            viz_id = item.get("id")
             if viz_id:
-                viz_map[viz_id] = item
-        elif isinstance(item, dict):
-            action = item.get("action", "replace")
+                idx = find_index(viz_id)
+                if idx is not None:
+                    current_list.pop(idx)
 
-            if action == "delete":
-                viz_id = item.get("id")
-                if viz_id:
-                    viz_map.pop(viz_id, None)
-            elif action in ("add", "update"):
-                viz_id = item.get("id")
-                if viz_id:
-                    # Filter out purely action-related keys before validation
-                    content_data = {k: v for k, v in item.items() if k != "action"}
-                    try:
-                        mfe_obj = MFEContent.model_validate(content_data)
-                        viz_map[viz_id] = mfe_obj
-                    except Exception as e:
-                        # Log error here if possible, but keep existing state on failure
-                        pass
-            elif action == "replace":
-                # Completely replace list
-                return item.get("visualizations", [])
+        elif action == "reorder":
+            # Item has an 'ids' list. Reorder existing based on those IDs.
+            # Only keeps items present in 'ids'.
+            order_ids = item.get("ids", [])
+            viz_map = {v.id: v for v in current_list if v.id}
+            reordered = []
+            for oid in order_ids:
+                if oid in viz_map:
+                    reordered.append(viz_map[oid])
+            # Keep anything NOT in the ids list at the end? (Optional logic)
+            # For now, strictly follow the order defined in 'ids'.
+            current_list = reordered
 
-    # Convert back to list, sort or re-index if needed (we can just trust insertion/update order or re-assign order_index)
-    final_list = []
-    for i, (vid, vobj) in enumerate(viz_map.items()):
-        vobj.order_index = i
-        final_list.append(vobj)
+        elif action == "replace":
+            # Completely replace list
+            current_list = item.get("visualizations", [])
 
-    return final_list
+    return current_list
 
 
 class MFEBase(BaseModel):
@@ -74,7 +115,6 @@ class MFEContent(MFEBase):
     component: str = Field(description="The name of the MFE component to use for rendering. This MUST be taken verbatim from the tool results.")
     content: Any = Field(description="The content to render in the MFE. This MUST be taken verbatim from the tool results.")
     id: str = Field(default_factory=lambda: uuid.uuid4().hex, description="The ID of the visualization from the database, if it's pinned to the pane.")
-    order_index: int | None = Field(default=None, description="The display order of the visualization in the right pane.")
 
 
 
