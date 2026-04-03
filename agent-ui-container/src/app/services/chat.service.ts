@@ -49,7 +49,7 @@ export interface HistoryResponse {
 export interface Visualization {
   id: string;
   thread_id: string;
-  mfe: string;
+  provider: string;
   component: string;
   content: any;
   name?: string;

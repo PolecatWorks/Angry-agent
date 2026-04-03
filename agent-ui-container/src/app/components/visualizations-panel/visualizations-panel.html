@@ -11,7 +11,7 @@
     <div class="p-5">
       <div class="flex justify-between items-start mb-4">
         <div>
-          <p class="text-[10px] font-bold text-outline uppercase tracking-tight">{{ viz.name || viz.mfe || 'AI Component' }}</p>
+          <p class="text-[10px] font-bold text-outline uppercase tracking-tight">{{ viz.name || viz.provider || 'AI Component' }}</p>
           <h4 class="font-headline font-bold text-on-surface line-clamp-1">{{ viz.description || 'Live Module' }}</h4>
         </div>
         <div class="flex items-center gap-2">
@@ -23,7 +23,7 @@
       </div>
       <div class="overflow-x-auto">
         <div *ngIf="!isJsonView(viz.id)">
-          <app-mfe-renderer [mfe]="viz.mfe" [component]="viz.component" [content]="viz.content" [id]="viz.id" (action)="handleMfeAction($event, viz.id)"></app-mfe-renderer>
+          <app-mfe-renderer [mfe]="viz.provider" [component]="viz.component" [content]="viz.content" [id]="viz.id" (action)="handleMfeAction($event, viz.id)"></app-mfe-renderer>
         </div>
         <div *ngIf="isJsonView(viz.id)" class="json-viewer-container">
           <pre><code>{{ getFormattedJson(viz) }}</code></pre>
