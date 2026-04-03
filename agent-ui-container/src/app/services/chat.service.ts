@@ -25,6 +25,7 @@ export interface Message {
   content: string;
   duration?: string;
   created_at?: string;
+  name?: string;
   usage_metadata?: {
     input_tokens?: number;
     output_tokens?: number;
