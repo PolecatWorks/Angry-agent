@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @tool
 async def browse_visualizations(state: Annotated[AgentState, InjectedState]) -> List[MFEContent]:
     """
-    Browse all visualizations pinned to the right pane for the current thread.
+    Browse all visualizations for the current thread.
     Use this to see what visualizations are currently available and the order they are displayed.
     """
     return state.visualizations
@@ -49,7 +49,7 @@ class EditVisualizationInput(BaseModel):
 async def edit_visualization(mfe: MFEContent, state: Annotated[AgentState, InjectedState]) -> Command:
     """
     Edit the content or description of an existing visualization.
-    Use this when the user asks to modify or update a visualization that is already on the right pane.
+    Use this when the user asks to modify or update a visualization that already exists.
     """
     # Find the existing visualization to get its MFE and Component
     existing = None
@@ -84,16 +84,13 @@ async def edit_visualization(mfe: MFEContent, state: Annotated[AgentState, Injec
 
 
 class AddVisualizationInput(BaseModel):
-    mfe: str = Field(description="The source MFE where the component is defined (e.g. 'mfe1'). This MUST be taken verbatim from the output of the tool that generated the content. DO NOT use 'default'.")
-    component: str = Field(description="The name of the MFE component to render. This MUST be taken verbatim from the output of the tool that generated the content.")
-    content: dict = Field(description="The content to render in the MFE. This MUST be taken verbatim from the output of the tool that generated the content.")
-    name: str = Field(description="The display name or label for the visualization")
-    description: str = Field(description="A description of the visualization to help keep context")
+    mfe: MFEContent = Field(description="The MFEContent object to be added to the visualisation")
+    # index: int = Field(description="The index to add the visualization to. If not provided, the visualization will be added to the end of the list", default=None)
 
 @tool()
 async def add_visualization(mfe: MFEContent) -> Command:
     """
-    Add a new visualization for the current thread and pin it to the right pane.
+    Add a new visualization.
     Use this when the user wants to save or build a new visualization tool or interactive component.
     """
 
@@ -109,7 +106,7 @@ class DeleteVisualizationInput(BaseModel):
 @tool(args_schema=DeleteVisualizationInput)
 async def delete_visualization(id: str, state: Annotated[AgentState, InjectedState]) -> Command:
     """
-    Delete an existing visualization from the right pane.
+    Delete an existing visualization.
     Use this when the user asks to remove a visualization.
     """
     found = False
