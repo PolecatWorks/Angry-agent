@@ -18,7 +18,7 @@ class JsonInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=JsonInput)
-async def generate_mfe_of_json(json_content: Any, title: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> MFEContent:
+async def generate_mfe_of_json(json_content: Any, title: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> str:
     """
     Generate a pretty rendered version of the input JSON.
     """
@@ -31,7 +31,7 @@ async def generate_mfe_of_json(json_content: Any, title: str, pin_to_pane: bool,
         name=name,
         description=description,
         id=uuid.uuid4().hex if pin_to_pane else None
-    )
+    ).model_dump_json() # Returns JSON string
 
 
 
@@ -42,7 +42,7 @@ class MarkdownInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=MarkdownInput)
-async def generate_mfe_of_markdown(markdown_content: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> MFEContent:
+async def generate_mfe_of_markdown(markdown_content: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> str:
     """
     Render and display markdown text in the UI.
     Use this tool for ANY formatted text, headers, or lists.
@@ -56,7 +56,7 @@ async def generate_mfe_of_markdown(markdown_content: str, pin_to_pane: bool, nam
         name=name,
         description=description,
         id=uuid.uuid4().hex if pin_to_pane else None
-    )
+    ).model_dump_json()
 
 
 class TextInput(BaseModel):
@@ -66,7 +66,7 @@ class TextInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=TextInput)
-async def generate_mfe_of_text(text_content: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> MFEContent:
+async def generate_mfe_of_text(text_content: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> str:
     """
     Render and display plain text in the UI.
     Use this tool for logs, raw output, or simple text that should not be interpreted as markdown.
@@ -82,7 +82,7 @@ async def generate_mfe_of_text(text_content: str, pin_to_pane: bool, name: str, 
         name=name,
         description=description,
         id=uuid.uuid4().hex if pin_to_pane else None
-    )
+    ).model_dump_json()
 
 
 class PersonalDataFormInput(BaseModel):
@@ -106,7 +106,7 @@ async def generate_mfe_of_personal_data_form(
     email: str | None = None,
     phone_number: str | None = None,
     address: str | None = None
-) -> MFEContent:
+) -> str:
     """
     Generate a personal data form to be displayed in the UI.
     Use this tool when the user needs to 'fill out customer data', update personal information, or provide contact details.
@@ -135,7 +135,7 @@ async def generate_mfe_of_personal_data_form(
         name=name,
         description=description,
         id=viz_id
-    )
+    ).model_dump_json()
 
 
 class MermaidInput(BaseModel):
@@ -146,7 +146,7 @@ class MermaidInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=MermaidInput)
-async def generate_mfe_of_mermaid(mermaid_content: str, title: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> MFEContent:
+async def generate_mfe_of_mermaid(mermaid_content: str, title: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> str:
     """
     Generate a pretty rendered version of the input mermaid diagram.
     """
@@ -165,7 +165,7 @@ async def generate_mfe_of_mermaid(mermaid_content: str, title: str, pin_to_pane:
     )
     logger.warning(f"Tool generate_mfe_of_mermaid called: {reply}")
 
-    return reply
+    return reply.model_dump_json()
 
 
 class DataPoint(BaseModel):
@@ -186,7 +186,7 @@ class DataVizInput(BaseModel):
     description: str = Field(description="A description for the visual element.")
 
 @tool(args_schema=DataVizInput)
-async def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> MFEContent:
+async def generate_data_visualization(title: str, datasets: List[Dataset], x_axis_type: str, pin_to_pane: bool, name: str, description: str, config: RunnableConfig) -> str:
     """
     Generates a high-quality data visualization (line graph) in the UI.
     Use this tool when the user asks for charts, graphs, trends, or data comparisons.
@@ -205,4 +205,4 @@ async def generate_data_visualization(title: str, datasets: List[Dataset], x_axi
         name=name,
         description=description,
         id=uuid.uuid4().hex if pin_to_pane else None
-    )
+    ).model_dump_json()

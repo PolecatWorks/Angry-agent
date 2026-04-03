@@ -56,7 +56,7 @@ def get_tools(builder):
         # e.g. LangGraph often adds <p> tags in labels
         mermaid_code = re.sub(r'<[^>]+>', '', mermaid_code)
 
-        return mermaid_code
+        return f"```mermaid\n{mermaid_code}\n```"
 
     tools.append(visualize_graph)
 
