@@ -75,6 +75,21 @@
                 </div>
             </div>
 
+            <!-- Tool Message -->
+            <div *ngIf="msg.type === 'tool'" class="flex justify-start gap-4 max-w-2xl mx-auto w-full">
+                <div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-on-surface/50 shrink-0 shadow-sm border border-outline-variant/10">
+                    <span class="material-symbols-outlined text-sm" data-icon="build">build</span>
+                </div>
+                <div class="bg-surface-container-low p-4 rounded-2xl rounded-tl-none border border-outline-variant/10 shadow-sm max-w-[80%] flex items-center gap-2">
+                    <span class="text-xs font-mono text-on-surface-variant bg-surface-container-high px-2 py-1 rounded border border-outline-variant/10">
+                        [Tool Call: {{ msg.name || 'Unknown Tool' }}]
+                    </span>
+                    <span class="text-xs text-outline/50" *ngIf="msg.duration">
+                        {{ msg.duration }}
+                    </span>
+                </div>
+            </div>
+
             <!-- Error Message -->
             <div *ngIf="msg.type === 'error'" class="flex justify-start gap-4 max-w-2xl mx-auto w-full">
                 <div class="w-8 h-8 rounded-full bg-error-container flex items-center justify-center text-error shrink-0 border border-error/10">
