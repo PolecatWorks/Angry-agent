@@ -331,6 +331,10 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         });
     }
 
+    toggleTools(msg: Message) {
+        msg.showTools = !msg.showTools;
+    }
+
     stopPolling() {
         this.sending = false;
         this.pollCount = 0;
