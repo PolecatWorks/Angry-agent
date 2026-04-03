@@ -15,7 +15,7 @@ spec:
   values:
     image:
       repository: ghcr.io/polecatworks/angry-agent-ui
-      tag: sha-f441fa8d4a23f01fba5f4b0e0d51cad761543518
+      tag: sha-611505125f32b056100bb18bf34a56497e590303
       pullPolicy: Always # Dev ONLY
     env:
       - name: SERVE_ROOT
