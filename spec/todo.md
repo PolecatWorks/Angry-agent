@@ -55,6 +55,6 @@ These tests should verify the BREAD (Browse, Read, Edit, Add, Delete) operations
 10. [ ] **`add_visualization`**
     *   [ ] Test happy path: Pass a brand new `MFEContent` object and a dummy `tool_call_id`. Verify the function returns a `Command` with `"action": "add"` in the visualizations update list, and includes the correct `ToolMessage`.
 
-11. [ ] **`delete_visualization`**
-    *   [ ] Test happy path: Pass an ID that exists in the mock state and a dummy `tool_call_id`. Verify the function returns a `Command` with `"action": "delete"` and the correct ID in the visualizations update list, plus the `ToolMessage`.
-    *   [ ] Test missing ID: Pass an ID that does not exist in the mock state. Verify the tool raises a `ToolException`.
+11. [x] **`delete_visualization`**
+    *   [x] Test happy path: Pass an ID that exists in the mock state and a dummy `tool_call_id`. Verify the function returns a `Command` with `"action": "delete"` and the correct ID in the visualizations update list, plus the `ToolMessage`.
+    *   [x] Test missing ID: Pass an ID that does not exist in the mock state. Verify the tool raises a `ToolException`.
