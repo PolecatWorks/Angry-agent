@@ -24,12 +24,17 @@ The `agent-ui-container` is the frontend application of the AI Agent application
 ## 4. Features & Functionality
 
 ### 4.1 Chat Interface
-The primary interface is a chat window that allows users to send messages to the backend AI agent and view responses. The history of the chat is fetched from and persisted by the backend. The interface uses a polling mechanism to retrieve the agent's progress, continuously polling until an AI message with the `packaged: True` flag in `additional_kwargs` is received, indicating the completion of the turn. The right-side visualization panel (AI Workspace) is synchronized with this polling mechanism, refreshing its content immediately whenever any state update is detected, including new pinned or modified visualizations. When the agent is idle, the panel uses a slower fallback polling interval to maintain data consistency without excessive network overhead.
+The primary interface is a chat window that allows users to send messages to the backend AI agent and view responses. The history of the chat is fetched from and persisted by the backend. 
+- **Reactive Workspace Synchronization**: The interface uses a polling mechanism to retrieve the agent's progress. Instead of relying on manual refreshes, the visualization panel is synchronized reactively via a `BehaviorSubject` in the `ChatService`. Whenever the agent completes a turn (indicated by `packaged: True`) or history is fetched, the workspace state is updated instantly in the UI.
+- **Progress Tracking**: The UI polls the backend continuously until the final `packaged: True` flag is received. During this period, any intermediate state updates (like newly pinned components) are reflected in real-time.
 
 The interface supports rendering rich media:
 - **Image Blocks**: Renders full-width images via `image_url` metadata.
-- **Mermaid Diagrams**: Renders interactive Mermaid diagrams using the `MermaidShow` component from the `mfe1` remote. Diagrams are dynamically loaded for any message containing `mermaid_diagrams` metadata.
-- **Dynamic MFE Rendering & Workspace Management**: Supports loading and rendering any remote MFE component dynamically via the `MfeRenderer`. These rendered visualization components are labeled using a backend-provided `name` rather than relying on the MFE itself. Using a BREAD (Browse, Read, Edit, Add, Delete) toolset, the agent can explicitly pin, modify, or remove these visualizations from the user's workspace based on the `AgentState.visualizations` state. This is also used to display interactive or structured content (e.g., `JsonShow` from `mfe1`) based on `mfe_contents` metadata returned by agent tools.
+- **Mermaid Diagrams**: Renders interactive Mermaid diagrams. Diagrams are automatically extracted from messages by the backend and loaded dynamically in the UI.
+- **Dynamic MFE Rendering & Workspace Management**: Supports loading and rendering any remote MFE component dynamically via the `MfeRenderer`.
+- **Interactive Visualization Panel**: 
+    - **JSON View**: A debug feature allow users to toggle a raw JSON view for any pinned visualization, facilitating inspection of the data being rendered.
+    - **MFE Action Handling**: MFEs can emit actions (e.g., button clicks within a chart) which the UI intercepts and sends back to the AI agent as a system-formatted message. This allows for true two-way interaction between the agent and generated components.
 - **Conditional Content Rendering**: To reduce visual redundancy, the text content of an AI message is automatically hidden if it contains one or more `mfe_contents`. In these cases, the MFE is shown as the primary response.
 
 ### 4.2 Multi-User Isolation

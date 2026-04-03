@@ -3,6 +3,8 @@
 ## 🚀 Core Technology
 - **Framework**: [Aiohttp](https://docs.aiohttp.org/) (Asynchronous HTTP Server)
 - **AI Engine**: [LangGraph](https://langchain-ai.github.io/langgraph/) (Stateful Multi-Agent Orchestration)
+- **State Management**: Unified persistence using LangGraph PostgreSQL checkpointers for both chat history and workspace visualizations.
+- **Response Pipeline**: Includes a deterministic `post_process_node` for reliable MFE/Mermaid metadata extraction and a tool-call repair mechanism in the generation path.
 - **Database**: [PostgreSQL](https://www.postgresql.org/) (State Persistence and Checkpointing)
 
 For detailed functional and architectural specifications, see the [PRD](./spec/prd.md).
