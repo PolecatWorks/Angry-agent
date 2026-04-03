@@ -64,7 +64,7 @@ async def test_agent_uses_visualize_graph_tool():
     async def mock_packager_invoke(messages):
         # Return a simple mock MFEContainer
         return {"parsed": MFEContainer(mfes=[
-            MFEContent(mfe="mfe1", component="./MermaidShowWrapper", content={"content": "graph TD; A-->B"}, pin_to_pane=False, name="Graph", description="Graph")
+            MFEContent(provider="mfe1", component="./MermaidShowWrapper", content={"content": "graph TD; A-->B"}, title="Graph", pin_to_pane=False, name="Graph", description="Graph")
         ]), "raw": AIMessage(content="Packaged response")}
 
     structured_mock.ainvoke = AsyncMock(side_effect=mock_packager_invoke)
