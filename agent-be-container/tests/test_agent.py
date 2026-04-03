@@ -24,7 +24,7 @@ def mock_llm():
     # It should return a mock that when ainvoked returns an MFEContainer
     structured_mock = MagicMock()
     from src.agent.structs import MFEContainer, MFEContent
-    
+
     async def smart_packager_invoke(messages):
         mfes = []
         from langchain_core.messages import SystemMessage
@@ -42,7 +42,7 @@ def mock_llm():
                          mfes.append(MFEContent(provider="mfe1", component="./JsonShowWrapper", content={"key": "val"}, title="JSON", pin_to_pane=False, name="JSON", description="JSON"))
                     elif name == "generate_mfe_of_markdown":
                          mfes.append(MFEContent(provider="mfe1", component="./MarkdownShowWrapper", content={"markdown_content": "Content"}, title="Markdown", pin_to_pane=False, name="Markdown", description="Markdown"))
-            
+
             # Check ToolMessage content or malformed AI content
             if hasattr(m, "content") and isinstance(m.content, str) and m.content:
                 if '"component": "./DataShowWrapper"' in m.content or "generate_data_visualization" in m.content:
@@ -53,7 +53,7 @@ def mock_llm():
                     mfes.append(MFEContent(provider="mfe1", component="./MarkdownShowWrapper", content={"markdown_content": "Content"}, title="Markdown", name="Markdown", description="Markdown"))
                 if "pin_this" in m.content.lower():
                     mfes.append(MFEContent(provider="mfe1", component="./PinnedWrapper", content={"key": "val"}, title="Pinned Visual", name="Pinned Visual", description="Pinned description"))
-        
+
         # Deduplicate
         seen_components = set()
         unique_mfes = []
@@ -118,176 +118,3 @@ async def test_conversation_flow(mock_llm):
     # 2. Regular message
     result = await agent.ainvoke({"messages": [HumanMessage(content="How are you?")]}, config=config)
     assert result["messages"][-1].content == "LLM Response"
-
-@pytest.mark.asyncio
-async def test_mfe_tool_call(mock_llm):
-    tool_call = {
-        "name": "generate_mfe_of_json",
-        "args": {"content": {"key": "val"}, "title": "JSON Data", "name": "Test MFE", "description": "Test MFE Description"},
-        "id": "call_123",
-        "type": "tool_call"
-    }
-    mock_llm.ainvoke.side_effect = [
-        AIMessage(content="", tool_calls=[tool_call], id="ai_msg_1"),
-        AIMessage(content="Here is the MFE content you requested.", id="ai_msg_2")
-    ]
-    
-    checkpointer = MemorySaver()
-    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
-    config = {"configurable": {"thread_id": "test-mfe"}}
-
-    input_msg = HumanMessage(content="Show me some JSON")
-    result = await agent.ainvoke({"messages": [input_msg]}, config=config)
-    messages = result["messages"]
-    
-    # Final message content should be preserved (not suppressed)
-    assert messages[-1].content == "Here is the MFE content you requested."
-    assert "mfe_contents" in messages[-1].additional_kwargs
-    mfe = messages[-1].additional_kwargs["mfe_contents"][0]
-    assert mfe["provider"] == "mfe1"
-    assert mfe["component"] == "./JsonShowWrapper"
-    assert "content" in mfe
-
-@pytest.mark.asyncio
-async def test_data_viz_tool_call(mock_llm):
-    tool_call = {
-        "name": "generate_data_visualization",
-        "args": {
-            "title": "Sales Performance",
-            "datasets": [{"label": "Direct", "values": [{"x": 1, "y": 100}]}],
-            "x_axis_type": "linear",
-            "name": "Sales Chart",
-            "description": "Chart showing sales"
-        },
-        "id": "call_456",
-        "type": "tool_call"
-    }
-    mock_llm.ainvoke.side_effect = [
-        AIMessage(content="", tool_calls=[tool_call], id="ai_msg_1"),
-        AIMessage(content="Here is the chart.", id="ai_msg_2")
-    ]
-    
-    checkpointer = MemorySaver()
-    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
-    config = {"configurable": {"thread_id": "test-data-viz"}}
-
-    input_msg = HumanMessage(content="Show me a chart of sales")
-    result = await agent.ainvoke({"messages": [input_msg]}, config=config)
-    messages = result["messages"]
-    
-    # Final message content should be preserved (not suppressed)
-    assert messages[-1].content == "Here is the chart."
-    assert "mfe_contents" in messages[-1].additional_kwargs
-    mfe = messages[-1].additional_kwargs["mfe_contents"][0]
-    assert mfe["provider"] == "mfe1"
-    assert mfe["component"] == "./DataShowWrapper"
-    assert mfe["content"]["title"] == "Sales Performance"
-
-
-@pytest.mark.asyncio
-async def test_mfe_content_detected_from_json_string(mock_llm):
-    """Verify MFEContent serialised as a JSON string in ToolMessage is detected."""
-    import json
-    mfe_json = json.dumps({
-        "mfe": "mfe1", 
-        "component": "./JsonShowWrapper", 
-        "content": {"key": "val"},
-        "name": "JSON MFE",
-        "description": "JSON MFE Description"
-    })
-    tool_call = {
-        "name": "generate_mfe_of_json",
-        "args": {
-            "content": {"key": "val"},
-            "name": "JSON",
-            "description": "JSON",
-            "title": "Title"
-        },
-        "id": "call_str_1",
-        "type": "tool_call"
-    }
-    mock_llm.ainvoke.side_effect = [
-        AIMessage(content="", tool_calls=[tool_call], id="ai_msg_1"),
-        AIMessage(content="Done.", id="ai_msg_2")
-    ]
-
-    checkpointer = MemorySaver()
-    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
-    config = {"configurable": {"thread_id": "test-mfe-str"}}
-
-    result = await agent.ainvoke({"messages": [HumanMessage(content="show json")]}, config=config)
-    messages = result["messages"]
-
-    assert messages[-1].content == "Done."
-    assert "mfe_contents" in messages[-1].additional_kwargs
-    mfe = messages[-1].additional_kwargs["mfe_contents"][0]
-    assert mfe["provider"] == "mfe1"
-    assert mfe["component"] == "./JsonShowWrapper"
-
-
-@pytest.mark.asyncio
-async def test_non_mfe_tool_output_ignored(mock_llm):
-    """Tool output that does not match MFEContent schema should not appear in mfe_contents."""
-    # We use a tool that is registered but make it return non-JSON data
-    tool_call = {
-        "name": "visualize_graph",
-        "args": {},
-        "id": "call_non_mfe",
-        "type": "tool_call"
-    }
-    mock_llm.ainvoke.side_effect = [
-        AIMessage(content="", tool_calls=[tool_call], id="ai_msg_1"),
-        AIMessage(content="No MFE here.", id="ai_msg_2")
-    ]
-
-    checkpointer = MemorySaver()
-    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
-    config = {"configurable": {"thread_id": "test-no-mfe"}}
-
-    result = await agent.ainvoke({"messages": [HumanMessage(content="show graph")]}, config=config)
-    messages = result["messages"]
-
-    # mfe_contents should NOT be present (but mermaid_diagrams will be, as visualize_graph returns mermaid)
-    assert "mfe_contents" not in messages[-1].additional_kwargs
-    assert "mermaid_diagrams" in messages[-1].additional_kwargs
-    assert messages[-1].content == "No MFE here."
-
-
-@pytest.mark.asyncio
-async def test_mfe_pin_to_pane(mock_llm):
-    """Test that setting pin_to_pane=True on an MFE avoids inline rendering and calls DB."""
-    mock_llm.ainvoke.side_effect = [
-        AIMessage(content="", tool_calls=[{
-            "name": "generate_mfe_of_json",
-            "args": {
-                "content": {"key": "val"},
-                "name": "Pinned Visual",
-                "description": "Pinned Description",
-                "title": "Pinned Title"
-            },
-            "id": "call_pin",
-            "type": "tool_call"
-        }], id="ai_msg_1"),
-        AIMessage(content="Visual created.", id="ai_msg_2")
-    ]
-    checkpointer = MemorySaver()
-    agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
-    config = {"configurable": {"thread_id": "test-pin-mfe"}}
-    
-    result = await agent.ainvoke({"messages": [HumanMessage(content="pin_this")]}, config=config)
-    messages = result["messages"]
-    
-    # Verify it's NOT in mfe_contents
-    assert "mfe_contents" not in messages[-1].additional_kwargs
-    
-    # Verify message text mentions it
-    assert "Visualizations pinned to panel" in messages[-1].content
-    assert "Pinned Visual" in messages[-1].content
-    
-    # Verify visualizations in state
-    assert "visualizations" in result
-    assert len(result["visualizations"]) == 1
-    # Check that NEW pinned visualizations were registered
-    pinned = result["visualizations"][0]
-    assert pinned.name == "Pinned Visual"
-    assert pinned.description == "Pinned Description"

@@ -21,7 +21,7 @@ from .generate import (
 
 logger = logging.getLogger(__name__)
 
-def get_tools(builder):
+def get_tools(builder: StateGraph):
     """Returns a list of tools available for the agent."""
     tools = [
         generate_data_visualization,
