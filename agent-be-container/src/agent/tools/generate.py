@@ -18,7 +18,7 @@ async def generate_mfe_of_json(input: JsonInput, config: RunnableConfig) -> MFEC
     """
     Generate a MFEContent representing the JSON provided within input
     """
-    logger.info(f"Tool generate_mfe_of_json called: {content}")
+    logger.info(f"Tool generate_mfe_of_json called: {input.content}")
 
     return MFEContent(
         **input.model_dump(),
@@ -35,7 +35,7 @@ async def generate_mfe_of_markdown(input: MarkdownInput, config: RunnableConfig)
     """
     Generate a MFEContent representing the markdown input provided in the content variable.
     """
-    logger.info(f"Tool generate_mfe_of_markdown called: {content}")
+    logger.info(f"Tool generate_mfe_of_markdown called: {input.content}")
 
     return MFEContent(
         **input.model_dump(),
@@ -56,7 +56,7 @@ async def generate_mfe_of_text(input: TextInput, config: RunnableConfig) -> MFEC
     You can use it as preamble or description before and after more complex visualisation components.
     It only supports line wrapping and basic styling.
     """
-    logger.info(f"Tool generate_mfe_of_text called: {content}")
+    logger.info(f"Tool generate_mfe_of_text called: {input.content}")
 
     return MFEContent(
         **input.model_dump(),
@@ -99,7 +99,7 @@ async def generate_mfe_of_mermaid(input: MermaidInput, config: RunnableConfig) -
     """
     Generate a pretty rendered version of the input mermaid diagram.
     """
-    logger.info(f"Tool generate_mfe_of_mermaid called: {content}")
+    logger.info(f"Tool generate_mfe_of_mermaid called: {input.content}")
     reply = MFEContent(
         **input.model_dump(),
         provider="mfe1",
@@ -133,7 +133,7 @@ async def generate_data_visualization(input: DataVizInput, config: RunnableConfi
     Generates a high-quality data visualization (line graph) in the UI.
     Use this tool when the user asks for charts, graphs, trends, or data comparisons.
     """
-    logger.info(f"Tool generate_data_visualization called: {title}")
+    logger.info(f"Tool generate_data_visualization called: {input.content.title}")
     return MFEContent(
         **input.model_dump(),
         provider="mfe1",

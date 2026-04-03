@@ -1,11 +1,11 @@
-from langchain_core.tools import ToolException
+from langchain_core.tools import tool, ToolException, InjectedToolCallId
 import json
 import uuid
 import logging
 from typing import List, Annotated
 from pydantic import BaseModel, Field
-from langchain_core.tools import tool
 from langchain_core.runnables import RunnableConfig
+from langchain_core.messages import ToolMessage
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 
@@ -41,9 +41,8 @@ async def read_visualization(id: str, state: Annotated[AgentState, InjectedState
 
 class EditVisualizationInput(BaseModel):
     id: str = Field(description="The ID of the visualization to edit")
-    content: dict = Field(description="The new content for the MFE")
-    name: str | None = Field(default=None, description="Optional new display name for the visualization")
-    description: str | None = Field(default=None, description="Optional new description")
+    order_index: int | None = Field(default=None, description="Optional new order index for the visualization")
+
 
 @tool()
 async def edit_visualization(mfe: MFEContent, state: Annotated[AgentState, InjectedState]) -> Command:
@@ -67,12 +66,7 @@ async def edit_visualization(mfe: MFEContent, state: Annotated[AgentState, Injec
     # Signal the change to the state reducer
     update_data = {
         "id": id,
-        "mfe": existing.mfe,
-        "component": existing.component,
-        "content": content,
-        "name": name or existing.name,
-        "description": description or existing.description,
-        "pin_to_pane": True,
+        "order_index": order_index,
         "action": "update"
     }
 
@@ -116,7 +110,7 @@ async def delete_visualization(id: str, state: Annotated[AgentState, InjectedSta
             break
 
     if not found:
-        return Command(update={})
+        raise ToolException(f"Visualization {id} not found.")
 
     # Signal the deletion to the state reducer
     delete_data = {
