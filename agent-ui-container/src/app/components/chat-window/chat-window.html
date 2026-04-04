@@ -62,7 +62,7 @@
                         </div>
                     </div>
 
-                    <div *ngIf="!msg.additional_kwargs?.['mfe_contents']?.length && msg.content" class="text-sm text-on-surface leading-relaxed markdown-body" [innerHTML]="msg.content | markdown"></div>
+                    <div *ngIf="msg.content" class="text-sm text-on-surface leading-relaxed markdown-body" [innerHTML]="msg.content | markdown"></div>
 
                     <!-- Image Block -->
                     <div *ngIf="msg.additional_kwargs?.['image_url'] as imageUrl" class="image-block mt-4 relative group cursor-pointer overflow-hidden rounded-xl bg-surface-container-low border border-outline-variant/10 aspect-video flex items-center justify-center">
@@ -70,15 +70,6 @@
                         <div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <span class="bg-white/90 backdrop-blur px-4 py-2 rounded-full font-bold text-[10px] text-primary uppercase tracking-widest shadow-xl">Expand View</span>
                         </div>
-                    </div>
-
-                    <div *ngFor="let mfe of msg.additional_kwargs?.['mfe_contents']" class="mt-4">
-                        <app-mfe-renderer [mfe]="mfe.provider" [component]="mfe.component" [content]="mfe.content" [id]="mfe.id" (action)="handleMfeAction($event, mfe.id)"></app-mfe-renderer>
-                    </div>
-
-                    <!-- Mermaid Diagrams -->
-                    <div *ngIf="msg.additional_kwargs?.['mermaid_diagrams'] as diagrams" class="mt-4 space-y-4">
-                        <app-mermaid-renderer *ngFor="let diagram of diagrams" [content]="diagram"></app-mermaid-renderer>
                     </div>
 
                     <div *ngIf="msg.usage_metadata || msg.duration" class="text-[10px] text-outline/60 mt-2 pt-2 border-t border-outline-variant/10 flex items-center gap-3">

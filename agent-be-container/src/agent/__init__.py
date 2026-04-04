@@ -20,24 +20,6 @@ import uuid
 logger = logging.getLogger(__name__)
 
 
-def extract_mermaid(text: str) -> List[str]:
-    """Extracts and cleans all mermaid diagrams from markdown code blocks."""
-    if not text:
-        return []
-
-    # More flexible pattern: allow optional newlines and varying whitespace
-    pattern = r"```mermaid\s*\n?(.*?)\n?\s*```"
-    matches = re.findall(pattern, text, re.DOTALL)
-
-    # Strip any HTML tags that might break rendering
-    cleaned_matches = []
-    for m in matches:
-        cleaned = re.sub(r'<[^>]+>', '', m).strip()
-        if cleaned:
-            cleaned_matches.append(cleaned)
-
-    return cleaned_matches
-
 
 def _try_parse_mfe_content(content) -> MFEContent | None:
     """Attempt to parse content as MFEContent using Pydantic validation.
@@ -161,12 +143,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
 
     async def post_process_node(state: AgentState):
         """Post-processes messages after the LLM/tool loop.
-
-        Walks messages in the current turn to extract MFE content and mermaid diagrams.
-        Detected payloads are attached to the final AIMessage's additional_kwargs.
-        Pinned visualizations are added to the visualizations state.
-
-        Original message content is preserved.
+        Identifies pinned visualizations from tool calls and appends a summary to the final message.
         """
         logger.info("Entering post_process_node")
         messages = state.messages
@@ -182,52 +159,35 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
         if not last_ai_msg:
             return {}
 
-        mfe_contents = []
-        mermaid_diagrams = []
-        new_visualizations = []
-
         # Process all messages since the last HumanMessage (the current turn)
-        current_turn_messages = []
+        messages_since_human = []
         for m in reversed(messages):
             if isinstance(m, HumanMessage):
                 break
-            current_turn_messages.append(m)
-        # Process in chronological order to maintain sequence
-        for m in reversed(current_turn_messages):
-            # 1. Try to extract MFEContent from message content
-            content = getattr(m, "content", None)
-            if content:
-                mfe = _try_parse_mfe_content(content)
-                if mfe:
-                    logger.info(f"Detected MFEContent in message type={type(m).__name__}: {mfe.component}")
-                    # Always treat detected MFEContent in messages as inline/unpinned
-                    mfe_contents.append(mfe.model_dump())
-                # 2. Extract Mermaid diagrams from text content
-                if isinstance(content, str):
-                    diagrams = extract_mermaid(content)
-                    if diagrams:
-                        logger.info(f"Extracted {len(diagrams)} mermaid diagrams from message type={type(m).__name__}")
-                        mermaid_diagrams.extend(diagrams)
+            messages_since_human.append(m)
 
-        # 3. Update the last message's metadata
+        new_visualizations = []
+        for m in messages_since_human:
+            if hasattr(m, 'tool_calls') and m.tool_calls:
+                for tc in m.tool_calls:
+                    if tc.get('name') == "add_visualization":
+                        args = tc.get("args", {})
+                        mfe_arg = args.get("mfe")
+                        if mfe_arg:
+                            mfe = _try_parse_mfe_content(mfe_arg)
+                            if mfe:
+                                 new_visualizations.append(mfe.model_dump())
+
+        # Update the last message's metadata
         updated_kwargs = last_ai_msg.additional_kwargs.copy() if last_ai_msg.additional_kwargs else {}
-        changed = False
-        if mfe_contents:
-            updated_kwargs["mfe_contents"] = mfe_contents
-            print(f"DEBUG: Added {len(mfe_contents)} inline MFEs to metadata")
-            changed = True
-        if mermaid_diagrams:
-            updated_kwargs["mermaid_diagrams"] = mermaid_diagrams
-            print(f"DEBUG: Added {len(mermaid_diagrams)} mermaid diagrams to metadata")
-            changed = True
-        # 4. Add summary for pinned visualizations to the message text
+        
+        # Add summary for pinned visualizations to the message text
         pinned_names = [v["name"] for v in new_visualizations]
         updated_content = last_ai_msg.content or ""
         if pinned_names:
             if updated_content:
                 updated_content += "\n\n"
             updated_content += "**Visualizations pinned to panel:**\n- " + "\n- ".join(pinned_names)
-            changed = True
 
         # Standard metadata
         updated_kwargs["timestamp"] = datetime.now(timezone.utc).isoformat()
@@ -241,11 +201,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             usage_metadata=getattr(last_ai_msg, "usage_metadata", None)
         )
 
-        result = {"messages": [updated_msg]}
-        if new_visualizations:
-            result["visualizations"] = new_visualizations
-        print("DEBUG: Exiting post_process_node successfully")
-        return result
+        return {"messages": [updated_msg]}
 
 
     async def llm_node(state: AgentState):

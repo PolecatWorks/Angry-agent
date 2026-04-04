@@ -30,7 +30,8 @@ export class MfeRenderer implements AfterViewInit, OnDestroy {
       if (m && m.mount) {
         // Pass the content directly as props, including the ID
         const props = {
-          ...(this.content || { content: this.data } || {}),
+          content: this.content,
+          data: this.data || this.content,
           id: this.id,
           onAction: (actionStr: string, payload: any) => {
             this.action.emit({ action: actionStr, payload });
