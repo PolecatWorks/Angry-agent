@@ -20,17 +20,24 @@ export class MainLayout {
   isResizing = false;
 
   constructor(private router: Router) {
+    // Initial extraction in case we're already at the URL on load
+    this.extractThreadId(this.router.url);
+
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: any) => {
-      // Extract threadId from URL if present (e.g. /chat/123-abc)
-      const urlMatches = event.urlAfterRedirects.match(/\/chat\/([^\/]+)/);
-      if (urlMatches && urlMatches[1]) {
-        this.activeThreadId = urlMatches[1];
-      } else {
-        this.activeThreadId = null;
-      }
+      this.extractThreadId(event.urlAfterRedirects || event.url);
     });
+  }
+
+  private extractThreadId(url: string) {
+    // Extract threadId from URL if present (e.g. /chat/123-abc)
+    const urlMatches = url.match(/\/chat\/([^\/]+)/);
+    if (urlMatches && urlMatches[1]) {
+      this.activeThreadId = urlMatches[1];
+    } else {
+      this.activeThreadId = null;
+    }
   }
 
   startResizing(event: MouseEvent) {
