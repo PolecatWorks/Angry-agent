@@ -125,6 +125,90 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         }
     }
 
+    processMessages(rawMessages: Message[]): Message[] {
+        const processed: Message[] = [];
+        let currentAiGroup: Message | null = null;
+        let aiMessagesGroup = [];
+
+        for (const msg of rawMessages) {
+            if (msg.type === 'human' || msg.type === 'error') {
+                if (currentAiGroup) {
+                    processed.push(currentAiGroup);
+                    currentAiGroup = null;
+                }
+                processed.push(msg);
+            } else {
+                if (!currentAiGroup) {
+                    // Start a new AI group
+                    currentAiGroup = {
+                        type: 'ai',
+                        content: '',
+                        additional_kwargs: {
+                            tool_calls: []
+                        },
+                        usage_metadata: {
+                            input_tokens: 0,
+                            output_tokens: 0,
+                            total_tokens: 0
+                        }
+                    };
+                }
+
+                if (msg.type === 'ai') {
+                    // Update content if present (usually the last message has the final content)
+                    if (msg.content) {
+                        currentAiGroup.content = msg.content;
+                    }
+
+                    if (msg.additional_kwargs) {
+                        // Merge tool calls
+                        if (msg.additional_kwargs['tool_calls']) {
+                            for (const tc of msg.additional_kwargs['tool_calls']) {
+                                currentAiGroup.additional_kwargs!['tool_calls']!.push({...tc});
+                            }
+                        }
+                        // Copy image url, questions
+                        if (msg.additional_kwargs['image_url']) {
+                            currentAiGroup.additional_kwargs!['image_url'] = msg.additional_kwargs['image_url'];
+                        }
+                        if (msg.additional_kwargs['follow_up_questions']) {
+                            currentAiGroup.additional_kwargs!['follow_up_questions'] = msg.additional_kwargs['follow_up_questions'];
+                        }
+                    }
+
+                    // Sum usage
+                    if (msg.usage_metadata && currentAiGroup.usage_metadata) {
+                        currentAiGroup.usage_metadata.input_tokens = (currentAiGroup.usage_metadata.input_tokens || 0) + (msg.usage_metadata.input_tokens || 0);
+                        currentAiGroup.usage_metadata.output_tokens = (currentAiGroup.usage_metadata.output_tokens || 0) + (msg.usage_metadata.output_tokens || 0);
+                        currentAiGroup.usage_metadata.total_tokens = (currentAiGroup.usage_metadata.total_tokens || 0) + (msg.usage_metadata.total_tokens || 0);
+                        if (msg.usage_metadata.max_tokens) {
+                            currentAiGroup.usage_metadata.max_tokens = msg.usage_metadata.max_tokens;
+                        }
+                    }
+
+                    if (msg.duration) {
+                        currentAiGroup.duration = msg.duration;
+                    }
+
+                } else if (msg.type === 'tool') {
+                    // Find the tool call and attach the response
+                    if (msg.tool_call_id && currentAiGroup.additional_kwargs?.['tool_calls']) {
+                        const tc = currentAiGroup.additional_kwargs['tool_calls'].find(t => t.id === msg.tool_call_id);
+                        if (tc) {
+                            tc.response = msg.content;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (currentAiGroup) {
+            processed.push(currentAiGroup);
+        }
+
+        return processed;
+    }
+
     loadHistory(threadId: string) {
         this.stopPolling();
         this.loading = true;
@@ -135,7 +219,8 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                 this.threadColor = res.thread?.color || null;
                 this.currentStatusMsg = res.thread?.status_msg || null;
                 this.lastStatusUpdatedAtStr = res.thread?.status_updated_at || null;
-                this.messages = res.messages;
+
+                this.messages = this.processMessages(res.messages);
 
                 this.loading = false;
                 this.pollCount = 0;
@@ -274,7 +359,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                     this.stepStartTime = newUpdatedAtStr ? new Date(newUpdatedAtStr).getTime() + this.serverOffset : Date.now();
                 }
 
-                const messages = res.messages;
+                const messages = this.processMessages(res.messages);
 
                 // Preserve local durations
                 for (let i = 0; i < messages.length; i++) {
