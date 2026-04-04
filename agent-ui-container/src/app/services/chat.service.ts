@@ -26,6 +26,7 @@ export interface Message {
   duration?: string;
   created_at?: string;
   name?: string;
+  tool_call_id?: string;
   usage_metadata?: {
     input_tokens?: number;
     output_tokens?: number;

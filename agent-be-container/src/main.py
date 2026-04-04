@@ -206,20 +206,15 @@ async def get_history(request):
         ai_msg_with_tools = None
 
         for m in state.values["messages"]:
-
-            # If it's a tool response, map it back to the corresponding tool call in the previous ai message
-            if m.type == "tool" and ai_msg_with_tools is not None:
-                tool_call_id = getattr(m, "tool_call_id", None)
-                if tool_call_id and "tool_calls" in ai_msg_with_tools.get("additional_kwargs", {}):
-                    for tc in ai_msg_with_tools["additional_kwargs"]["tool_calls"]:
-                        if tc.get("id") == tool_call_id:
-                            tc["response"] = getattr(m, "content", "")
-                continue
-
             msg_dict = {"type": m.type, "content": getattr(m, "content", "")}
 
             if hasattr(m, "name") and m.name:
                 msg_dict["name"] = m.name
+
+            if m.type == "tool":
+                tool_call_id = getattr(m, "tool_call_id", None)
+                if tool_call_id:
+                    msg_dict["tool_call_id"] = tool_call_id
 
             msg_timestamp = None
 
@@ -242,9 +237,6 @@ async def get_history(request):
                 if "additional_kwargs" not in msg_dict:
                     msg_dict["additional_kwargs"] = {}
                 msg_dict["additional_kwargs"]["tool_calls"] = tool_calls
-                ai_msg_with_tools = msg_dict
-            elif m.type != "tool":
-                ai_msg_with_tools = None
 
             if m.type == "human" and msg_timestamp:
                 try:
