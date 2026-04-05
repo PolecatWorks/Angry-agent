@@ -109,10 +109,12 @@ async def chat_endpoint(request):
         thread_id = str(uuid.uuid4())
 
     pool = await get_db_pool()
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT user_id, learning_mode_enabled FROM threads WHERE thread_id = $1", thread_id)
+    llm_handler: LLMHandler = request.app["llm_handler"]
 
-        learning_mode_for_thread = None
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
+
+        is_new_thread = False
 
         if row:
             if row["user_id"] != user_id:
@@ -120,14 +122,11 @@ async def chat_endpoint(request):
                 access_row = await conn.fetchrow("SELECT 1 FROM thread_access WHERE thread_id = $1 AND user_id = $2", thread_id, user_id)
                 if not access_row:
                     return web.json_response({"error": "Thread access denied"}, status=403)
-            learning_mode_for_thread = row.get("learning_mode_enabled")
         else:
-            # Fallback to user settings if new thread
-            user_row = await conn.fetchrow("SELECT learning_mode_enabled FROM users WHERE user_id = $1", user_id)
-            learning_mode_for_thread = user_row["learning_mode_enabled"] if user_row else False
+            is_new_thread = True
             await conn.execute(
-                "INSERT INTO threads (thread_id, user_id, title, learning_mode_enabled) VALUES ($1, $2, $3, $4)",
-                thread_id, user_id, message[:30], learning_mode_for_thread
+                "INSERT INTO threads (thread_id, user_id, title) VALUES ($1, $2, $3)",
+                thread_id, user_id, message[:30]
             )
 
         # Attempt to acquire the lock
@@ -141,9 +140,19 @@ async def chat_endpoint(request):
         if not locked_row:
             return web.json_response({"error": "Thread is busy processing a previous request."}, status=409)
 
+    # For new threads, initialize the state with the user's default learning mode setting
+    if is_new_thread:
+        async with pool.acquire() as conn:
+            user_row = await conn.fetchrow("SELECT learning_mode_enabled FROM users WHERE user_id = $1", user_id)
+            user_learning_mode = user_row["learning_mode_enabled"] if user_row else False
+
+        # Initialize state with the default setting
+        agent_config = {"configurable": {"thread_id": thread_id}}
+        await llm_handler.agent.aupdate_state(agent_config, {"learning_mode_enabled": user_learning_mode})
+
+
     # --- Agent Logic ---
-    llm_handler: LLMHandler = request.app["llm_handler"]
-    await llm_handler.chat_async(thread_id, message, learning_mode_enabled=learning_mode_for_thread, bypass_learning_mode=bypass_learning_mode)
+    await llm_handler.chat_async(thread_id, message, bypass_learning_mode=bypass_learning_mode)
 
     return web.json_response(
         {
@@ -175,7 +184,7 @@ async def list_threads(request):
         )
 
         query = """
-            SELECT DISTINCT t.thread_id, t.title, t.color, t.created_at, t.learning_mode_enabled
+            SELECT DISTINCT t.thread_id, t.title, t.color, t.created_at
             FROM threads t
             LEFT JOIN thread_access ta ON t.thread_id = ta.thread_id
             WHERE t.user_id = $1 OR ta.user_id = $1
@@ -228,7 +237,7 @@ async def get_history(request):
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT user_id, color, status_msg, status_updated_at, learning_mode_enabled FROM threads WHERE thread_id = $1", thread_id)
+        row = await conn.fetchrow("SELECT user_id, color, status_msg, status_updated_at FROM threads WHERE thread_id = $1", thread_id)
         if not row:
             return web.json_response({"thread": {"thread_id": thread_id}, "messages": []})
 
@@ -314,7 +323,7 @@ async def get_history(request):
                 "status_msg": row["status_msg"],
                 "status_updated_at": str(row["status_updated_at"]) if row["status_updated_at"] else None,
                 "current_server_time": datetime.now(timezone.utc).isoformat(),
-                "learning_mode_enabled": bool(row.get("learning_mode_enabled"))
+                "learning_mode_enabled": bool(state.values.get("learning_mode_enabled", False)) if state and state.values else False
             },
             "messages": messages_list,
             "visualizations": visualizations_list
@@ -360,26 +369,23 @@ async def update_thread(request):
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        if learning_mode_enabled is not None:
-            query = """
-                UPDATE threads
-                SET color = $1, title = $2, learning_mode_enabled = $3, updated_at = NOW()
-                WHERE thread_id = $4 AND user_id = $5
-            """
-            result = await conn.execute(query, color, title, learning_mode_enabled, thread_id, user_id)
-        else:
-            query = """
-                UPDATE threads
-                SET color = $1, title = $2, updated_at = NOW()
-                WHERE thread_id = $3 AND user_id = $4
-            """
-            result = await conn.execute(query, color, title, thread_id, user_id)
+        query = """
+            UPDATE threads
+            SET color = $1, title = $2, updated_at = NOW()
+            WHERE thread_id = $3 AND user_id = $4
+        """
+        result = await conn.execute(query, color, title, thread_id, user_id)
 
         # conn.execute returns a string like 'UPDATE 1' or 'UPDATE 0'
         if result == "UPDATE 0":
             return web.json_response({"error": "Not found or access denied"}, status=404)
 
-        return web.json_response({"status": "updated"})
+    if learning_mode_enabled is not None:
+        llm_handler: LLMHandler = request.app["llm_handler"]
+        agent_config = {"configurable": {"thread_id": thread_id}}
+        await llm_handler.agent.aupdate_state(agent_config, {"learning_mode_enabled": learning_mode_enabled})
+
+    return web.json_response({"status": "updated"})
 
 async def get_visualizations(request):
     config: ServiceConfig = request.app[keys.config]

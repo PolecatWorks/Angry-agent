@@ -380,7 +380,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
 
         # If it's a standard LLM task, check if we should intercept with learning mode
         if intent == "llm":
-            learning_mode_enabled = config.get("configurable", {}).get("learning_mode_enabled", False)
+            learning_mode_enabled = getattr(state, "learning_mode_enabled", False)
 
             # Check if this message was explicitly sent as a bypassed/confirmed learning mode choice
             messages = state.messages
