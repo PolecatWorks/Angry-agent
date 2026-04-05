@@ -87,7 +87,8 @@ class LLMHandler:
 
         # Store the human message in the state immediately before starting background task
         # This ensures that history calls find the message even if the graph hasn't started yet.
-        await self.agent.aupdate_state(agent_config, {"messages": [msg]})
+        # We specify as_node="initial" to avoid "Ambiguous update" errors when manual updates are made.
+        await self.agent.aupdate_state(agent_config, {"messages": [msg]}, as_node="initial")
 
         async def _run_graph():
 
@@ -128,7 +129,7 @@ class LLMHandler:
             except Exception as e:
                 logger.error(f"Error in background task for thread {thread_id}: {e}", exc_info=True)
                 err_msg = AIMessage(content=f"Oops! I encountered an error: {str(e)}", id=str(uuid.uuid4()))
-                await self.agent.aupdate_state(agent_config, {"messages": [err_msg]})
+                await self.agent.aupdate_state(agent_config, {"messages": [err_msg]}, as_node="initial")
             finally:
                 try:
                     pool = await get_db_pool()

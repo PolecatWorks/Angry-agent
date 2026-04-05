@@ -100,6 +100,7 @@ async def chat_endpoint(request):
 
     message = data.get("message")
     thread_id = data.get("thread_id")
+    bypass_learning_mode = data.get("bypass_learning_mode", False)
 
     if not message:
         return web.json_response({"error": "Message required"}, status=400)
@@ -108,8 +109,13 @@ async def chat_endpoint(request):
         thread_id = str(uuid.uuid4())
 
     pool = await get_db_pool()
+    llm_handler: LLMHandler = request.app["llm_handler"]
+
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
+
+        is_new_thread = False
+
         if row:
             if row["user_id"] != user_id:
                 # Check thread_access table for additional users
@@ -117,6 +123,7 @@ async def chat_endpoint(request):
                 if not access_row:
                     return web.json_response({"error": "Thread access denied"}, status=403)
         else:
+            is_new_thread = True
             await conn.execute(
                 "INSERT INTO threads (thread_id, user_id, title) VALUES ($1, $2, $3)",
                 thread_id, user_id, message[:30]
@@ -133,8 +140,18 @@ async def chat_endpoint(request):
         if not locked_row:
             return web.json_response({"error": "Thread is busy processing a previous request."}, status=409)
 
+    # For new threads, initialize the state with the user's default learning mode setting
+    if is_new_thread:
+        async with pool.acquire() as conn:
+            user_row = await conn.fetchrow("SELECT learning_mode_enabled FROM users WHERE user_id = $1", user_id)
+            user_learning_mode = user_row["learning_mode_enabled"] if user_row else False
+
+        # Initialize state with the default setting
+        agent_config = {"configurable": {"thread_id": thread_id}}
+        await llm_handler.agent.aupdate_state(agent_config, {"learning_mode_enabled": user_learning_mode}, as_node="initial")
+
+
     # --- Agent Logic ---
-    llm_handler: LLMHandler = request.app["llm_handler"]
     await llm_handler.chat_async(thread_id, message)
 
     return web.json_response(
@@ -179,6 +196,39 @@ async def list_threads(request):
             if t.get("created_at"): t["created_at"] = str(t["created_at"])
 
     return web.json_response({"threads": threads})
+
+async def get_user_settings(request):
+    user_id = request["user_id"]
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT learning_mode_enabled FROM users WHERE user_id = $1", user_id)
+        if not row:
+             return web.json_response({"learning_mode_enabled": False})
+        return web.json_response({"learning_mode_enabled": bool(row["learning_mode_enabled"])})
+
+async def update_user_settings(request):
+    user_id = request["user_id"]
+    try:
+        data = await request.json()
+    except:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    learning_mode_enabled = data.get("learning_mode_enabled")
+    if learning_mode_enabled is None:
+        return web.json_response({"error": "Missing 'learning_mode_enabled'"}, status=400)
+
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO users (user_id, learning_mode_enabled)
+            VALUES ($1, $2)
+            ON CONFLICT (user_id) DO UPDATE
+            SET learning_mode_enabled = EXCLUDED.learning_mode_enabled
+            """,
+            user_id, learning_mode_enabled
+        )
+    return web.json_response({"status": "updated"})
 
 async def get_history(request):
     config: ServiceConfig = request.app[keys.config]
@@ -272,7 +322,8 @@ async def get_history(request):
                 "color": row["color"],
                 "status_msg": row["status_msg"],
                 "status_updated_at": str(row["status_updated_at"]) if row["status_updated_at"] else None,
-                "current_server_time": datetime.now(timezone.utc).isoformat()
+                "current_server_time": datetime.now(timezone.utc).isoformat(),
+                "learning_mode_enabled": bool(state.values.get("learning_mode_enabled", False)) if state and state.values else False
             },
             "messages": messages_list,
             "visualizations": visualizations_list
@@ -314,6 +365,8 @@ async def update_thread(request):
     if color is None or title is None:
         return web.json_response({"error": "Missing 'color' or 'title' in request body"}, status=400)
 
+    learning_mode_enabled = data.get("learning_mode_enabled")
+
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         query = """
@@ -327,7 +380,12 @@ async def update_thread(request):
         if result == "UPDATE 0":
             return web.json_response({"error": "Not found or access denied"}, status=404)
 
-        return web.json_response({"status": "updated"})
+    if learning_mode_enabled is not None:
+        llm_handler: LLMHandler = request.app["llm_handler"]
+        agent_config = {"configurable": {"thread_id": thread_id}}
+        await llm_handler.agent.aupdate_state(agent_config, {"learning_mode_enabled": learning_mode_enabled}, as_node="initial")
+
+    return web.json_response({"status": "updated"})
 
 async def get_visualizations(request):
     config: ServiceConfig = request.app[keys.config]
@@ -425,6 +483,9 @@ def create_app_with_middleware(config: ServiceConfig):
 
     app.router.add_delete(f"{path_prefix}/api/threads/{{thread_id}}", delete_thread)
     app.router.add_put(f"{path_prefix}/api/threads/{{thread_id}}", update_thread)
+
+    app.router.add_get(f"{path_prefix}/api/user/settings", get_user_settings)
+    app.router.add_put(f"{path_prefix}/api/user/settings", update_user_settings)
 
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)

@@ -123,6 +123,13 @@ class MFEContainer(BaseModel):
     mfes: List[MFEContent] = Field(description="A list of MFE components to render in the UI")
 
 
+class PromptFeedback(BaseModel):
+    """Feedback on the user's prompt when learning mode is enabled."""
+    feedback_text: str = Field(description="Feedback on why the prompt is good or bad, and how it could be improved.")
+    improved_prompt: str = Field(description="A highly improved, more specific and context-rich version of the original prompt.")
+    alternatives: List[str] = Field(description="A list of 1-3 alternative ways to ask the question.")
+
+
 class FollowUpQuestions(BaseModel):
     """Suggested follow-up questions for the user to ask the AI agent based on the conversation history."""
     follow_up_questions: List[str] = Field(description="Exactly 3 highly contextual and relevant follow-up questions the user could ask next.")
@@ -131,3 +138,4 @@ class FollowUpQuestions(BaseModel):
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
     visualizations: Annotated[List[MFEContent], visualizations_reducer] = Field(default_factory=list)
+    learning_mode_enabled: bool = Field(default=False)

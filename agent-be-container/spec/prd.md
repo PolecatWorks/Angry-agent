@@ -63,16 +63,19 @@ The backend includes specific routing and post-processing mechanisms for process
         - `generate_data_visualization`: For interactive charts.
         - `generate_mfe_of_mermaid` and `visualize_graph`: For Mermaid diagrams.
 
-## 5. API Interface Expectations
-- Specific keywords (e.g., 'draw', 'picture', 'image') are intercepted and routed to an `image_node` which currently returns a placeholder image via `additional_kwargs`.
-
 ## 6. API Interface Expectations
-- The service exposes endpoints for the frontend to submit messages and fetch chat history. The `get_history` API exposes `additional_kwargs` on messages to support extended capabilities like returning image URLs.
+### 6.1 Chat & Threads
+- The service exposes endpoints for the frontend to submit messages (`/api/chat`), list threads (`/api/threads`), and fetch thread history (`/api/threads/{thread_id}/history`).
+- The `get_history` API exposes `additional_kwargs` on messages to support extended capabilities like returning image URLs, MFE content, and Mermaid diagrams.
+- Requests must include the necessary authentication headers (`X-User-ID`) to allow proper multi-user state retrieval.
 
-- The service exposes endpoints for the frontend to submit messages and fetch chat history.
-- The structure of requests should consistently provide the necessary authentication headers (`X-User-ID`) to allow proper multi-user state retrieval.
+### 6.2 User Settings
+- The service provides endpoints to manage per-user configuration:
+    - `GET /api/user/settings`: Retrieves the current settings for the authenticated user (e.g., `learning_mode_enabled`).
+    - `PUT /api/user/settings`: Updates the settings for the authenticated user.
+- These settings are used as defaults for new threads and to control global agent behavior.
 
-## 6. Development Guidelines
+## 7. Development Guidelines
 
 ### 6.1 General
 - Run tests using the provided Makefile targets (e.g., `make agent-be-test`).

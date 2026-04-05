@@ -171,6 +171,12 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                         if (msg.additional_kwargs['image_url']) {
                             currentAiGroup.additional_kwargs!['image_url'] = msg.additional_kwargs['image_url'];
                         }
+                        if (msg.additional_kwargs['mfe_contents']) {
+                            currentAiGroup.additional_kwargs!['mfe_contents'] = msg.additional_kwargs['mfe_contents'];
+                        }
+                        if (msg.additional_kwargs['learning_mode_feedback']) {
+                            currentAiGroup.additional_kwargs!['learning_mode_feedback'] = msg.additional_kwargs['learning_mode_feedback'];
+                        }
                         if (msg.additional_kwargs['follow_up_questions']) {
                             currentAiGroup.additional_kwargs!['follow_up_questions'] = msg.additional_kwargs['follow_up_questions'];
                         }
@@ -263,7 +269,26 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.sendMessage();
     }
 
-    sendMessage() {
+    sendLearningModeChoice(msg: Message, choice: string) {
+        if (this.sending) return;
+
+        // Mark the message as answered so we don't show the options anymore
+        if (msg.additional_kwargs) {
+             msg.additional_kwargs['learning_mode_answered'] = true;
+        }
+
+        // We need to send this as a special message that skips learning mode analysis
+        // Since we don't have a structured API for bypassing it, we can send a JSON structure
+        // that the backend could theoretically parse, but the simplest way is to send it as text
+        // and add a backend bypass flag. Since the backend now looks for `learning_mode_bypass` in kwargs,
+        // and we only send text via `sendMessage()`, we can't easily inject kwargs from the frontend chat endpoint.
+        // ACTUALLY: Let's modify the sendMessage endpoint/method to allow passing kwargs or a bypass flag.
+
+        this.newMessage = choice;
+        this.sendMessage(true); // pass bypass flag
+    }
+
+    sendMessage(bypassLearningMode: boolean = false) {
         if (!this.newMessage.trim() || this.sending) return;
 
         const content = this.newMessage;
@@ -284,7 +309,7 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.messages.push({ type: 'human', content });
         this.scrollToBottom(true);
 
-        this.chatService.sendMessage(content, this.threadId || undefined).subscribe({
+        this.chatService.sendMessage(content, this.threadId || undefined, bypassLearningMode).subscribe({
             next: (res) => {
                 if (!this.threadId) {
                     this.threadId = res.thread_id;

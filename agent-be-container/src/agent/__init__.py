@@ -13,7 +13,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMe
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.runnables import RunnableConfig
 from .tools import get_tools
-from .structs import MFEContent, MFEContainer, FollowUpQuestions, AgentState
+from .structs import MFEContent, MFEContainer, FollowUpQuestions, AgentState, PromptFeedback
 import logging
 import uuid
 
@@ -62,7 +62,7 @@ async def intent_node(state: AgentState):
     # Placeholder for intent analysis if needed in state
     return {}
 
-def route_intent(state: AgentState) -> Literal["hello", "echo", "image", "llm"]:
+def route_intent(state: AgentState) -> Literal["hello", "echo", "image", "llm", "learning_mode"]:
     messages = state.messages
     if not messages:
         return "echo"
@@ -75,7 +75,11 @@ def route_intent(state: AgentState) -> Literal["hello", "echo", "image", "llm"]:
         if any(word in content for word in ["draw", "picture", "image"]):
             return "image"
 
-    return "llm"
+        # Check if user has explicitly confirmed a prompt choice from learning mode
+        if getattr(last_message, "additional_kwargs", {}).get("learning_mode_bypass"):
+            return "llm"
+
+    return "llm" # default
 
 async def hello_node(state: AgentState):
     return {"messages": [AIMessage(
@@ -139,7 +143,48 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
     main_llm_with_tools = main_llm.bind_tools(tools)
 
     follow_up_llm_with_schema = packager_llm.with_structured_output(FollowUpQuestions, include_raw=True)
+    learning_mode_llm_with_schema = packager_llm.with_structured_output(PromptFeedback, include_raw=True)
 
+
+    async def learning_mode_node(state: AgentState):
+        logger.info("Running Learning Mode node")
+
+        last_human_msg = None
+        for m in reversed(state.messages):
+            if isinstance(m, HumanMessage):
+                last_human_msg = m
+                break
+
+        if not last_human_msg:
+            return {}
+
+        system_instruction = SystemMessage(content="You are an expert prompt engineer. Analyze the user's latest prompt. Provide constructive feedback on why it is good or bad, and how it could be improved. Suggest a highly improved, specific, and context-rich version of the original prompt. Provide 1-3 alternative ways to ask the question.")
+
+        messages = [system_instruction, last_human_msg]
+        raw_response = await learning_mode_llm_with_schema.ainvoke(messages)
+
+        if isinstance(raw_response, dict) and "parsed" in raw_response:
+            feedback_data = raw_response["parsed"]
+            usage = raw_response["raw"].usage_metadata if hasattr(raw_response["raw"], 'usage_metadata') else None
+        else:
+            feedback_data = raw_response
+            usage = None
+
+        updated_kwargs = {
+            "learning_mode_feedback": feedback_data.model_dump() if hasattr(feedback_data, "model_dump") else feedback_data,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "packaged": True
+        }
+
+        # We don't want to show the raw JSON, so we just return a message saying we analyzed it
+        # The UI will pick up learning_mode_feedback from additional_kwargs
+        msg = AIMessage(
+            content="I've analyzed your prompt to help you get better results. Please review my suggestions below.",
+            id=str(uuid.uuid4()),
+            additional_kwargs=updated_kwargs,
+            usage_metadata=usage
+        )
+        return {"messages": [msg]}
 
     async def post_process_node(state: AgentState):
         """Post-processes messages after the LLM/tool loop.
@@ -323,11 +368,39 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
         return {}
 
 
+
+    def route_after_llm(state: AgentState) -> Literal["tools", "post_process"]:
+        if tools_condition(state) == "tools":
+            return "tools"
+        return "post_process"
+
+    def route_intent_or_learning_mode(state: AgentState, config: RunnableConfig) -> Literal["hello", "echo", "image", "llm", "learning_mode"]:
+        # First check standard intent routing
+        intent = route_intent(state)
+
+        # If it's a standard LLM task, check if we should intercept with learning mode
+        if intent == "llm":
+            learning_mode_enabled = getattr(state, "learning_mode_enabled", False)
+
+            # Check if this message was explicitly sent as a bypassed/confirmed learning mode choice
+            messages = state.messages
+            if messages:
+                last_message = messages[-1]
+                if isinstance(last_message, HumanMessage) and getattr(last_message, "additional_kwargs", {}).get("learning_mode_bypass"):
+                    return "llm" # user confirmed a prompt, skip learning mode and go to LLM
+
+            if learning_mode_enabled:
+                return "learning_mode"
+
+        return intent
+
+
     builder.add_node("initial", initial_node)
     builder.add_node("intent", intent_node)
     builder.add_node("hello", hello_node)
     builder.add_node("echo", echo_node)
     builder.add_node("image", image_node)
+    builder.add_node("learning_mode", learning_mode_node)
     builder.add_node("llm", llm_node)
     builder.add_node("tools", ToolNode(tools))
     builder.add_node("post_process", post_process_node)
@@ -338,19 +411,15 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
 
     builder.add_conditional_edges(
         "intent",
-        route_intent,
+        route_intent_or_learning_mode,
         {
             "hello": "hello",
             "echo": "echo",
             "image": "image",
             "llm": "llm",
+            "learning_mode": "learning_mode"
         }
     )
-
-    def route_after_llm(state: AgentState) -> Literal["tools", "post_process"]:
-        if tools_condition(state) == "tools":
-            return "tools"
-        return "post_process"
 
     builder.add_conditional_edges(
         "llm",
@@ -367,6 +436,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
     builder.add_edge("post_process", "follow_up")
     builder.add_edge("follow_up", END)
     builder.add_edge("echo", "post_process")
+    builder.add_edge("learning_mode", END) # Stop graph after learning mode node
 
     return builder.compile(checkpointer=checkpointer)
 
