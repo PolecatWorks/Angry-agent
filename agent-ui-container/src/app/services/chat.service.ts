@@ -40,7 +40,6 @@ export interface Message {
   };
   additional_kwargs?: {
     image_url?: string;
-    mermaid_diagrams?: string[];
     follow_up_questions?: string[];
     tool_calls?: { id?: string; name: string; args: any; response?: string }[];
     [key: string]: any;
