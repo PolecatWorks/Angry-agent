@@ -45,8 +45,6 @@ The backend includes specific routing and post-processing mechanisms for process
     - **Stateful Tools (BREAD)**: Tools like `add_visualization`, `edit_visualization`, and `delete_visualization` return LangGraph `Command` objects. These commands trigger the `visualizations_reducer` to update the `AgentState.visualizations` list directly.
     - **Visualizations Reducer**: A deterministic reducer that manages the workspace list. It supports granular actions: `add` (append), `update` (modify in-place), `delete` (remove), `reorder` (based on a list of IDs), and `replace` (full list override).
 - **Post-Process Node**: A deterministic Python-based node that runs after the LLM/Tool loop to finalize the response.
-    - **Extraction**: It scans all messages in the current turn (AIMessages and ToolMessages) to extract `MFEContent`. This allows tools to return structured data that is automatically bubbled up to the UI metadata.
-    - **Metadata Injection**: It populates `mfe_contents` in the final AIMessage's `additional_kwargs`.
     - **Workspace Summary**: If new visualizations were successfully pinned during the turn, the node appends a summary list to the final AI message content.
     - **Finalization**: It marks the final AIMessage with `packaged: True` and a `timestamp` in `additional_kwargs` to signal completion to the frontend polling client.
 - **MFE Tools**:
