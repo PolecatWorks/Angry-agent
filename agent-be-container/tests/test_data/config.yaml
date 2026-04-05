@@ -71,7 +71,7 @@ packager_aiclient:
 
 embedding_client:
   model_provider: google_genai
-  model: text-embedding-004
+  model: gemini-embedding-001
 
 logging:
   version: 1

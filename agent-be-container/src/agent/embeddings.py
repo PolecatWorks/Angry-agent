@@ -11,7 +11,7 @@ def get_embeddings_model(config):
         logger.info(f"Initializing GoogleGenerativeAIEmbeddings with model: {config.model}")
         return GoogleGenerativeAIEmbeddings(
             model=config.model,
-            google_api_key=config.google_api_key.get_secret_value()
+            api_key=config.google_api_key.get_secret_value()
         )
     else:
         raise ValueError(f"Unsupported embedding model provider: {model_provider}")
