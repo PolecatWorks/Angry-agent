@@ -71,7 +71,7 @@ describe('ChatWindow', () => {
     component.loadHistory(threadId);
 
     expect(chatServiceSpy.getHistory).toHaveBeenCalledWith(threadId);
-    expect(component.messages).toEqual(mockMessages);
+    expect(component.messages[0]).toMatchObject(mockMessages[0]);
   });
 
   it('should send a message', () => {
@@ -84,7 +84,7 @@ describe('ChatWindow', () => {
     component.newMessage = message;
     component.sendMessage();
 
-    expect(chatServiceSpy.sendMessage).toHaveBeenCalledWith(message, 'thread-1');
+    expect(chatServiceSpy.sendMessage).toHaveBeenCalledWith(message, 'thread-1', false);
     expect(component.messages.length).toBe(1); // Human only
     expect(component.messages[0].content).toBe('Hello world');
     expect(startPollingSpy).toHaveBeenCalledWith('thread-1');

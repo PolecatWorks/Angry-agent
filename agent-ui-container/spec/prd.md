@@ -43,7 +43,7 @@ Chats are isolated by a `User ID`. Currently, this is handled via a mocked login
 *Note: Future iterations plan to replace this mocked authentication with standard OAuth2 flows.*
 
 ### 4.3 Module Federation Integration
-To support embedding within a shell application, the container exposes its core functionality via a specific route configuration (`./routes`), which is mapped to `remote.routes.ts`. This allows internal navigation when loaded as a remote.
+To support embedding within a shell application, the container exposes its core functionality via a specific route configuration (`./routes`), which is mapped to `remote.routes.ts`. This configuration includes the primary `chat` routes and the `settings` route, ensuring they are accessible when the application is loaded as a remote module.
 
 ### 4.4 Dockerization
 The frontend application must be packaged and run inside a Docker container without relying on Docker Compose, aligning with the project's strategy for eventual Kubernetes migration.
@@ -55,4 +55,5 @@ The main layout features a draggable splitter between the central chat area and 
 
 - Run tests using `ng test --watch=false`.
 - Ensure any modifications to the MFE structure or routing are reflected in this PRD and the native federation configuration.
+- **Relative Routing**: When adding links or navigating within the application, always use relative `routerLink` paths (e.g., `[routerLink]="['settings']"`) instead of absolute paths (e.g., `routerLink="/settings"`). This ensures compatibility with Module Federation, where the MFE may be hosted on a sub-path in a shell application.
 - The UI should remain stateless where possible, deferring state persistence to the backend database.
