@@ -171,6 +171,12 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
                         if (msg.additional_kwargs['image_url']) {
                             currentAiGroup.additional_kwargs!['image_url'] = msg.additional_kwargs['image_url'];
                         }
+                        if (msg.additional_kwargs['mfe_contents']) {
+                            currentAiGroup.additional_kwargs!['mfe_contents'] = msg.additional_kwargs['mfe_contents'];
+                        }
+                        if (msg.additional_kwargs['learning_mode_feedback']) {
+                            currentAiGroup.additional_kwargs!['learning_mode_feedback'] = msg.additional_kwargs['learning_mode_feedback'];
+                        }
                         if (msg.additional_kwargs['follow_up_questions']) {
                             currentAiGroup.additional_kwargs!['follow_up_questions'] = msg.additional_kwargs['follow_up_questions'];
                         }

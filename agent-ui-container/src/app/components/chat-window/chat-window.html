@@ -62,7 +62,7 @@
                         </div>
                     </div>
 
-                    <div *ngIf="msg.content" class="text-sm text-on-surface leading-relaxed markdown-body" [innerHTML]="msg.content | markdown"></div>
+                    <div *ngIf="msg.content && (!msg.additional_kwargs?.['mfe_contents'] || msg.additional_kwargs?.['mfe_contents'].length === 0)" class="text-sm text-on-surface leading-relaxed markdown-body" [innerHTML]="msg.content | markdown"></div>
 
                     <!-- Image Block -->
                     <div *ngIf="msg.additional_kwargs?.['image_url'] as imageUrl" class="image-block mt-4 relative group cursor-pointer overflow-hidden rounded-xl bg-surface-container-low border border-outline-variant/10 aspect-video flex items-center justify-center">
