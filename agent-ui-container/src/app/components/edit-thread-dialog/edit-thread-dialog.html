@@ -6,6 +6,12 @@
       <input matInput [(ngModel)]="title" placeholder="Enter a custom name" />
     </mat-form-field>
 
+    <div class="settings-section" style="margin-bottom: 20px;">
+      <mat-slide-toggle [(ngModel)]="learningModeEnabled" color="primary">
+        Learning Mode
+      </mat-slide-toggle>
+    </div>
+
     <div class="color-picker-section">
       <p>Thread Color</p>
       <div class="color-options">
