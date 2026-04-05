@@ -147,7 +147,12 @@ async def chat_endpoint(request):
             user_learning_mode = user_row["learning_mode_enabled"] if user_row else False
 
         # Initialize state with the default setting
-        agent_config = {"configurable": {"thread_id": thread_id}}
+        agent_config = {
+            "configurable": {
+                "thread_id": thread_id,
+                "service_config": config
+            }
+        }
         await llm_handler.agent.aupdate_state(agent_config, {"learning_mode_enabled": user_learning_mode}, as_node="initial")
 
 
@@ -382,7 +387,12 @@ async def update_thread(request):
 
     if learning_mode_enabled is not None:
         llm_handler: LLMHandler = request.app["llm_handler"]
-        agent_config = {"configurable": {"thread_id": thread_id}}
+        agent_config = {
+            "configurable": {
+                "thread_id": thread_id,
+                "service_config": config
+            }
+        }
         await llm_handler.agent.aupdate_state(agent_config, {"learning_mode_enabled": learning_mode_enabled}, as_node="initial")
 
     return web.json_response({"status": "updated"})
@@ -445,6 +455,7 @@ async def on_startup(app):
         logger.info("Initializing LLMHandler")
         llm_handler = LLMHandler(
             db_dsn=config.persistence.db.connection.dsn,
+            service_config=config,
             main_llm=main_llm,
             packager_llm=packager_llm,
             main_prompt=main_prompt,

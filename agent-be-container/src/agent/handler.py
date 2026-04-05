@@ -20,8 +20,9 @@ from langchain_core.messages import (
 logger = logging.getLogger(__name__)
 
 class LLMHandler:
-    def __init__(self, db_dsn: str, main_llm=None, packager_llm=None, main_prompt: str = "", packager_prompt: str = ""):
+    def __init__(self, db_dsn: str, service_config=None, main_llm=None, packager_llm=None, main_prompt: str = "", packager_prompt: str = ""):
         self.db_dsn = db_dsn
+        self.service_config = service_config
         self.main_prompt = main_prompt
         self.packager_prompt = packager_prompt
 
@@ -68,16 +69,17 @@ class LLMHandler:
     #     agent_config = {"configurable": {"thread_id": thread_id}}
     #     final_res = await self.agent.ainvoke({"messages": [HumanMessage(content=message)]}, config=agent_config)
 
-    #     messages = final_res.get("messages", [])
-    #     last_msg = messages[-1] if messages else None
-    #     return last_msg.content if last_msg else ""
-
     async def chat_async(self, thread_id: str, message: str) -> None:
         """Starts the chat agent in the background."""
         if not self.agent:
             raise RuntimeError("LLMHandler is not initialized. Call initialize() first.")
 
-        agent_config = {"configurable": {"thread_id": thread_id}}
+        agent_config = {
+            "configurable": {
+                "thread_id": thread_id,
+                "service_config": self.service_config
+            }
+        }
 
         msg = HumanMessage(
             content=message,
@@ -148,7 +150,12 @@ class LLMHandler:
         if not self.agent:
             raise RuntimeError("LLMHandler is not initialized. Call initialize() first.")
 
-        agent_config = {"configurable": {"thread_id": thread_id}}
+        agent_config = {
+            "configurable": {
+                "thread_id": thread_id,
+                "service_config": self.service_config
+            }
+        }
         state = await self.agent.aget_state(agent_config)
         return state
 

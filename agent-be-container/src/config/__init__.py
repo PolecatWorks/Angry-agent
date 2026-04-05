@@ -144,7 +144,7 @@ class EmbeddingConfig(BaseModel):
     model: str = Field(description="Embedding model name")
     google_api_key: SecretStr = Field(description="API key for authenticated access to Genai model")
 
-    model_config = ConfigDict(extra="forbid")
+    # model_config = ConfigDict(extra="forbid")
 
 
 class OllamaConfig(BaseAiClientConfig):

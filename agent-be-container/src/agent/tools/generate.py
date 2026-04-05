@@ -157,10 +157,12 @@ async def generate_agent_store_visualization(input: AgentStoreVizInput, config: 
     # Attempt to extract the ServiceConfig from the RunnableConfig's configurable field
     service_config = config.get("configurable", {}).get("service_config")
 
-    # Fallback to loading it directly if not found in the run context
     if not service_config:
-        from src.config import ServiceConfig
-        service_config = ServiceConfig.from_yaml_and_secrets_dir()
+        logger.error("ServiceConfig not found in tool configuration context")
+        # In a real environment, this should never happen if handler/main.py are correct.
+        # But for robustness, we can't call from_yaml_and_secrets_dir() without arguments.
+        # We'll raise a clearer error.
+        raise RuntimeError("ServiceConfig is missing from tool context. Cannot search agent definitions.")
 
     results = await search_agent_definitions(input.query, config=service_config)
 
