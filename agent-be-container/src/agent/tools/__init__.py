@@ -17,7 +17,8 @@ from .generate import (
     generate_mfe_of_json,
     generate_mfe_of_mermaid,
     generate_mfe_of_personal_data_form,
-    generate_data_visualization
+    generate_data_visualization,
+    generate_agent_store_visualization
 )
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ def get_tools(builder: StateGraph):
         generate_mfe_of_json,
         generate_mfe_of_mermaid,
         generate_mfe_of_personal_data_form,
+        generate_agent_store_visualization,
         browse_visualizations,
         read_visualization,
         edit_visualization,

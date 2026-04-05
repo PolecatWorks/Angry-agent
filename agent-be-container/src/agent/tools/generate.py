@@ -139,3 +139,36 @@ async def generate_data_visualization(input: DataVizInput, config: RunnableConfi
         provider="mfe1",
         component="./DataShowWrapper"
     )
+
+
+class AgentStoreVizInput(MFEBase):
+    query: str = Field(description="The search query or filter term to match against agent definitions in the store.")
+
+@tool()
+async def generate_agent_store_visualization(input: AgentStoreVizInput, config: RunnableConfig) -> MFEContent:
+    """
+    Visualizes the agent definitions from the agent store that match the search query.
+    Use this tool when the user wants to see, list, or visualize the embedding objects or agent definitions.
+    """
+    logger.info(f"Tool generate_agent_store_visualization called with query: {input.query}")
+
+    from src.agent.agent_store import search_agent_definitions
+
+    # Attempt to extract the ServiceConfig from the RunnableConfig's configurable field
+    service_config = config.get("configurable", {}).get("service_config")
+
+    # Fallback to loading it directly if not found in the run context
+    if not service_config:
+        from src.config import ServiceConfig
+        service_config = ServiceConfig.from_yaml_and_secrets_dir()
+
+    results = await search_agent_definitions(input.query, config=service_config)
+
+    return MFEContent(
+        name=input.name,
+        title=input.title,
+        description=input.description,
+        provider="angry-agent",
+        component="./AgentStoreShowWrapper",
+        content={"matches": results}
+    )
