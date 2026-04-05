@@ -138,3 +138,4 @@ class FollowUpQuestions(BaseModel):
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
     visualizations: Annotated[List[MFEContent], visualizations_reducer] = Field(default_factory=list)
+    learning_mode_enabled: bool = Field(default=False)
