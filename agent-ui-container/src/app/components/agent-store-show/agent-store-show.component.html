@@ -1,0 +1,37 @@
+<div class="agent-store-container p-4">
+  <h2 class="text-xl font-bold mb-4">Agent Store Search Results</h2>
+  <div *ngIf="data?.matches && data.matches.length > 0; else noMatches">
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-white border border-gray-200">
+        <thead>
+          <tr class="bg-gray-100 border-b">
+            <th class="text-left py-2 px-4 font-semibold text-gray-700">Name</th>
+            <th class="text-left py-2 px-4 font-semibold text-gray-700">Top Chunk Match</th>
+            <th class="text-left py-2 px-4 font-semibold text-gray-700">Similarity</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let match of data.matches" class="border-b hover:bg-gray-50">
+            <td class="py-2 px-4 font-medium">{{ match.name }}</td>
+            <td class="py-2 px-4 text-sm text-gray-600 max-w-xs truncate" [title]="match.top_chunk">
+              {{ match.top_chunk }}
+            </td>
+            <td class="py-2 px-4">
+              <div class="flex items-center">
+                <div class="w-full bg-gray-200 rounded-full h-2.5 mr-2">
+                  <div class="bg-blue-600 h-2.5 rounded-full" [style.width]="(match.similarity * 100) + '%'"></div>
+                </div>
+                <span class="text-xs text-gray-500 whitespace-nowrap">{{ (match.similarity * 100) | number:'1.0-1' }}%</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <ng-template #noMatches>
+    <div class="p-4 bg-gray-50 border border-gray-200 rounded-md text-gray-500 text-center">
+      No matches found in the agent store.
+    </div>
+  </ng-template>
+</div>
