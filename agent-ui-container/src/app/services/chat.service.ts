@@ -12,6 +12,11 @@ export interface Thread {
   status_msg?: string;
   status_updated_at?: string;
   current_server_time?: string;
+  learning_mode_enabled?: boolean;
+}
+
+export interface UserSettings {
+  learning_mode_enabled: boolean;
 }
 
 export interface ChatResponse {
@@ -115,9 +120,9 @@ export class ChatService {
     });
   }
 
-  sendMessage(message: string, threadId?: string): Observable<ChatResponse> {
+  sendMessage(message: string, threadId?: string, bypassLearningMode: boolean = false): Observable<ChatResponse> {
     return this.apiUrl$.pipe(
-      switchMap(apiUrl => this.http.post<ChatResponse>(`${apiUrl}/chat`, { message, thread_id: threadId }, { headers: this.getHeaders() }))
+      switchMap(apiUrl => this.http.post<ChatResponse>(`${apiUrl}/chat`, { message, thread_id: threadId, bypass_learning_mode: bypassLearningMode }, { headers: this.getHeaders() }))
     );
   }
 
@@ -153,7 +158,7 @@ export class ChatService {
     );
   }
 
-  updateThread(threadId: string, thread: { title: string, color: string }): Observable<any> {
+  updateThread(threadId: string, thread: { title?: string, color?: string, learning_mode_enabled?: boolean }): Observable<any> {
     return this.apiUrl$.pipe(
       switchMap(apiUrl => this.http.put(`${apiUrl}/threads/${threadId}`, thread, { headers: this.getHeaders() }))
     );
@@ -162,6 +167,18 @@ export class ChatService {
   getVisualizations(threadId: string): Observable<VisualizationsResponse> {
     return this.apiUrl$.pipe(
       switchMap(apiUrl => this.http.get<VisualizationsResponse>(`${apiUrl}/threads/${threadId}/visualizations`, { headers: this.getHeaders() }))
+    );
+  }
+
+  getUserSettings(): Observable<UserSettings> {
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.get<UserSettings>(`${apiUrl}/user/settings`, { headers: this.getHeaders() }))
+    );
+  }
+
+  updateUserSettings(settings: UserSettings): Observable<any> {
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.put(`${apiUrl}/user/settings`, settings, { headers: this.getHeaders() }))
     );
   }
 }

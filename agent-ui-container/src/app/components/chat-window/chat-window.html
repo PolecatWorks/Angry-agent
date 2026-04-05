@@ -83,6 +83,52 @@
                         </span>
                     </div>
 
+                    <!-- Learning Mode Feedback -->
+                    <div *ngIf="isLast && msg.additional_kwargs?.['learning_mode_feedback'] && !msg.additional_kwargs?.['learning_mode_answered']" class="mt-4 pt-2 border-t border-outline-variant/10 flex flex-col gap-3">
+                        <div class="bg-primary/5 rounded-xl p-4 border border-primary/10">
+                            <h4 class="text-xs font-bold text-primary mb-2 flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]" data-icon="school">school</span>
+                                Prompt Analysis
+                            </h4>
+                            <p class="text-sm text-on-surface mb-4">{{ msg.additional_kwargs?.['learning_mode_feedback'].feedback_text }}</p>
+
+                            <div class="space-y-2">
+                                <span class="text-xs text-outline font-medium mb-1 block">Choose how to proceed:</span>
+
+                                <button (click)="sendLearningModeChoice(msg, messages[messages.length - 2].content)"
+                                        [disabled]="sending"
+                                        class="w-full text-left text-sm bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface rounded-lg px-4 py-3 border border-outline-variant/20 shadow-sm active:scale-95 disabled:opacity-50 disabled:pointer-events-none group flex justify-between items-center">
+                                    <span>
+                                        <span class="text-[10px] uppercase tracking-widest text-outline font-bold block mb-0.5">Use Original</span>
+                                        {{ messages[messages.length - 2].content }}
+                                    </span>
+                                    <span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors text-[18px]" data-icon="arrow_forward">arrow_forward</span>
+                                </button>
+
+                                <button (click)="sendLearningModeChoice(msg, msg.additional_kwargs?.['learning_mode_feedback'].improved_prompt)"
+                                        [disabled]="sending"
+                                        class="w-full text-left text-sm bg-primary/10 hover:bg-primary/20 transition-colors text-primary-dark rounded-lg px-4 py-3 border border-primary/20 shadow-sm active:scale-95 disabled:opacity-50 disabled:pointer-events-none group flex justify-between items-center">
+                                    <span>
+                                        <span class="text-[10px] uppercase tracking-widest font-bold block mb-0.5 opacity-80 text-primary">Use Improved</span>
+                                        <span class="font-medium">{{ msg.additional_kwargs?.['learning_mode_feedback'].improved_prompt }}</span>
+                                    </span>
+                                    <span class="material-symbols-outlined group-hover:text-primary transition-colors text-[18px]" data-icon="arrow_forward">arrow_forward</span>
+                                </button>
+
+                                <button *ngFor="let alt of msg.additional_kwargs?.['learning_mode_feedback'].alternatives"
+                                        (click)="sendLearningModeChoice(msg, alt)"
+                                        [disabled]="sending"
+                                        class="w-full text-left text-sm bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface rounded-lg px-4 py-3 border border-outline-variant/20 shadow-sm active:scale-95 disabled:opacity-50 disabled:pointer-events-none group flex justify-between items-center">
+                                    <span>
+                                        <span class="text-[10px] uppercase tracking-widest text-outline font-bold block mb-0.5">Alternative</span>
+                                        {{ alt }}
+                                    </span>
+                                    <span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors text-[18px]" data-icon="arrow_forward">arrow_forward</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Follow Up Questions -->
                     <div *ngIf="isLast && msg.additional_kwargs?.['follow_up_questions'] as questions" class="mt-4 pt-2 border-t border-outline-variant/10 flex flex-col gap-2">
                         <span class="text-xs text-outline font-medium mb-1">Suggested Follow-ups:</span>
