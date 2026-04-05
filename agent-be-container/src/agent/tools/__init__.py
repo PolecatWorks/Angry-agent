@@ -41,7 +41,7 @@ def get_tools(builder: StateGraph):
     @tool
     def visualize_graph() -> str:
         """
-        Returns a mermaid diagram as a string describing the LangGraph architecture. This describes the graph describing how the agent works.
+        Returns a mermaid diagram as a string describing the LangGraph architecture. This describes the graph describing how the agent current llm agent works.
         """
 
         if hasattr(builder, 'get_graph'):
