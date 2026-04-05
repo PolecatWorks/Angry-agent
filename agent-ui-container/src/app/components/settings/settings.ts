@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -15,17 +15,22 @@ export class SettingsComponent implements OnInit {
     loading = true;
     saving = false;
 
-    constructor(private chatService: ChatService) {}
+    constructor(
+        private chatService: ChatService,
+        private cdr: ChangeDetectorRef
+    ) {}
 
     ngOnInit() {
         this.chatService.getUserSettings().subscribe({
             next: (res) => {
                 this.settings = res;
                 this.loading = false;
+                this.cdr.detectChanges();
             },
             error: (err) => {
                 console.error('Failed to load settings', err);
                 this.loading = false;
+                this.cdr.detectChanges();
             }
         });
     }
