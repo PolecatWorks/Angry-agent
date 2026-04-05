@@ -23,6 +23,7 @@ export const routes: Routes = [
     children: [
       { path: 'chat', component: ChatWindow },
       { path: 'chat/:threadId', component: ChatWindow },
+      { path: 'settings', loadComponent: () => import('./components/settings/settings').then(m => m.SettingsComponent) },
       { path: '', redirectTo: 'chat', pathMatch: 'full' }
     ]
   },

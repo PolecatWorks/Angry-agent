@@ -1,0 +1,15 @@
+webservice:
+  url: "http://0.0.0.0:8080"
+persistence:
+  db:
+    connection:
+      url: "postgresql://localhost:5432/agentdb"
+main_aiclient:
+  model_provider: "ollama"
+  model: "llama2"
+packager_aiclient:
+  model_provider: "ollama"
+  model: "llama2"
+embedding_client:
+  model_provider: "ollama"
+  model: "llama2"

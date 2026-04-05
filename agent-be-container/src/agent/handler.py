@@ -72,17 +72,17 @@ class LLMHandler:
     #     last_msg = messages[-1] if messages else None
     #     return last_msg.content if last_msg else ""
 
-    async def chat_async(self, thread_id: str, message: str) -> None:
+    async def chat_async(self, thread_id: str, message: str, learning_mode_enabled: bool = False, bypass_learning_mode: bool = False) -> None:
         """Starts the chat agent in the background."""
         if not self.agent:
             raise RuntimeError("LLMHandler is not initialized. Call initialize() first.")
 
-        agent_config = {"configurable": {"thread_id": thread_id}}
+        agent_config = {"configurable": {"thread_id": thread_id, "learning_mode_enabled": learning_mode_enabled}}
 
         msg = HumanMessage(
             content=message,
             id=str(uuid.uuid4()),
-            additional_kwargs={"timestamp": datetime.now(timezone.utc).isoformat()}
+            additional_kwargs={"timestamp": datetime.now(timezone.utc).isoformat(), "learning_mode_bypass": bypass_learning_mode}
         )
 
         # Store the human message in the state immediately before starting background task
