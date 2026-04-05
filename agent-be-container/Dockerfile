@@ -40,6 +40,7 @@ ENV PYTHONPATH=src
 RUN --mount=type=secret,id=GOOGLE_API_KEY,env=GOOGLE_API_KEY \
     export APP_MAIN_AICLIENT__GOOGLE_API_KEY=$GOOGLE_API_KEY && \
     export APP_PACKAGER_AICLIENT__GOOGLE_API_KEY=$GOOGLE_API_KEY && \
+    export APP_EMBEDDING_CLIENT__GOOGLE_API_KEY=$GOOGLE_API_KEY && \
     poetry run pytest && touch /app/tests/.test_success
 
 # Stage 3: Final image
