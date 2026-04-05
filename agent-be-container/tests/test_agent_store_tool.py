@@ -32,7 +32,7 @@ async def test_generate_agent_store_visualization():
             }
         }
 
-        config = RunnableConfig()
+        config = RunnableConfig(configurable={"service_config": mock_config.return_value})
         result = await generate_agent_store_visualization.ainvoke(input_data, config)
 
         assert isinstance(result, MFEContent)
