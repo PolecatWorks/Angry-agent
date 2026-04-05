@@ -148,7 +148,7 @@ async def chat_endpoint(request):
 
         # Initialize state with the default setting
         agent_config = {"configurable": {"thread_id": thread_id}}
-        await llm_handler.agent.aupdate_state(agent_config, {"learning_mode_enabled": user_learning_mode})
+        await llm_handler.agent.aupdate_state(agent_config, {"learning_mode_enabled": user_learning_mode}, as_node="initial")
 
 
     # --- Agent Logic ---
@@ -383,7 +383,7 @@ async def update_thread(request):
     if learning_mode_enabled is not None:
         llm_handler: LLMHandler = request.app["llm_handler"]
         agent_config = {"configurable": {"thread_id": thread_id}}
-        await llm_handler.agent.aupdate_state(agent_config, {"learning_mode_enabled": learning_mode_enabled})
+        await llm_handler.agent.aupdate_state(agent_config, {"learning_mode_enabled": learning_mode_enabled}, as_node="initial")
 
     return web.json_response({"status": "updated"})
 
