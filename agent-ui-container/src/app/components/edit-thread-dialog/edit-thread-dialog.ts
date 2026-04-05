@@ -6,10 +6,12 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 export interface EditThreadDialogData {
   title: string;
   color: string;
+  learning_mode_enabled?: boolean;
 }
 
 @Component({
@@ -22,7 +24,8 @@ export interface EditThreadDialogData {
     MatInputModule,
     MatFormFieldModule,
     FormsModule,
-    MatDialogModule
+    MatDialogModule,
+    MatSlideToggleModule
   ],
   templateUrl: './edit-thread-dialog.html',
   styleUrls: ['./edit-thread-dialog.scss']
@@ -39,6 +42,7 @@ export class EditThreadDialog {
 
   title: string;
   selectedColor: string;
+  learningModeEnabled: boolean;
   showDeleteConfirm = false;
 
   constructor(
@@ -47,6 +51,7 @@ export class EditThreadDialog {
   ) {
     this.title = data.title || '';
     this.selectedColor = data.color || '';
+    this.learningModeEnabled = data.learning_mode_enabled || false;
   }
 
   onNoClick(): void {
@@ -59,6 +64,7 @@ export class EditThreadDialog {
       data: {
         title: this.title,
         color: this.selectedColor,
+        learning_mode_enabled: this.learningModeEnabled,
       }
     });
   }

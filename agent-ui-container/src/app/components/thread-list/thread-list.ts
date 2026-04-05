@@ -55,7 +55,8 @@ export class ThreadList implements OnInit {
       width: '400px',
       data: {
         title: thread.title,
-        color: thread.color
+        color: thread.color,
+        learning_mode_enabled: thread.learning_mode_enabled
       } as EditThreadDialogData
     });
 
@@ -76,7 +77,8 @@ export class ThreadList implements OnInit {
         // We PUT the entire resource state required for the update
         const updatedThread = {
           title: result.data.title || '',
-          color: result.data.color || ''
+          color: result.data.color || '',
+          learning_mode_enabled: result.data.learning_mode_enabled
         };
 
         // We can always perform the update since PUT implies replacing state

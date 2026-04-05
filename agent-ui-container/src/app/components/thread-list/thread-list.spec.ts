@@ -90,7 +90,7 @@ describe('ThreadList', () => {
     const mockDialogRef = {
       afterClosed: vi.fn().mockReturnValue(of({
         action: 'save',
-        data: { title: 'New Title', color: '#ffffff' }
+        data: { title: 'New Title', color: '#ffffff', learning_mode_enabled: true }
       }))
     };
     component['dialog'] = { open: vi.fn().mockReturnValue(mockDialogRef) } as any;
@@ -99,7 +99,7 @@ describe('ThreadList', () => {
 
     expect(event.stopPropagation).toHaveBeenCalled();
     expect(component['dialog'].open).toHaveBeenCalled();
-    expect(chatServiceSpy.updateThread).toHaveBeenCalledWith(thread.thread_id, { title: 'New Title', color: '#ffffff' });
+    expect(chatServiceSpy.updateThread).toHaveBeenCalledWith(thread.thread_id, { title: 'New Title', color: '#ffffff', learning_mode_enabled: true });
     expect(chatServiceSpy.refreshThreads).toHaveBeenCalled();
   });
 });
