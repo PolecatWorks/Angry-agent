@@ -157,7 +157,7 @@ async def chat_endpoint(request):
 
 
     # --- Agent Logic ---
-    await llm_handler.chat_async(thread_id, message)
+    await llm_handler.chat_async(thread_id, message, bypass_learning_mode)
 
     return web.json_response(
         {
