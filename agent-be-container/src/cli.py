@@ -159,11 +159,8 @@ def migrate(ctx, config, secrets, action):
 def load_agent(ctx, config, secrets, filepath, agent_name):
     """Load an agent definition from a Markdown file into the database"""
     import asyncio
-    import uuid
-    import os
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
-    from src.agent.embeddings import get_embeddings_model
-    from src.database import init_db_pool, close_db_pool, get_db_pool
+    from src.database import init_db_pool, close_db_pool
+    from src.agent.agent_store import save_agent_definition
 
     configObj: ServiceConfig = ServiceConfig.from_yaml_and_secrets_dir(config.name, secrets)
     logging.config.dictConfig(configObj.logging)
@@ -176,52 +173,10 @@ def load_agent(ctx, config, secrets, filepath, agent_name):
             with open(filepath, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            logger.info(f"Splitting content into chunks")
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len,
-                is_separator_regex=False,
-            )
-            chunks = text_splitter.split_text(content)
-            logger.info(f"Created {len(chunks)} chunks")
-
-            # Get embedding model
-            embedding_model = get_embeddings_model(configObj.embedding_client)
-
-            logger.info("Generating embeddings for chunks...")
-            embeddings = embedding_model.embed_documents(chunks)
-
             # Initialize DB pool
             await init_db_pool(configObj.persistence.db)
-            pool = await get_db_pool()
 
-            agent_id = str(uuid.uuid4())
-
-            logger.info("Saving to database...")
-            async with pool.acquire() as conn:
-                async with conn.transaction():
-                    # Insert parent record
-                    await conn.execute(
-                        "INSERT INTO agent_definitions (id, name, content) VALUES ($1::uuid, $2, $3)",
-                        agent_id, agent_name, content
-                    )
-
-                    # Insert chunks
-                    for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-                        chunk_id = str(uuid.uuid4())
-                        # Format list as postgres vector string: "[1.0, 2.0, ...]"
-                        embedding_str = "[" + ",".join(map(str, embedding)) + "]"
-
-                        await conn.execute(
-                            """
-                            INSERT INTO agent_definition_chunks (id, agent_id, chunk_index, content, embedding)
-                            VALUES ($1::uuid, $2::uuid, $3, $4, $5::vector)
-                            """,
-                            chunk_id, agent_id, i, chunk, embedding_str
-                        )
-
-            logger.info(f"Successfully loaded agent '{agent_name}' with ID: {agent_id}")
+            await save_agent_definition(agent_name, content, configObj)
 
         except Exception as e:
             logger.error(f"Failed to load agent: {e}", exc_info=True)

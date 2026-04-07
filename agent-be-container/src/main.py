@@ -202,6 +202,63 @@ async def list_threads(request):
 
     return web.json_response({"threads": threads})
 
+from src.agent.agent_store import get_all_agent_definitions, save_agent_definition, delete_agent_definition
+
+async def get_agents(request: web.Request) -> web.Response:
+    try:
+        agents = await get_all_agent_definitions()
+        return web.json_response(agents)
+    except Exception as e:
+        logger.error(f"Failed to get agents: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def create_agent(request: web.Request) -> web.Response:
+    try:
+        data = await request.json()
+        name = data.get('name')
+        content = data.get('content')
+        if not name or not content:
+            return web.json_response({"error": "name and content are required"}, status=400)
+
+        config: ServiceConfig = request.app[keys.config]
+        agent_id = await save_agent_definition(name, content, config)
+        return web.json_response({"id": agent_id, "name": name, "content": content}, status=201)
+    except Exception as e:
+        logger.error(f"Failed to create agent: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def update_agent(request: web.Request) -> web.Response:
+    agent_id = request.match_info.get('agent_id')
+    if not agent_id:
+        return web.json_response({"error": "agent_id is required"}, status=400)
+
+    try:
+        data = await request.json()
+        name = data.get('name')
+        content = data.get('content')
+        if not name or not content:
+            return web.json_response({"error": "name and content are required"}, status=400)
+
+        config: ServiceConfig = request.app[keys.config]
+        await save_agent_definition(name, content, config, agent_id=agent_id)
+        return web.json_response({"id": agent_id, "name": name, "content": content})
+    except Exception as e:
+        logger.error(f"Failed to update agent: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def delete_agent(request: web.Request) -> web.Response:
+    agent_id = request.match_info.get('agent_id')
+    if not agent_id:
+        return web.json_response({"error": "agent_id is required"}, status=400)
+
+    try:
+        await delete_agent_definition(agent_id)
+        return web.json_response({"status": "deleted"})
+    except Exception as e:
+        logger.error(f"Failed to delete agent: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+
 async def get_user_settings(request):
     user_id = request["user_id"]
     pool = await get_db_pool()
@@ -497,6 +554,11 @@ def create_app_with_middleware(config: ServiceConfig):
 
     app.router.add_get(f"{path_prefix}/api/user/settings", get_user_settings)
     app.router.add_put(f"{path_prefix}/api/user/settings", update_user_settings)
+
+    app.router.add_get(f"{path_prefix}/api/agents", get_agents)
+    app.router.add_post(f"{path_prefix}/api/agents", create_agent)
+    app.router.add_put(f"{path_prefix}/api/agents/{{agent_id}}", update_agent)
+    app.router.add_delete(f"{path_prefix}/api/agents/{{agent_id}}", delete_agent)
 
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)

@@ -24,6 +24,7 @@ export const routes: Routes = [
       { path: 'chat', component: ChatWindow },
       { path: 'chat/:threadId', component: ChatWindow },
       { path: 'settings', loadComponent: () => import('./components/settings/settings').then(m => m.SettingsComponent) },
+      { path: 'agents', loadComponent: () => import('./components/agents/agents').then(m => m.AgentsComponent) },
       { path: '', redirectTo: 'chat', pathMatch: 'full' }
     ]
   },
