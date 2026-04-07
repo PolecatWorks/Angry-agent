@@ -19,6 +19,12 @@ export interface UserSettings {
   learning_mode_enabled: boolean;
 }
 
+export interface AgentDefinition {
+  id?: string;
+  name: string;
+  content: string;
+}
+
 export interface ChatResponse {
   thread_id: string;
   response?: string;
@@ -178,6 +184,30 @@ export class ChatService {
   updateUserSettings(settings: UserSettings): Observable<any> {
     return this.apiUrl$.pipe(
       switchMap(apiUrl => this.http.put(`${apiUrl}/user/settings`, settings, { headers: this.getHeaders() }))
+    );
+  }
+
+  getAgents(): Observable<AgentDefinition[]> {
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.get<AgentDefinition[]>(`${apiUrl}/agents`, { headers: this.getHeaders() }))
+    );
+  }
+
+  createAgent(agent: AgentDefinition): Observable<AgentDefinition> {
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.post<AgentDefinition>(`${apiUrl}/agents`, agent, { headers: this.getHeaders() }))
+    );
+  }
+
+  updateAgent(id: string, agent: AgentDefinition): Observable<AgentDefinition> {
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.put<AgentDefinition>(`${apiUrl}/agents/${id}`, agent, { headers: this.getHeaders() }))
+    );
+  }
+
+  deleteAgent(id: string): Observable<any> {
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl => this.http.delete(`${apiUrl}/agents/${id}`, { headers: this.getHeaders() }))
     );
   }
 }

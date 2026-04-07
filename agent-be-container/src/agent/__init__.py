@@ -249,6 +249,8 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
         return {"messages": [updated_msg]}
 
 
+    from .agent_store import search_agent_definitions
+
     async def llm_node(state: AgentState):
         visualizations = state.visualizations
         viz_context = ""
@@ -257,7 +259,19 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             viz_json = json.dumps(viz_list, indent=2)
             viz_context = f"\n\n### Current Visualizations Pinned to Workspace (JSON):\n```json\n{viz_json}\n```"
 
-        final_prompt = f"{main_prompt}{viz_context}"
+        # Search for relevant agent definition based on the last user message
+        agent_context = ""
+        if state.messages and isinstance(state.messages[-1], HumanMessage):
+            last_message_content = state.messages[-1].content
+            try:
+                top_agents = await search_agent_definitions(last_message_content, config, limit=1)
+                if top_agents:
+                    top_agent = top_agents[0]
+                    agent_context = f"\n\n### Relevant Agent Context ({top_agent['name']}):\n{top_agent['full_content']}"
+            except Exception as e:
+                logger.error(f"Failed to search for agent definitions: {e}")
+
+        final_prompt = f"{main_prompt}{viz_context}{agent_context}"
         system_instruction = SystemMessage(content=final_prompt)
         messages = [system_instruction] + state.messages
 
