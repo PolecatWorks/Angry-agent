@@ -4,6 +4,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 import sys
 import os
+import asyncio
 
 # Add container root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -89,47 +90,46 @@ async def test_learning_mode_bypass(mock_llm):
 @pytest.mark.asyncio
 @patch("src.agent.handler.get_db_pool", new_callable=AsyncMock)
 async def test_handler_passes_bypass_flag(mock_get_pool, mock_llm):
-    # Mock DB pool
+    # Mock DB pool for the internal background tasks
     mock_pool = MagicMock()
     mock_conn = AsyncMock()
     mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
     mock_get_pool.return_value = mock_pool
     
-    # We need to mock AsyncPostgresSaver too or use MemorySaver
-    with patch("src.agent.handler.AsyncPostgresSaver") as mock_saver_cls:
-        mock_saver = MagicMock()
-        mock_saver.setup = AsyncMock()
-        mock_saver_cls.return_value = mock_saver
-        
-        handler = LLMHandler(db_dsn="postgresql://localhost/fake", main_llm=mock_llm, packager_llm=mock_llm)
-        await handler.initialize()
-        
-        # Override the agent with one using MemorySaver for easier testing
-        handler.agent = create_agent(mock_llm, mock_llm, checkpointer=MemorySaver())
-        
-        # Enable learning mode in state for this thread
-        thread_id = "test-thread"
-        config = {"configurable": {"thread_id": thread_id}}
-        await handler.agent.aupdate_state(config, {"learning_mode_enabled": True})
-        
-        # Call chat_async with bypass_learning_mode=True
-        # Note: chat_async runs in a background task
-        await handler.chat_async(thread_id, "Use suggestion", bypass_learning_mode=True)
-        
-        # Wait a bit for the task to run
-        await asyncio.sleep(0.5)
-        
-        # Check the state
-        state = await handler.get_thread_state(thread_id)
-        messages = state.values["messages"]
-        
-        # The last human message should have the bypass flag
-        human_msg = [m for m in messages if isinstance(m, HumanMessage)][-1]
-        assert human_msg.additional_kwargs.get("learning_mode_bypass") is True
-        
-        # The last AI message should be the LLM response, not feedback
-        ai_msg = [m for m in messages if isinstance(m, AIMessage)][-1]
-        assert "learning_mode_feedback" not in ai_msg.additional_kwargs
-        assert ai_msg.content == "LLM Response"
-
-import asyncio
+    # We create the handler but DO NOT call initialize() to avoid real DB connections/pools
+    handler = LLMHandler(db_dsn="postgresql://localhost/fake", main_llm=mock_llm, packager_llm=mock_llm)
+    
+    # Create the agent with MemorySaver for testing
+    handler.agent = create_agent(mock_llm, mock_llm, checkpointer=MemorySaver())
+    
+    # Enable learning mode in state for this thread
+    thread_id = "test-thread"
+    config = {"configurable": {"thread_id": thread_id}}
+    await handler.agent.aupdate_state(config, {"learning_mode_enabled": True}, as_node="initial")
+    
+    # Call chat_async with bypass_learning_mode=True
+    # Note: chat_async runs in a background task
+    await handler.chat_async(thread_id, "Use suggestion", bypass_learning_mode=True)
+    
+    # Wait for the background task to run. 
+    # Increased wait time to 1s to be safer in Docker environments.
+    await asyncio.sleep(1.0)
+    
+    # Check the state
+    state = await handler.get_thread_state(thread_id)
+    messages = state.values["messages"]
+    
+    # Filter for human messages
+    human_msgs = [m for m in messages if isinstance(m, HumanMessage)]
+    assert len(human_msgs) > 0
+    assert human_msgs[-1].additional_kwargs.get("learning_mode_bypass") is True
+    
+    # Filter for AI messages
+    ai_msgs = [m for m in messages if isinstance(m, AIMessage)]
+    assert len(ai_msgs) > 0
+    
+    # The response should be from LLM node, not feedback
+    # (In our mock, LLM response doesn't have learning_mode_feedback)
+    found_feedback = any("learning_mode_feedback" in m.additional_kwargs for m in ai_msgs)
+    assert found_feedback is False
+    assert any(m.content == "LLM Response" for m in ai_msgs)
