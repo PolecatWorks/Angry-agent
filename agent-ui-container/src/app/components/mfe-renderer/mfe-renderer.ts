@@ -11,6 +11,9 @@ export class MfeRenderer implements AfterViewInit, OnDestroy {
   @Input() component: string = '';
   @Input() content: any;
   @Input() data: any; // Keep for backward compatibility
+  @Input() title: string = '';
+  @Input() name: string = '';
+  @Input() description: string = '';
   @Input() id: string | null = null;
   @Output() action = new EventEmitter<{action: string, payload: any}>();
 
@@ -21,10 +24,12 @@ export class MfeRenderer implements AfterViewInit, OnDestroy {
   async ngAfterViewInit() {
     if (!this.mfe || !this.component) return;
     
+    const exposedModule = this.component.startsWith('./') ? this.component : `./${this.component}`;
+    
     try {
       const m = await loadRemoteModule({
         remoteName: this.mfe,
-        exposedModule: this.component
+        exposedModule: exposedModule
       });
 
       if (m && m.mount) {
@@ -33,19 +38,22 @@ export class MfeRenderer implements AfterViewInit, OnDestroy {
           content: this.content,
           data: this.data || this.content,
           id: this.id,
+          title: this.title,
+          name: this.name,
+          description: this.description,
           onAction: (actionStr: string, payload: any) => {
             this.action.emit({ action: actionStr, payload });
           }
         };
         this.unmountFn = await m.mount(this.container.nativeElement, props);
       } else {
-        throw new Error(`Remote module ${this.mfe}/${this.component} does not export mount function.`);
+        throw new Error(`Remote module ${this.mfe}/${exposedModule} does not export mount function.`);
       }
     } catch (err) {
-      console.error(`Failed to load ${this.component} from ${this.mfe}`, err);
+      console.error(`Failed to load ${exposedModule} from ${this.mfe}`, err);
       this.container.nativeElement.innerHTML = `
         <div style="color: #ff4d4d; padding: 10px; border: 1px solid #ff4d4d; border-radius: 4px; font-family: monospace; font-size: 12px; background: rgba(255, 77, 77, 0.1);">
-          Error loading MFE ${this.mfe}: ${this.component}
+          Error loading MFE ${this.mfe}: ${exposedModule}
         </div>
       `;
     }

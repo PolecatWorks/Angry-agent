@@ -23,7 +23,7 @@
       </div>
       <div class="overflow-x-auto">
         <div *ngIf="!isJsonView(viz.id)">
-          <app-mfe-renderer [mfe]="viz.provider" [component]="viz.component" [content]="viz.content" [id]="viz.id" (action)="handleMfeAction($event, viz.id)"></app-mfe-renderer>
+          <app-mfe-renderer [mfe]="viz.provider" [component]="viz.component" [content]="viz.content" [title]="viz.title" [name]="viz.name" [description]="viz.description" [id]="viz.id" (action)="handleMfeAction($event, viz.id)"></app-mfe-renderer>
         </div>
         <div *ngIf="isJsonView(viz.id)" class="json-viewer-container">
           <pre><code>{{ getFormattedJson(viz) }}</code></pre>
