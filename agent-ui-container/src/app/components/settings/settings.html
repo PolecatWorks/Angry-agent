@@ -1,52 +1,208 @@
 <div class="h-full w-full overflow-y-auto bg-surface p-8 relative">
-    <div class="max-w-2xl mx-auto space-y-8 pb-32">
-        <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface">
-                <span class="material-symbols-outlined text-2xl" data-icon="settings">settings</span>
-            </div>
-            <div>
-                <h1 class="text-3xl font-headline font-bold text-on-surface">Settings</h1>
-                <p class="text-sm text-outline">Manage your preferences and AI agent behavior.</p>
-            </div>
-        </div>
+    <div *ngIf="loading" class="flex items-center justify-center gap-2 text-outline text-sm h-full">
+        <span class="material-symbols-outlined animate-spin" data-icon="sync">sync</span>
+        Loading settings...
+    </div>
 
-        <div *ngIf="loading" class="flex items-center gap-2 text-outline text-sm">
-            <span class="material-symbols-outlined animate-spin" data-icon="sync">sync</span>
-            Loading settings...
-        </div>
-
-        <div *ngIf="!loading" class="space-y-6">
-            <div class="bg-surface-container-low rounded-2xl border border-outline-variant/10 p-6 shadow-sm">
-                <h2 class="text-lg font-headline font-bold text-on-surface mb-4">Agent Behavior</h2>
-
-                <div class="flex items-start justify-between gap-4">
+    <!-- Asymmetric Grid Layout -->
+    <div *ngIf="!loading" class="grid grid-cols-12 gap-8 max-w-7xl mx-auto pb-12">
+        <!-- Left Column: Collaborators Management -->
+        <div class="col-span-7 space-y-8">
+            <section>
+                <div class="flex justify-between items-end mb-6">
                     <div>
-                        <h3 class="text-base font-semibold text-on-surface flex items-center gap-2">
-                            Learning Mode
-                            <span *ngIf="saving" class="material-symbols-outlined text-sm animate-spin text-primary" data-icon="sync">sync</span>
-                        </h3>
-                        <p class="text-sm text-outline mt-1 max-w-md">
-                            When enabled, the AI will pause before answering to analyze your prompt and provide constructive feedback to help you write better prompts. This setting applies to all new threads by default.
-                        </p>
+                        <h2 class="font-headline text-2xl font-extrabold tracking-tight text-on-surface">Thread Collaborators</h2>
+                        <p class="text-sm text-on-surface-variant mt-1">Manage access levels and ownership for this workspace.</p>
+                    </div>
+                    <span class="px-3 py-1 bg-surface-container-high text-primary text-[11px] font-bold uppercase tracking-wider rounded-full">8 Members</span>
+                </div>
+                <!-- Collaborator List -->
+                <div class="space-y-3">
+                    <!-- Owner -->
+                    <div class="bg-surface-container-lowest p-4 rounded-xl flex items-center justify-between shadow-sm border border-outline-variant/10">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold">AR</div>
+                            <div>
+                                <p class="font-semibold text-sm text-on-surface">Alex Rivera (You)</p>
+                                <p class="text-xs text-on-surface-variant">alex.rivera@nexus.ai</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-[10px] font-bold uppercase tracking-tighter text-tertiary-container bg-tertiary-fixed/30 px-2 py-0.5 rounded">Owner</span>
+                            <button class="material-symbols-outlined text-outline text-lg">lock</button>
+                        </div>
+                    </div>
+                    <!-- Editor -->
+                    <div class="bg-surface-container-lowest p-4 rounded-xl flex items-center justify-between shadow-sm border border-outline-variant/10 hover:bg-surface-container-low transition-colors">
+                        <div class="flex items-center gap-4">
+                            <img class="w-10 h-10 rounded-full" data-alt="Professional profile headshot of a team member" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3OQ4f29aDke_167KIET2NrmCanriKBZIM8VUq2F4aaDv3WSJa5ToeWlj-1ZjTqM7hfcv9cwpTtDsLqBxIT0zBx1H6gJOpKGjTtSVG5lg7qUhrh10TzrdmfnU7UxbPBEWm2WrvbZPX0bFvsTavjtrzwruFq5pbCN1XgYxsTWYvYsdMJpXbfobBQ8ZEHOOsl59SQo7BxTHYS6t6STNR6TCDAeMmSQu52ca-_9jmy4hRMnv9H-a1MmPxoFOjbtxkksGx9fZrJcfb8QE"/>
+                            <div>
+                                <p class="font-semibold text-sm text-on-surface">Jordan Dax</p>
+                                <p class="text-xs text-on-surface-variant">j.dax@strategic.io</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <select class="bg-transparent border-none text-xs font-semibold text-on-surface-variant focus:ring-0 cursor-pointer">
+                                <option>Editor</option>
+                                <option>Viewer</option>
+                                <option>Remove</option>
+                            </select>
+                            <span class="material-symbols-outlined text-outline text-lg">expand_more</span>
+                        </div>
+                    </div>
+                    <!-- Viewer -->
+                    <div class="bg-surface-container-lowest p-4 rounded-xl flex items-center justify-between shadow-sm border border-outline-variant/10 hover:bg-surface-container-low transition-colors">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-secondary font-bold">ML</div>
+                            <div>
+                                <p class="font-semibold text-sm text-on-surface">Morgan Lee</p>
+                                <p class="text-xs text-on-surface-variant">m.lee@partner.com</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <select class="bg-transparent border-none text-xs font-semibold text-on-surface-variant focus:ring-0 cursor-pointer">
+                                <option>Viewer</option>
+                                <option>Editor</option>
+                                <option>Remove</option>
+                            </select>
+                            <span class="material-symbols-outlined text-outline text-lg">expand_more</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- Invite Section -->
+            <section class="bg-surface-container-low p-8 rounded-2xl border border-outline-variant/15">
+                <h3 class="font-headline text-lg font-bold mb-4 text-on-surface">Invite new collaborators</h3>
+                <div class="flex gap-3">
+                    <div class="flex-1 relative">
+                        <input class="w-full bg-surface-container-lowest border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary/20 shadow-inner text-on-surface" placeholder="Enter email addresses..." type="email"/>
+                    </div>
+                    <button class="bg-primary text-on-primary px-6 py-3 rounded-xl font-bold text-sm hover:shadow-lg transition-all active:scale-95">Send Invites</button>
+                </div>
+                <div class="mt-4 flex gap-4">
+                    <button class="flex items-center gap-2 text-xs font-bold text-primary hover:underline">
+                        <span class="material-symbols-outlined text-sm">link</span>
+                        Copy invite link
+                    </button>
+                    <button class="flex items-center gap-2 text-xs font-bold text-primary hover:underline">
+                        <span class="material-symbols-outlined text-sm">group_add</span>
+                        Add from Slack group
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Right Column: MFE Integrations (Glassmorphism Panel) -->
+        <div class="col-span-5">
+            <div class="bg-surface-variant/60 backdrop-blur-xl p-8 rounded-3xl border border-white/40 sticky top-8 min-h-[600px] shadow-xl">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <span class="material-symbols-outlined text-primary">extension</span>
+                    </div>
+                    <div>
+                        <h2 class="font-headline text-xl font-bold text-on-surface">Tool Integrations</h2>
+                        <p class="text-xs text-on-surface-variant">Configure MFE plugins for this thread</p>
+                    </div>
+                </div>
+
+                <!-- Integration Stack -->
+                <div class="space-y-4">
+                    <!-- Integration 1: Active -->
+                    <div class="bg-white/60 p-5 rounded-2xl border border-white/80 shadow-sm">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 bg-slate-900 rounded flex items-center justify-center text-white text-xs font-bold">AI</div>
+                                <div>
+                                    <p class="text-sm font-bold text-on-surface">Advanced Reasoning</p>
+                                    <p class="text-[10px] text-on-surface-variant">MFE-Core v2.4</p>
+                                </div>
+                            </div>
+                            <div class="flex h-5 w-9 items-center rounded-full bg-primary p-0.5 cursor-pointer">
+                                <div class="h-4 w-4 translate-x-4 rounded-full bg-white shadow-sm transition-transform"></div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-on-surface-variant leading-relaxed">Enables chain-of-thought processing and deep analytical breakdowns for thread queries.</p>
+                        <div class="mt-4 pt-4 border-t border-slate-200/50 flex justify-between items-center">
+                            <span class="text-[10px] font-bold text-on-surface-variant/60 uppercase">High Priority</span>
+                            <button class="text-[11px] font-bold text-primary flex items-center gap-1">Configure <span class="material-symbols-outlined text-xs">settings_input_component</span></button>
+                        </div>
                     </div>
 
-                    <mat-slide-toggle
-                        [(ngModel)]="settings.learning_mode_enabled"
-                        (change)="onSettingsChange()"
-                        color="primary"
-                        [disabled]="saving">
-                    </mat-slide-toggle>
-                </div>
-            </div>
+                    <!-- Integration 2: Inactive -->
+                    <div class="bg-slate-200/30 p-5 rounded-2xl border border-white/20">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-3 opacity-60">
+                                <div class="w-8 h-8 bg-green-600 rounded flex items-center justify-center text-white text-xs font-bold">XLS</div>
+                                <div>
+                                    <p class="text-sm font-bold text-on-surface">Data Visualization</p>
+                                    <p class="text-[10px] text-on-surface-variant">Plugin-Chart-JS</p>
+                                </div>
+                            </div>
+                            <div class="flex h-5 w-9 items-center rounded-full bg-slate-300 p-0.5 cursor-pointer">
+                                <div class="h-4 w-4 rounded-full bg-white shadow-sm transition-transform"></div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-on-surface-variant/60 leading-relaxed">Generates real-time interactive charts from detected tabular data within thread messages.</p>
+                    </div>
 
-            <!-- Future settings can go here -->
-            <div class="bg-surface-container-low rounded-2xl border border-outline-variant/10 p-6 shadow-sm opacity-50 pointer-events-none">
-                <h2 class="text-lg font-headline font-bold text-on-surface mb-4 flex items-center gap-2">
-                    Advanced Tuning <span class="text-[10px] uppercase tracking-widest bg-surface-container-high px-2 py-0.5 rounded font-bold">Coming Soon</span>
-                </h2>
-                <div class="space-y-4">
-                    <div class="h-4 bg-outline-variant/20 rounded w-3/4"></div>
-                    <div class="h-4 bg-outline-variant/20 rounded w-1/2"></div>
+                    <!-- Integration 3: Active + Gradient -->
+                    <div class="relative overflow-hidden p-5 rounded-2xl border border-primary/20 bg-primary-fixed/20">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 bg-gradient-to-br from-primary to-blue-400 rounded flex items-center justify-center text-white text-xs font-bold">
+                                    <span class="material-symbols-outlined text-sm">auto_awesome</span>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-primary">Nexus Insights</p>
+                                    <p class="text-[10px] text-primary/70">Native Intelligence</p>
+                                </div>
+                            </div>
+                            <div class="flex h-5 w-9 items-center rounded-full bg-primary p-0.5 cursor-pointer">
+                                <div class="h-4 w-4 translate-x-4 rounded-full bg-white shadow-sm transition-transform"></div>
+                            </div>
+                        </div>
+                        <div class="bg-white/40 p-3 rounded-lg border border-white/60">
+                            <p class="text-[11px] font-semibold text-primary/80 uppercase mb-1">Live Suggestion</p>
+                            <p class="text-xs text-on-surface leading-tight">Detected 4 budget anomalies in recent posts. Enable 'Financial Auditing' to analyze.</p>
+                        </div>
+                    </div>
+
+                    <!-- Integration 4: Functional Learning Mode -->
+                    <div class="bg-slate-200/30 p-5 rounded-2xl border border-white/20" [class.opacity-60]="!settings.learning_mode_enabled">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-3" [class.opacity-60]="!settings.learning_mode_enabled">
+                                <div class="w-8 h-8 bg-amber-500 rounded flex items-center justify-center text-white text-xs font-bold">
+                                    <span class="material-symbols-outlined text-sm">psychology</span>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-on-surface flex items-center gap-1">
+                                        Learning Mode
+                                        <span *ngIf="saving" class="material-symbols-outlined text-[12px] animate-spin text-primary" data-icon="sync">sync</span>
+                                    </p>
+                                    <p class="text-[10px] text-on-surface-variant">Contextual Memory v1.0</p>
+                                </div>
+                            </div>
+
+                            <!-- Real Angular material toggle -->
+                            <mat-slide-toggle
+                                [(ngModel)]="settings.learning_mode_enabled"
+                                (change)="onSettingsChange()"
+                                color="primary"
+                                [disabled]="saving">
+                            </mat-slide-toggle>
+                        </div>
+                        <p class="text-xs text-on-surface-variant/60 leading-relaxed">Allow the AI to learn from this thread's context to improve future responses.</p>
+                    </div>
+                </div>
+
+                <!-- Footer Insight -->
+                <div class="mt-8 p-4 bg-tertiary-fixed/20 rounded-xl border border-tertiary/10">
+                    <div class="flex gap-3">
+                        <span class="material-symbols-outlined text-tertiary text-lg">lightbulb</span>
+                        <p class="text-[11px] text-tertiary-fixed-variant leading-snug">
+                            <strong>Optimization Tip:</strong> Collaborators with 'Viewer' roles cannot trigger MFE tools that modify data structures.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
