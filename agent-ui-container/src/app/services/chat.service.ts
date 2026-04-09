@@ -66,6 +66,7 @@ export interface Visualization {
   component: string;
   content: any;
   name?: string;
+  title?: string;
   description?: string;
   order_index: number;
   created_at?: string;
