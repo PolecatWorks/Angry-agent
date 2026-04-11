@@ -1,0 +1,11 @@
+name: ARC Connection Test
+on: workflow_dispatch # So you can click a button to start it
+
+jobs:
+  test-my-cluster:
+    runs-on: polecatworks-runner # <--- This MUST match the NAME from your kubectl output
+    steps:
+      - name: Hello from K8s
+        run: |
+          echo "Success! The job is running on my internal cluster."
+          echo "I am running on pod: $(hostname)"
