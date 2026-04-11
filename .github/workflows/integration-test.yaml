@@ -15,6 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
       # The swap logic
       - name: Swap Service
         run: |
