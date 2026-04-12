@@ -36,6 +36,26 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       volumes: {{- include "agent-be.volumes" . | nindent 8 }}
+      initContainers:
+        - name: {{ template "agent-be.fullname" . }}-migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env: {{- include "agent-be.env" . | nindent 12 }}
+          args:
+            - migrate
+            - --action
+            - apply
+            - --config
+            - /opt/app/configs/config.yaml
+            - --secrets
+            - /opt/app/secrets
+          volumeMounts: {{- include "agent-be.volumeMounts" . | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
       containers:
         - name: agent-be
           env: {{- include "agent-be.env" . | nindent 10 }}

@@ -1,0 +1,70 @@
+kind: Project
+apiVersion: garden.io/v2
+name: angry-agent
+
+variables:
+  pr-number: ${local.env.PR_NUMBER || "local"}
+  kube-context: "${local.env.GARDEN_KUBECONTEXT || (local.env.CI == 'true' ? 'local' : 'kubernetes-admin@kubernetes')}"
+
+
+sources:
+  - name: central-base
+    repositoryUrl: https://github.com/PolecatWorks/home-k8s.git#main
+
+providers:
+  - name: kubernetes
+    context: ${var.kube-context}
+    deploymentRegistry:
+      hostname: ghcr.io
+      namespace: polecatworks
+    environments:
+      - pr
+      - pr-local
+      - default
+
+environments:
+  - name: default
+  - name: pr-local
+    defaultNamespace: angry-agent-pr-local
+  - name: pr
+    defaultNamespace: angry-agent-pr-${var.pr-number}
+
+---
+kind: Deploy
+type: helm
+name: agent-be
+description: "Deploy the backend agent"
+source:
+  path: charts/agent-be
+include:
+  - charts/agent-be/**/*
+spec:
+  values:
+    image:
+      tag: pr-${var.pr-number}
+
+---
+kind: Deploy
+type: helm
+name: agent-ui
+description: "Deploy the UI microfrontend"
+include:
+  - .garden-ignore # Ensure we ignore the huge file list
+spec:
+  chart:
+    url: oci://ghcr.io/polecatworks/mfe-shell/helm/nginx-view
+    version: ">= 0.1.x-0"
+  values:
+    image:
+      repository: ghcr.io/polecatworks/angry-agent-ui
+      tag: pr-${var.pr-number}
+      pullPolicy: Always
+    env:
+      - name: SERVE_ROOT
+        value: /mfe/angry-agent
+    config:
+      contents:
+        config.json: |
+          {
+            "apiUrl": "/agent-be/api"
+          }

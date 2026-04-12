@@ -1,0 +1,15 @@
+kind: Build
+type: container
+name: robot-tests-build
+description: "Integration test runner using Robot Framework"
+
+---
+kind: Test
+type: container
+name: integration-all
+spec:
+  image: ${actions.build.robot-tests-build.outputs.deployment-image-id}
+  command: ["."]
+dependencies:
+  - deploy.agent-be
+  - deploy.agent-ui
