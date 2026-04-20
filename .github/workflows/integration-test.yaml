@@ -2,6 +2,12 @@ name: Integration Tests
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR Number to target (e.g. 188). Defaults to 'local'."
+        required: false
+        default: "local"
 
 concurrency:
   group: k8s-integration-env
@@ -17,6 +23,39 @@ jobs:
     runs-on: polecatworks-runner
     steps:
       - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'agent-be-container/**'
+              - '.github/workflows/agent-be-docker-publish.yml'
+            frontend:
+              - 'agent-ui-container/**'
+              - '.github/workflows/agent-ui-docker-publish.yml'
+
+      - name: Prepare Image Variables
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.inputs.pr_number || 'local' }}"
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          
+          if [[ "${{ steps.filter.outputs.backend }}" == "true" ]]; then
+            echo "AGENT_BE_IMAGE=ghcr.io/${REPO_LOWER}-be/dev" >> $GITHUB_ENV
+            echo "AGENT_BE_TAG=pr-${PR_NUMBER}" >> $GITHUB_ENV
+          else
+            echo "AGENT_BE_IMAGE=ghcr.io/${REPO_LOWER}-be" >> $GITHUB_ENV
+            echo "AGENT_BE_TAG=main" >> $GITHUB_ENV
+          fi
+          
+          if [[ "${{ steps.filter.outputs.frontend }}" == "true" ]]; then
+            echo "AGENT_UI_IMAGE=ghcr.io/${REPO_LOWER}-ui/dev" >> $GITHUB_ENV
+            echo "AGENT_UI_TAG=pr-${PR_NUMBER}" >> $GITHUB_ENV
+          else
+            echo "AGENT_UI_IMAGE=ghcr.io/${REPO_LOWER}-ui" >> $GITHUB_ENV
+            echo "AGENT_UI_TAG=main" >> $GITHUB_ENV
+          fi
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
@@ -57,37 +96,33 @@ jobs:
       - name: Login to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
 
+      - name: Create Mock Secrets
+        run: |
+          NAMESPACE="angry-agent-pr-${{ env.PR_NUMBER }}"
+          # Ensure namespace exists
+          kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+          # Create a mock secret for agent-be (required by Helm chart)
+          kubectl create secret generic agent-be -n $NAMESPACE --from-literal=database_password=mock --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Run Integration Tests with Garden
         uses: garden-io/garden-action@v2
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
           GARDEN_KUBECONTEXT: local
+          AGENT_BE_IMAGE: ${{ env.AGENT_BE_IMAGE }}
+          AGENT_BE_TAG: ${{ env.AGENT_BE_TAG }}
+          AGENT_UI_IMAGE: ${{ env.AGENT_UI_IMAGE }}
+          AGENT_UI_TAG: ${{ env.AGENT_UI_TAG }}
         with:
-          # garden-version: "0.14.20"
           command: test --env pr
 
-      - name: Rollback Database Schema
-        if: always()
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          NAMESPACE="angry-agent-pr-${PR_NUMBER}"
-          echo "Finding backend pod in namespace: $NAMESPACE"
-          # Find the running backend pod to use its volume mounts and context for rollback
-          POD_NAME=$(kubectl get pods -n $NAMESPACE -l component=service-pod --no-headers -o custom-columns=":metadata.name" | head -n 1)
 
-          if [ -n "$POD_NAME" ]; then
-            echo "Running rollback migration in pod: $POD_NAME"
-            kubectl exec -n $NAMESPACE $POD_NAME -c agent-be -- python -m src.cli migrate --action rollback --config /opt/app/configs/config.yaml --secrets /opt/app/secrets
-          else
-            echo "No agent-be pod found. Skipping rollback or environment already clean."
-          fi
 
       - name: Teardown Garden Environment
         uses: garden-io/garden-action@v2
         if: always()
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
           GARDEN_KUBECONTEXT: local
         with:
           command: delete environment --env pr --force

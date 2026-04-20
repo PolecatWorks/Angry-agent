@@ -1,0 +1,8 @@
+**/node_modules
+**/.git
+**/.garden
+**/agent-be-venv
+**/dist
+**/build
+**/.angular
+**/tmp

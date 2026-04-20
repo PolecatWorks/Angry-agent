@@ -1,15 +1,28 @@
-kind: Build
-type: container
-name: robot-tests-build
-description: "Integration test runner using Robot Framework"
-
----
-kind: Test
-type: container
-name: integration-all
-spec:
-  image: ${actions.build.robot-tests-build.outputs.deployment-image-id}
-  command: ["."]
+kind: Deploy
+type: kubernetes
+name: robot-test-runner
 dependencies:
   - deploy.agent-be
   - deploy.agent-ui
+spec:
+  manifests:
+    - apiVersion: v1
+      kind: Pod
+      metadata:
+        name: robot-test-runner
+      spec:
+        containers:
+          - name: robot
+            image: marketsquare/robotframework-browser:latest
+            command: ["/bin/bash", "-c", "/home/pwuser/.venv/bin/pip install robotframework-requests && sleep infinity"]
+            securityContext:
+              runAsUser: 1001
+
+---
+kind: Test
+type: exec
+name: integration-all
+dependencies:
+  - deploy.robot-test-runner
+spec:
+  command: ["/bin/bash", "-c", "GARDEN_NAMESPACE=${var.current-namespace} ./run-tests.sh"]
