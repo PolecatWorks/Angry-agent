@@ -11,11 +11,22 @@ persistence:
     connection:
       url: postgresql://localhost:5432/agentdb
 
-aiclient:
+main_aiclient:
   model_provider: ollama
   model: qwen2.5-coder:14b
   ollama_base_url: http://localhost:11434
   context_length: 32768
+
+packager_aiclient:
+  model_provider: ollama
+  model: qwen2.5-coder:14b
+  ollama_base_url: http://localhost:11434
+  context_length: 32768
+
+embedding_client:
+  model_provider: google_genai
+  model: models/embedding-001
+  google_api_key: mock_api_key
 
 logging:
   version: 1

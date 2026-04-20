@@ -74,6 +74,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "agent-be.env" -}}
+{{- if .Values.env }}
+{{- tpl (toYaml .Values.env) . }}
+{{- end }}
 {{- end -}}
 
 

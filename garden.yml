@@ -4,8 +4,9 @@ name: angry-agent
 
 variables:
   pr-number: ${local.env.PR_NUMBER || "local"}
+  pr-namespace: angry-agent-pr-${var.pr-number}
   kube-context: "${local.env.GARDEN_KUBECONTEXT || (local.env.CI == 'true' ? 'local' : 'kubernetes-admin@kubernetes')}"
-
+  current-namespace: ${environment.defaultNamespace || "default"}
 
 sources:
   - name: central-base
@@ -14,6 +15,7 @@ sources:
 providers:
   - name: kubernetes
     context: ${var.kube-context}
+    namespace: ${environment.namespace}
     deploymentRegistry:
       hostname: ghcr.io
       namespace: polecatworks
@@ -24,6 +26,7 @@ providers:
 
 environments:
   - name: default
+    defaultNamespace: default
   - name: pr-local
     defaultNamespace: angry-agent-pr-local
   - name: pr
@@ -34,30 +37,55 @@ kind: Deploy
 type: helm
 name: agent-be
 description: "Deploy the backend agent"
+dependencies:
+  - deploy.angry-agent-secrets
 source:
   path: charts/agent-be
 include:
   - charts/agent-be/**/*
 spec:
   values:
+    configs:
+      webservice:
+        url: http://0.0.0.0:8080/agent-be
+      persistence:
+        db:
+          connection:
+            url: postgresql://cnpg-db0-cluster-rw.dbs:5432/angry_agent
+      main_aiclient:
+        ollama_base_url: http://ollama.ollama:11434
+      packager_aiclient:
+        ollama_base_url: http://ollama.ollama:11434
+    secretName: db0-angry-agent-user
+    env:
+      - name: APP_PERSISTENCE__DB__CONNECTION__USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: db0-angry-agent-user
+            key: username
+      - name: APP_PERSISTENCE__DB__CONNECTION__PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: db0-angry-agent-user
+            key: password
+
     image:
-      tag: pr-${var.pr-number}
+      repository: ${local.env.AGENT_BE_IMAGE || "ghcr.io/polecatworks/angry-agent-be"}
+      tag: ${local.env.AGENT_BE_TAG || "latest"}
 
 ---
 kind: Deploy
 type: helm
 name: agent-ui
 description: "Deploy the UI microfrontend"
-include:
-  - .garden-ignore # Ensure we ignore the huge file list
 spec:
   chart:
     url: oci://ghcr.io/polecatworks/mfe-shell/helm/nginx-view
-    version: ">= 0.1.x-0"
+    version: "0.1.0-main-20260210211011-05bbdec"
   values:
     image:
-      repository: ghcr.io/polecatworks/angry-agent-ui
-      tag: pr-${var.pr-number}
+      repository: ${local.env.AGENT_UI_IMAGE || "ghcr.io/polecatworks/angry-agent-ui"}
+      tag: ${local.env.AGENT_UI_TAG || "latest"}
       pullPolicy: Always
     env:
       - name: SERVE_ROOT
@@ -68,3 +96,12 @@ spec:
           {
             "apiUrl": "/agent-be/api"
           }
+
+---
+kind: RenderTemplate
+template: push-secret-config
+name: angry-agent-secrets
+inputs:
+  sourceSecretName: db0-angry-agent-user
+  sourceNamespace: dbs
+  remoteNamespace: ${environment.namespace}

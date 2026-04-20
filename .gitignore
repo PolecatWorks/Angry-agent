@@ -2,7 +2,9 @@ __pycache__/
 agent-be-venv
 *.pyc
 node_modules/
+.garden
 dist/
+.garden/
 .angular/
 .DS_Store
 .vscode/
