@@ -35,7 +35,7 @@ async def test_generate_agent_store_visualization():
         config = RunnableConfig(configurable={"service_config": mock_config.return_value})
         result = await generate_agent_store_visualization.ainvoke(input_data, config)
 
-        assert isinstance(result, MFEContent)
-        assert result.provider == "angry-agent"
-        assert result.component == "./AgentStoreShowWrapper"
-        assert result.content["matches"] == mock_search.return_value
+        assert isinstance(result, dict)
+        assert result["provider"] == "angry-agent"
+        assert result["component"] == "./AgentStoreShowWrapper"
+        assert result["content"]["matches"] == mock_search.return_value

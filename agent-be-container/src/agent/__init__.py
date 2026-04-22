@@ -13,43 +13,11 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMe
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.runnables import RunnableConfig
 from .tools import get_tools
-from .structs import MFEContent, MFEContainer, FollowUpQuestions, AgentState, PromptFeedback
+from .structs import MFEContent, MFEContainer, FollowUpQuestions, AgentState, PromptFeedback, _try_parse_mfe_content
 import logging
 import uuid
 
 logger = logging.getLogger(__name__)
-
-
-
-def _try_parse_mfe_content(content) -> MFEContent | None:
-    """Attempt to parse content as MFEContent using Pydantic validation.
-
-    Handles content in the following forms:
-    - dict (e.g. from tool returning a plain dict)
-    - Pydantic model instance (has model_dump)
-    - JSON string, optionally wrapped in markdown code fences
-    """
-    if isinstance(content, dict):
-        try:
-            return MFEContent.model_validate(content)
-        except Exception:
-            return None
-    elif hasattr(content, "model_dump"):
-        try:
-            return MFEContent.model_validate(content.model_dump())
-        except Exception:
-            return None
-    elif isinstance(content, str):
-        cleaned = content.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:-3].strip()
-        elif cleaned.startswith("```"):
-            cleaned = cleaned[3:-3].strip()
-        try:
-            return MFEContent.model_validate_json(cleaned)
-        except Exception:
-            return None
-    return None
 
 
 

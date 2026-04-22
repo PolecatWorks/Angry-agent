@@ -24,7 +24,7 @@ async def generate_mfe_of_json(input: JsonInput, config: RunnableConfig) -> MFEC
         **input.model_dump(),
         provider="mfe1",
         component="./JsonShowWrapper",
-    )
+    ).model_dump()
 
 
 class MarkdownInput(MFEBase):
@@ -41,7 +41,7 @@ async def generate_mfe_of_markdown(input: MarkdownInput, config: RunnableConfig)
         **input.model_dump(),
         provider="mfe1",
         component="./MarkdownShowWrapper",
-    )
+    ).model_dump()
 
 
 
@@ -62,7 +62,7 @@ async def generate_mfe_of_text(input: TextInput, config: RunnableConfig) -> MFEC
         **input.model_dump(),
         provider="mfe1",
         component="./TextShowWrapper",
-    )
+    ).model_dump()
 
 
 class PersonalDataForm(BaseModel):
@@ -89,7 +89,7 @@ async def generate_mfe_of_personal_data_form(
         **input.model_dump(),
         provider="mfe1",
         component="./PersonalDataFormWrapper",
-    )
+    ).model_dump()
 
 class MermaidInput(MFEBase):
     content: str = Field(description="The mermaid diagram as a string")
@@ -107,7 +107,7 @@ async def generate_mfe_of_mermaid(input: MermaidInput, config: RunnableConfig) -
     )
     logger.warning(f"Tool generate_mfe_of_mermaid called: {reply}")
 
-    return reply
+    return reply.model_dump()
 
 
 class DataPoint(BaseModel):
@@ -138,7 +138,7 @@ async def generate_data_visualization(input: DataVizInput, config: RunnableConfi
         **input.model_dump(),
         provider="mfe1",
         component="./DataShowWrapper"
-    )
+    ).model_dump()
 
 
 class AgentStoreVizInput(MFEBase):
@@ -173,4 +173,4 @@ async def generate_agent_store_visualization(input: AgentStoreVizInput, config: 
         provider="angry-agent",
         component="./AgentStoreShowWrapper",
         content={"matches": results}
-    )
+    ).model_dump()

@@ -19,13 +19,13 @@ async def test_generate_mfe_of_markdown_happy_path():
     result = await generate_mfe_of_markdown.ainvoke({"input": input_data}, config)
 
     # Assert
-    assert isinstance(result, MFEContent)
-    assert result.provider == "mfe1"
-    assert result.component == "./MarkdownShowWrapper"
-    assert result.content == content
-    assert result.name == "test_markdown"
-    assert result.title == "Markdown Title"
-    assert result.description == "Markdown description"
+    assert isinstance(result, dict)
+    assert result["provider"] == "mfe1"
+    assert result["component"] == "./MarkdownShowWrapper"
+    assert result["content"] == content
+    assert result["name"] == "test_markdown"
+    assert result["title"] == "Markdown Title"
+    assert result["description"] == "Markdown description"
 
 
 @pytest.mark.asyncio
@@ -44,13 +44,13 @@ async def test_generate_mfe_of_text_happy_path():
     result = await generate_mfe_of_text.ainvoke({"input": input_data}, config)
 
     # Assert
-    assert isinstance(result, MFEContent)
-    assert result.provider == "mfe1"
-    assert result.component == "./TextShowWrapper"
-    assert result.content == content
-    assert result.name == "test_text"
-    assert result.title == "Text Title"
-    assert result.description == "Text description"
+    assert isinstance(result, dict)
+    assert result["provider"] == "mfe1"
+    assert result["component"] == "./TextShowWrapper"
+    assert result["content"] == content
+    assert result["name"] == "test_text"
+    assert result["title"] == "Text Title"
+    assert result["description"] == "Text description"
 
 
 @pytest.mark.asyncio
@@ -75,13 +75,13 @@ async def test_generate_mfe_of_personal_data_form_happy_path_all_fields():
     result = await generate_mfe_of_personal_data_form.ainvoke({"input": input_data}, config)
 
     # Assert
-    assert isinstance(result, MFEContent)
-    assert result.provider == "mfe1"
-    assert result.component == "./PersonalDataFormWrapper"
-    assert result.content == content.model_dump()
-    assert result.name == "test_form_all"
-    assert result.title == "Form Title"
-    assert result.description == "Form description"
+    assert isinstance(result, dict)
+    assert result["provider"] == "mfe1"
+    assert result["component"] == "./PersonalDataFormWrapper"
+    assert result["content"] == content.model_dump()
+    assert result["name"] == "test_form_all"
+    assert result["title"] == "Form Title"
+    assert result["description"] == "Form description"
 
 
 @pytest.mark.asyncio
@@ -103,13 +103,13 @@ async def test_generate_mfe_of_personal_data_form_happy_path_partial_fields():
     result = await generate_mfe_of_personal_data_form.ainvoke({"input": input_data}, config)
 
     # Assert
-    assert isinstance(result, MFEContent)
-    assert result.provider == "mfe1"
-    assert result.component == "./PersonalDataFormWrapper"
-    assert result.content == content.model_dump()
-    assert result.name == "test_form_partial"
-    assert result.title == "Partial Form Title"
-    assert result.description == "Partial Form description"
+    assert isinstance(result, dict)
+    assert result["provider"] == "mfe1"
+    assert result["component"] == "./PersonalDataFormWrapper"
+    assert result["content"] == content.model_dump()
+    assert result["name"] == "test_form_partial"
+    assert result["title"] == "Partial Form Title"
+    assert result["description"] == "Partial Form description"
 
 
 @pytest.mark.asyncio
@@ -141,13 +141,13 @@ async def test_generate_data_visualization_happy_path():
     result = await generate_data_visualization.ainvoke({"input": input_data}, config)
 
     # Assert
-    assert isinstance(result, MFEContent)
-    assert result.provider == "mfe1"
-    assert result.component == "./DataShowWrapper"
-    assert result.content == content.model_dump()
-    assert result.name == "test_viz"
-    assert result.title == "Viz Title"
-    assert result.description == "Viz description"
+    assert isinstance(result, dict)
+    assert result["provider"] == "mfe1"
+    assert result["component"] == "./DataShowWrapper"
+    assert result["content"] == content.model_dump()
+    assert result["name"] == "test_viz"
+    assert result["title"] == "Viz Title"
+    assert result["description"] == "Viz description"
 
 
 @pytest.mark.asyncio
@@ -166,13 +166,13 @@ async def test_generate_mfe_of_json_happy_path():
     result = await generate_mfe_of_json.ainvoke({"input": input_data}, config)
 
     # Assert
-    assert isinstance(result, MFEContent)
-    assert result.provider == "mfe1"
-    assert result.component == "./JsonShowWrapper"
-    assert result.content == content
-    assert result.name == "test_name"
-    assert result.title == "Test Title"
-    assert result.description == "Test description"
+    assert isinstance(result, dict)
+    assert result["provider"] == "mfe1"
+    assert result["component"] == "./JsonShowWrapper"
+    assert result["content"] == content
+    assert result["name"] == "test_name"
+    assert result["title"] == "Test Title"
+    assert result["description"] == "Test description"
 
 
 @pytest.mark.asyncio
@@ -191,13 +191,13 @@ async def test_generate_mfe_of_json_empty_dict():
     result = await generate_mfe_of_json.ainvoke({"input": input_data}, config)
 
     # Assert
-    assert isinstance(result, MFEContent)
-    assert result.provider == "mfe1"
-    assert result.component == "./JsonShowWrapper"
-    assert result.content == content
-    assert result.name == "test_empty"
-    assert result.title == "Empty Title"
-    assert result.description == "Empty description"
+    assert isinstance(result, dict)
+    assert result["provider"] == "mfe1"
+    assert result["component"] == "./JsonShowWrapper"
+    assert result["content"] == content
+    assert result["name"] == "test_empty"
+    assert result["title"] == "Empty Title"
+    assert result["description"] == "Empty description"
 
 
 @pytest.mark.asyncio
@@ -216,10 +216,10 @@ async def test_generate_mfe_of_mermaid_happy_path():
     result = await generate_mfe_of_mermaid.ainvoke({"input": input_data}, config)
 
     # Assert
-    assert isinstance(result, MFEContent)
-    assert result.provider == "mfe1"
-    assert result.component == "./MermaidShowWrapper"
-    assert result.content == content
-    assert result.name == "test_mermaid"
-    assert result.title == "Mermaid Title"
-    assert result.description == "Mermaid description"
+    assert isinstance(result, dict)
+    assert result["provider"] == "mfe1"
+    assert result["component"] == "./MermaidShowWrapper"
+    assert result["content"] == content
+    assert result["name"] == "test_mermaid"
+    assert result["title"] == "Mermaid Title"
+    assert result["description"] == "Mermaid description"
