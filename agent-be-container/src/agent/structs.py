@@ -139,3 +139,68 @@ class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
     visualizations: Annotated[List[MFEContent], visualizations_reducer] = Field(default_factory=list)
     learning_mode_enabled: bool = Field(default=False)
+
+
+def _try_parse_mfe_content(content: Any) -> MFEContent | None:
+    """Attempt to parse content as MFEContent using Pydantic validation.
+
+    Handles content in the following forms:
+    - dict (e.g. from tool returning a plain dict)
+    - Pydantic model instance (has model_dump)
+    - JSON string, optionally wrapped in markdown code fences
+    - Python repr-like strings (e.g. "name='val' ...") - best effort
+    """
+    if content is None:
+         return None
+
+    if isinstance(content, MFEContent):
+        return content
+
+    if isinstance(content, dict):
+        try:
+            return MFEContent.model_validate(content)
+        except Exception:
+            return None
+    elif hasattr(content, "model_dump"):
+        try:
+            return MFEContent.model_validate(content.model_dump())
+        except Exception:
+            return None
+    elif isinstance(content, str):
+        cleaned = content.strip()
+        # Handle markdown blocks
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:-3].strip()
+        elif cleaned.startswith("```"):
+            cleaned = cleaned[3:-3].strip()
+        
+        # Try JSON first
+        try:
+            return MFEContent.model_validate_json(cleaned)
+        except Exception:
+            pass
+            
+        # Try a very basic heuristic for Python repr-like string if it looks like one
+        # e.g. "name='langraph-arch' title='...'"
+        # We can try to convert it to JSON-ish by replacing ' = ' with ' : ' and wrapping in {}
+        # But it's risky. A better way might be to use regex to find key=value pairs.
+        if "=" in cleaned and not (cleaned.startswith("{") or cleaned.startswith("[")):
+            # Extremely crude attempt to parse key='value' or key="value" or key=value
+            import re
+            pattern = r"(\w+)=(['\"])(.*?)\2|(\w+)=([^, \n]+)"
+            matches = re.findall(pattern, cleaned)
+            data = {}
+            for m in matches:
+                if m[0]: # group 1 (key), group 3 (value)
+                    data[m[0]] = m[2]
+                elif m[3]: # group 4 (key), group 5 (value)
+                    data[m[3]] = m[4]
+            
+            if data:
+                try:
+                    # Special check for 'content' field which might be a nested thing or a string
+                    return MFEContent.model_validate(data)
+                except Exception:
+                    pass
+
+    return None
