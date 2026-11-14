@@ -21,7 +21,13 @@
 5. **Agent-as-Data & GraphRAG Integration**:
    - Model agents, tool definitions, workflows, and form state as queryable data structures.
    - Graph-based context retrieval and persistence in PostgreSQL with in-memory caching (`DashMap`).
-6. **Container Independence**:
+6. **Form Catalog & Sample Forms Management**:
+   - Built-in catalog of reference MFE forms (e.g. Vendor Onboarding, Expense Claim) exposing standard Draft 2020-12 JSON Schemas, field constraints, and initial states.
+   - API endpoints to list available catalog forms (`GET /api/forms`) and retrieve form definitions by ID (`GET /api/forms/{form_id}`).
+7. **Comprehensive Integration Testing & Verification Suite**:
+   - End-to-end integration tests validating form lifecycle, human-to-backend RFC 6902 state synchronization, focus collision protection, SSE streaming of AG-UI events, conversational form switching, and submission confirmation guardrails.
+   - Robot Framework test suites for container-level validation in deployment pipelines.
+8. **Container Independence**:
    - Independent Docker container buildable with standard cargo tools, adhering to zero Docker Compose dependency.
 
 ## 3. Architecture & Tech Stack
@@ -50,3 +56,4 @@ Detailed implementation specifications are broken down into:
 - `SPEC-02-AXUM-API-SSE.md`: HTTP endpoints (`/api/form/register`, `/api/form/sync`, `/api/agent/run`, `/health`).
 - `SPEC-03-RIG-AGENT-TOOLS.md`: `rig-core` agent runner, `DynamicFormPatchTool`, preamble generation, lifecycle tools.
 - `SPEC-04-PERSISTENCE-GRAPHRAG.md`: PostgreSQL session checkpointing and agent-as-data schema modeling.
+- `SPEC-05-FORM-CATALOG-TEST-SUITE.md`: Form catalog registry (`/api/forms`), reference sample forms, and automated integration test specifications.

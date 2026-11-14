@@ -5,7 +5,8 @@ use serde_json::{json, Value};
 #[tokio::test]
 async fn test_full_agentrs_form_workflow() {
     let store = agentrs_be::session_store::SessionStore::new();
-    let state = agentrs_be::api::AppState { store };
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let state = agentrs_be::api::AppState { store, catalog };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -14,6 +15,15 @@ async fn test_full_agentrs_form_workflow() {
     assert_eq!(resp.status_code(), StatusCode::OK);
     let health_json: serde_json::Value = resp.json();
     assert_eq!(health_json["container"], "agentrs-be-container");
+
+    // Check catalog endpoints
+    let forms_resp = server.get("/api/forms").await;
+    assert_eq!(forms_resp.status_code(), StatusCode::OK);
+    let forms_json: serde_json::Value = forms_resp.json();
+    assert!(forms_json["forms"].as_array().unwrap().len() >= 2);
+
+    let single_form = server.get("/api/forms/vendor_onboarding_v2").await;
+    assert_eq!(single_form.status_code(), StatusCode::OK);
 
     // 2. Register Form
     let register_resp = server
@@ -69,7 +79,8 @@ async fn test_full_agentrs_form_workflow() {
 #[tokio::test]
 async fn test_sample_vendor_onboarding_form_and_agent_run() {
     let store = agentrs_be::session_store::SessionStore::new();
-    let state = agentrs_be::api::AppState { store };
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let state = agentrs_be::api::AppState { store, catalog };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -123,7 +134,8 @@ async fn test_sample_vendor_onboarding_form_and_agent_run() {
 #[tokio::test]
 async fn test_sample_expense_claim_form_switch_and_submission() {
     let store = agentrs_be::session_store::SessionStore::new();
-    let state = agentrs_be::api::AppState { store };
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let state = agentrs_be::api::AppState { store, catalog };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 

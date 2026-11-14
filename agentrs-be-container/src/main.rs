@@ -20,7 +20,8 @@ async fn main() {
         .unwrap_or(8081);
 
     let store = SessionStore::new();
-    let state = AppState { store };
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let state = AppState { store, catalog };
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
