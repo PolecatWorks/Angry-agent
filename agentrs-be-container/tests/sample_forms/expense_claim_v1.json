@@ -1,0 +1,41 @@
+{
+  "form_id": "expense_claim_v1",
+  "title": "Corporate Expense Claim",
+  "json_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["claimantName", "category", "amount", "currency"],
+    "properties": {
+      "claimantName": {
+        "type": "string",
+        "description": "Full name of employee"
+      },
+      "category": {
+        "type": "string",
+        "enum": ["Travel", "Meals", "Software", "Office Supplies"],
+        "description": "Expense category"
+      },
+      "amount": {
+        "type": "number",
+        "minimum": 0.01,
+        "description": "Total expenditure"
+      },
+      "currency": {
+        "type": "string",
+        "enum": ["GBP", "USD", "EUR"],
+        "description": "Claim currency"
+      },
+      "justification": {
+        "type": "string",
+        "description": "Business justification for this expense"
+      }
+    }
+  },
+  "initial_data": {
+    "claimantName": "Alice Smith",
+    "category": "Travel",
+    "amount": 142.50,
+    "currency": "GBP",
+    "justification": "Customer visit travel costs"
+  }
+}
