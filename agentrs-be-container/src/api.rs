@@ -1,4 +1,5 @@
 use crate::broadcaster::EventBroadcaster;
+use crate::catalog::FormCatalog;
 use crate::models::{AgUiEvent, FormSyncRequest, RegisterFormRequest, RunAgentRequest};
 use crate::session_store::SessionStore;
 use axum::{
@@ -20,11 +21,14 @@ use uuid::Uuid;
 #[derive(Clone)]
 pub struct AppState {
     pub store: SessionStore,
+    pub catalog: FormCatalog,
 }
 
 pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_handler))
+        .route("/api/forms", get(list_forms_handler))
+        .route("/api/forms/{form_id}", get(get_form_handler))
         .route("/api/threads", get(list_threads_handler))
         .route("/api/threads/{thread_id}", get(get_thread_handler))
         .route("/api/form/register", post(register_form_handler))
@@ -48,6 +52,21 @@ async fn health_handler() -> impl IntoResponse {
         "protocol": "AG-UI v1.0",
         "version": env!("CARGO_PKG_VERSION")
     }))
+}
+
+async fn list_forms_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let forms = state.catalog.list();
+    Json(json!({ "forms": forms }))
+}
+
+async fn get_form_handler(
+    State(state): State<AppState>,
+    Path(form_id): Path<String>,
+) -> impl IntoResponse {
+    match state.catalog.get(&form_id) {
+        Some(form) => Json(json!({ "form": form })),
+        None => Json(json!({ "error": "Form not found" })),
+    }
 }
 
 async fn list_threads_handler(
