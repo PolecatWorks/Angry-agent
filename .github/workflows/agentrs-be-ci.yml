@@ -1,0 +1,47 @@
+name: AgentRS-BE CI
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "agentrs-be-container/**"
+      - ".github/workflows/agentrs-be-ci.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "agentrs-be-container/**"
+      - ".github/workflows/agentrs-be-ci.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-lint:
+    name: Rust Test & Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "agentrs-be-container -> target"
+
+      - name: Check Formatting
+        working-directory: agentrs-be-container
+        run: cargo fmt --check
+
+      - name: Run Clippy Linter
+        working-directory: agentrs-be-container
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run Tests
+        working-directory: agentrs-be-container
+        run: cargo test --verbose
