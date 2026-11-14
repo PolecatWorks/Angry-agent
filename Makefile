@@ -1,23 +1,26 @@
 
 .PHONY: frontend-dev frontend-docker frontend-docker-run \
-        db-local
+        db-local agentrs-be-dev agentrs-be-test agentrs-be-docker
 
 BASE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-
+RUST_APPS := agentrs-be
 PYTHON_APPS := agent-be
 NODE_APPS := agent-ui
-APPS := $(PYTHON_APPS) $(NODE_APPS)
+APPS := $(PYTHON_APPS) $(NODE_APPS) $(RUST_APPS)
 
+agentrs-be_PORT := 8081
 agent-be_PORT := 8080
 agent-be_HEALTH_PORT := 8079
 agent-ui_PORT := 3001
 
+agentrs-be_INTERNAL_PORT := 8081
 agent-be_INTERNAL_PORT := 8080
 agent-be_INTERNAL_HEALTH_PORT := 8079
 agent-ui_INTERNAL_PORT := 8080
 
 # Docker Build
+agentrs-be_DOCKER_BUILD_OPTS :=
 agent-be_DOCKER_BUILD_OPTS := --secret id=GOOGLE_API_KEY,env=GOOGLE_API_KEY
 agent-ui_DOCKER_BUILD_OPTS := --secret id=NODE_AUTH_TOKEN,env=NODE_AUTH_TOKEN
 
@@ -72,6 +75,13 @@ $(foreach app,$(NODE_APPS),$(app)-dev):%-dev:%-container/node_modules
 # Run tests (Node)
 $(foreach app,$(NODE_APPS),$(app)-test):%-test:%-container/node_modules
 	cd $*-container && npm test
+
+# --- Rust App Patterns ---
+agentrs-be-dev:
+	cd agentrs-be-container && cargo run
+
+agentrs-be-test:
+	cd agentrs-be-container && cargo test
 
 # --- Docker ---
 
