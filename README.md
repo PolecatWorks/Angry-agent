@@ -1,10 +1,12 @@
-# AI Agent Chat Application
+# AI Agent Chat & Form Canvas Application
 
-This project consists of an Angular Frontend and a Python Backend (using LangGraph), designed to run as independent Docker containers.
+This project consists of an Angular Frontend and alternative Python and Rust Backends, designed to run as independent Docker containers.
 
 ## Project Structure
-- `agent-ui-container/`: Angular Application
-- `agent-be-container/`: Python Backend (Poetry, Aiohttp, LangGraph)
+- `agent-ui-container/`: Angular Application (Module Federation Remote / Host Shell)
+- `agent-be-container/`: Python Backend (Poetry, Aiohttp, LangGraph, PostgreSQL)
+- `agentrs-be-container/`: High-performance Rust Backend (Tokio, Axum, rig-core, AG-UI protocol over SSE, RFC 6902 JSON Patch state delta handling, inspired by `agent-as-data` and `Graphrag`)
+
 
 ## Running the Application
 
@@ -19,13 +21,24 @@ make db-local
 ```
 
 ### 2. Backend
-Build and run the backend container. It needs to connect to the Postgres database.
 
-**Run:**
+#### Option A: Python Backend (LangGraph)
+Build and run the Python backend container. It connects to the Postgres database:
+
 ```bash
 make agent-be-docker-run
 ```
-*Note: This target handles building the image and setting up environment variables.*
+
+#### Option B: Rust Backend (agentrs-be-container)
+Run the Rust backend locally or via Cargo/Docker:
+
+```bash
+# Run locally
+make agentrs-be-dev
+
+# Run tests
+make agentrs-be-test
+```
 
 ### 3. Frontend
 Build and run the frontend container.
@@ -42,6 +55,12 @@ Access the application at `http://localhost:4200`.
 - **Persistent History**: Chat history is stored in PostgreSQL.
 - **LangGraph Agent**: Uses LangGraph with Postgres Checkpointing.
 - **Interactive Workspace**: A dynamic panel for pinning, editing, and reordering visualizations (Charts, JSON, Mermaid diagrams) using a BREAD (Browse, Read, Edit, Add, Delete) toolset.
+- **Bidirectional Agentic Form Canvas (`agentrs-be`)**:
+  - Real-time split-pane collaboration between direct human form inputs (RHS) and conversational agent actuation (LHS).
+  - Server-Sent Events (SSE) compliant with AG-UI v1.0 protocol.
+  - RFC 6902 JSON Patch state deltas (`STATE_DELTA`) with conflict prevention for user-focused fields.
+  - Dynamic schema-driven tools for form mutation, hot-swapping forms (`switch_active_form`), and human-in-the-loop submission approvals (`request_form_submission`).
+  - Sample test forms provided under `agentrs-be-container/tests/sample_forms/` (`vendor_onboarding_v2.json`, `expense_claim_v1.json`).
 
 ## Data Persistence Architecture
 

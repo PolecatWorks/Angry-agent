@@ -1,0 +1,40 @@
+{
+  "form_id": "vendor_onboarding_v2",
+  "title": "Vendor Onboarding Form",
+  "json_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["companyName", "country", "currency", "vatNumber"],
+    "properties": {
+      "companyName": {
+        "type": "string",
+        "description": "Legal company name"
+      },
+      "country": {
+        "type": "string",
+        "enum": ["GB", "US", "DE", "FR"],
+        "description": "Country code (ISO 3166-1 alpha-2)"
+      },
+      "currency": {
+        "type": "string",
+        "enum": ["GBP", "USD", "EUR"],
+        "description": "Billing currency"
+      },
+      "vatNumber": {
+        "type": "string",
+        "description": "Tax identification / VAT registration number"
+      },
+      "notes": {
+        "type": "string",
+        "description": "Optional notes or compliance declarations"
+      }
+    }
+  },
+  "initial_data": {
+    "companyName": "Acme Industrial Supplies",
+    "country": "GB",
+    "currency": "GBP",
+    "vatNumber": "",
+    "notes": ""
+  }
+}
