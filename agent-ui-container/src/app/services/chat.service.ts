@@ -84,8 +84,16 @@ export class ChatService {
   private apiUrl$: Observable<string>;
 
   constructor(private http: HttpClient, private authService: AuthService) {
-    const basePath = new URL('./', import.meta.url).href;
-    const configPath = basePath.endsWith('/') ? `${basePath}assets/contents/config.json` : `${basePath}/assets/contents/config.json`;
+    let configPath = "/assets/contents/config.json";
+    try {
+      const rel = ["assets", "contents", "config.json"].join("/");
+      const base = new URL(rel, import.meta.url).href;
+      if (!base.includes("/@fs/") && !base.includes("/@vite/")) {
+        configPath = base;
+      }
+    } catch {
+      configPath = "/assets/contents/config.json";
+    }
     this.apiUrl$ = this.http.get<{ apiUrl: string }>(configPath).pipe(
       map(config => (config.apiUrl ? config.apiUrl.replace(/\/+$/, '') : '')),
       shareReplay(1)

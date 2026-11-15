@@ -11,7 +11,7 @@ persistence:
 
 main_aiclient:
   model_provider: google_genai
-  model: gemini-2.0-flash
+  model: gemini-3.8-flash
   context_length: 8192
   system_prompt: |
     You are an expert agent that has access to data and visualisation tools
@@ -52,7 +52,7 @@ main_aiclient:
 
 packager_aiclient:
   model_provider: google_genai
-  model: gemini-2.0-flash
+  model: gemini-3.8-flash
   context_length: 8192
   system_prompt: |
     You are a UI Content Packager.
