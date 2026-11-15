@@ -1,4 +1,3 @@
-import os
 import warnings
 # Suppress Pydantic V1 warning on Python 3.14 until langchain-core updates
 warnings.filterwarnings("ignore", message=".*Core Pydantic V1 functionality isn't compatible with Python 3.14.*")
@@ -46,22 +45,18 @@ async def auth_middleware(app, handler):
         if not token:
             return web.json_response({"error": "Bearer token required"}, status=401)
 
-        # Production validation: configure the trusted Keycloak RS256 public key,
-        # issuer and audience. Never accept an unverified JWT as an identity.
-        public_key = os.environ.get("APP_AUTH_JWT_PUBLIC_KEY")
-        issuer = os.environ.get("APP_AUTH_JWT_ISSUER")
-        audience = os.environ.get("APP_AUTH_JWT_AUDIENCE")
-        if not public_key or not issuer or not audience:
-            logger.error("JWT validation is not configured; refusing authenticated API requests")
-            return web.json_response({"error": "Authentication is not configured"}, status=503)
+        # Authentication settings are loaded and validated by Pydantic
+        # as part of ServiceConfig; middleware never reads process env directly.
+        auth_config = request.app[keys.config].auth
+        public_key = auth_config.jwt_public_key.get_secret_value()
 
         try:
             decoded_payload = jwt.decode(
                 token,
                 key=public_key.replace("\\n", "\n"),
                 algorithms=["RS256"],
-                issuer=issuer,
-                audience=audience,
+                issuer=auth_config.jwt_issuer,
+                audience=auth_config.jwt_audience,
                 options={"require": ["exp", "iss", "aud", "sub"]},
             )
         except jwt.PyJWTError:
