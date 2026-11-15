@@ -45,6 +45,14 @@ class PersistenceConfig(BaseModel):
     db: DbOptionsConfig
 
 
+class AuthConfig(BaseModel):
+    """Trusted identity-provider settings used to validate incoming access tokens."""
+
+    jwt_public_key: SecretStr = Field(description="PEM public key used to verify RS256 access tokens")
+    jwt_issuer: str = Field(description="Expected JWT issuer (iss claim)")
+    jwt_audience: str = Field(description="Expected API audience (aud claim)")
+
+
 class WebServerConfig(BaseModel):
     """
     Configuration for the web server
@@ -172,6 +180,7 @@ class ServiceConfig(BaseSettings):
     hams: HamsConfig = Field(description="Health and monitoring configuration")
 
     webservice: WebServerConfig = Field(description="Web server configuration")
+    auth: AuthConfig = Field(description="Authentication and JWT validation configuration")
     persistence: PersistenceConfig = Field(description="Database persistence configuration")
     events: EventConfig = Field(default_factory=EventConfig, description="Process costs for events")
 
