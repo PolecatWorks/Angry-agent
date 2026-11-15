@@ -46,18 +46,28 @@ async def auth_middleware(app, handler):
         if not token:
             return web.json_response({"error": "Bearer token required"}, status=401)
 
+        # Production validation: configure the trusted Keycloak RS256 public key,
+        # issuer and audience. Never accept an unverified JWT as an identity.
+        public_key = os.environ.get("APP_AUTH_JWT_PUBLIC_KEY")
+        issuer = os.environ.get("APP_AUTH_JWT_ISSUER")
+        audience = os.environ.get("APP_AUTH_JWT_AUDIENCE")
+        if not public_key or not issuer or not audience:
+            logger.error("JWT validation is not configured; refusing authenticated API requests")
+            return web.json_response({"error": "Authentication is not configured"}, status=503)
+
         try:
-            # NOTE: Signature verification is intentionally not changed in this
-            # patch. Configure trusted issuer/JWKS validation before production use.
-            decoded_payload = jwt.decode(token, options={"verify_signature": False})
+            decoded_payload = jwt.decode(
+                token,
+                key=public_key.replace("\\n", "\n"),
+                algorithms=["RS256"],
+                issuer=issuer,
+                audience=audience,
+                options={"require": ["exp", "iss", "aud", "sub"]},
+            )
         except jwt.PyJWTError:
             return web.json_response({"error": "Invalid bearer token"}, status=401)
 
-        user_id = (
-            decoded_payload.get("sub")
-            or decoded_payload.get("user_id")
-            or decoded_payload.get("preferred_username")
-        )
+        user_id = decoded_payload.get("sub")
         if not isinstance(user_id, str) or not user_id.strip():
             return web.json_response({"error": "Bearer token has no user identity claim"}, status=401)
 
