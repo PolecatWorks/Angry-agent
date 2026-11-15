@@ -5,7 +5,6 @@ import { Injectable } from '@angular/core';
 })
 export class AuthService {
   private readonly USER_KEY = 'agent-user-id';
-  private readonly DEFAULT_USER = 'default-user';
 
   constructor() { }
 
@@ -18,16 +17,11 @@ export class AuthService {
   }
 
   getUserId(): string {
-    // Always return a user ID to simulate being logged in
-    let stored = localStorage.getItem(this.USER_KEY);
-    if (!stored) {
-      stored = this.DEFAULT_USER;
-      localStorage.setItem(this.USER_KEY, stored);
-    }
-    return stored;
+    // This is a locally selected identifier, not proof of authentication.
+    return localStorage.getItem(this.USER_KEY) ?? '';
   }
 
   isLoggedIn(): boolean {
-    return true; // Always logged in
+    return !!localStorage.getItem(this.USER_KEY);
   }
 }
