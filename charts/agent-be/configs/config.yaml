@@ -3,6 +3,11 @@ webservice:
   url: http://0.0.0.0:8080
   prefix: "/api/angry-agent/v1"
 
+auth:
+  jwt_public_key: REPLACE_WITH_KEYCLOAK_RS256_PUBLIC_KEY
+  jwt_issuer: https://keycloak.example.com/realms/your-realm
+  jwt_audience: angry-agent-api
+
 persistence:
   db:
     pool_size: 20
