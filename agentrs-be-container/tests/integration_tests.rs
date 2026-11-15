@@ -360,3 +360,30 @@ async fn test_thread_history_and_visualizations_api() {
     assert!(hist_json.get("messages").is_some());
     assert!(hist_json.get("visualizations").is_some());
 }
+
+#[tokio::test]
+async fn test_chat_endpoint_lifecycle() {
+    let store = agentrs_be::session_store::SessionStore::new();
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let pool = agentrs_be::db::create_pool().await.ok();
+    let state = agentrs_be::api::AppState { store, catalog, pool };
+    let app = agentrs_be::api::create_router(state);
+    let server = TestServer::new(app).unwrap();
+
+    let user_id = "test-chat-user";
+    let thread_id = format!("test-chat-thread-{}", uuid::Uuid::new_v4());
+
+    // 1. Send chat message
+    let resp = server
+        .post("/api/chat")
+        .add_header("X-User-ID", user_id)
+        .json(&json!({
+            "thread_id": thread_id,
+            "message": "Hello from integration test"
+        }))
+        .await;
+    assert_eq!(resp.status_code(), StatusCode::ACCEPTED);
+    let json_body: serde_json::Value = resp.json();
+    assert_eq!(json_body["thread_id"], thread_id);
+    assert_eq!(json_body["status"], "processing");
+}
