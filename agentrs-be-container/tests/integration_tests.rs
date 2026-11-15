@@ -387,3 +387,54 @@ async fn test_chat_endpoint_lifecycle() {
     assert_eq!(json_body["thread_id"], thread_id);
     assert_eq!(json_body["status"], "processing");
 }
+
+#[tokio::test]
+async fn test_agent_definitions_crud() {
+    let store = agentrs_be::session_store::SessionStore::new();
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let pool = agentrs_be::db::create_pool().await.ok();
+    let state = agentrs_be::api::AppState { store, catalog, pool };
+    let app = agentrs_be::api::create_router(state);
+    let server = TestServer::new(app).unwrap();
+
+    // 1. Create agent
+    let create_resp = server
+        .post("/api/agents")
+        .json(&json!({
+            "name": "Integration Test Agent",
+            "content": "You are a test agent definition."
+        }))
+        .await;
+    assert_eq!(create_resp.status_code(), StatusCode::CREATED);
+    let create_json: serde_json::Value = create_resp.json();
+    let agent_id = create_json["id"].as_str().unwrap().to_string();
+    assert_eq!(create_json["name"], "Integration Test Agent");
+
+    // 2. List agents
+    let list_resp = server.get("/api/agents").await;
+    assert_eq!(list_resp.status_code(), StatusCode::OK);
+    let list_json: serde_json::Value = list_resp.json();
+    assert!(list_json.as_array().unwrap().iter().any(|a| a["id"] == agent_id));
+
+    // 3. Update agent
+    let update_resp = server
+        .put(&format!("/api/agents/{agent_id}"))
+        .json(&json!({
+            "name": "Updated Agent Name",
+            "content": "Updated content"
+        }))
+        .await;
+    assert_eq!(update_resp.status_code(), StatusCode::OK);
+    let update_json: serde_json::Value = update_resp.json();
+    assert_eq!(update_json["name"], "Updated Agent Name");
+
+    // 4. Delete agent
+    let delete_resp = server.delete(&format!("/api/agents/{agent_id}")).await;
+    assert_eq!(delete_resp.status_code(), StatusCode::OK);
+    let delete_json: serde_json::Value = delete_resp.json();
+    assert_eq!(delete_json["status"], "deleted");
+
+    // 5. Delete again should return 404
+    let delete_again = server.delete(&format!("/api/agents/{agent_id}")).await;
+    assert_eq!(delete_again.status_code(), StatusCode::NOT_FOUND);
+}

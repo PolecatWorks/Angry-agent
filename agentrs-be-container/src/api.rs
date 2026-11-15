@@ -7,7 +7,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::sse::{Event, KeepAlive, Sse},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, post, put},
     Json, Router,
 };
 use futures::stream::Stream;
@@ -46,6 +46,11 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/form/sync", post(sync_form_handler))
         .route("/api/agent/run", post(run_agent_handler))
         .route("/api/chat", post(chat_handler))
+        .route("/api/agents", get(get_agents_handler).post(create_agent_handler))
+        .route(
+            "/api/agents/{agent_id}",
+            put(update_agent_handler).delete(delete_agent_handler),
+        )
         .with_state(state)
 }
 
@@ -793,4 +798,187 @@ async fn chat_handler(
             "status": "processing"
         })),
     ))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AgentDefinitionRequest {
+    pub name: Option<String>,
+    pub content: Option<String>,
+}
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct AgentDefinitionRow {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub content: String,
+}
+
+async fn get_agents_handler(
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    if let Some(pool) = &state.pool {
+        let rows = sqlx::query_as::<_, AgentDefinitionRow>(
+            "SELECT id, name, content FROM agent_definitions ORDER BY name",
+        )
+        .fetch_all(pool)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+
+        let agents_json: Vec<serde_json::Value> = rows
+            .into_iter()
+            .map(|r| {
+                json!({
+                    "id": r.id.to_string(),
+                    "name": r.name,
+                    "content": r.content
+                })
+            })
+            .collect();
+
+        return Ok(Json(json!(agents_json)));
+    }
+
+    Ok(Json(json!([])))
+}
+
+async fn create_agent_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<AgentDefinitionRequest>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let name = payload.name.filter(|n| !n.trim().is_empty()).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "name and content are required" })),
+        )
+    })?;
+
+    let content = payload.content.filter(|c| !c.trim().is_empty()).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "name and content are required" })),
+        )
+    })?;
+
+    let agent_id = Uuid::new_v4();
+
+    if let Some(pool) = &state.pool {
+        sqlx::query(
+            "INSERT INTO agent_definitions (id, name, content) VALUES ($1, $2, $3)",
+        )
+        .bind(agent_id)
+        .bind(&name)
+        .bind(&content)
+        .execute(pool)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+
+        return Ok((
+            StatusCode::CREATED,
+            Json(json!({
+                "id": agent_id.to_string(),
+                "name": name,
+                "content": content
+            })),
+        ));
+    }
+
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({
+            "id": agent_id.to_string(),
+            "name": name,
+            "content": content
+        })),
+    ))
+}
+
+async fn update_agent_handler(
+    State(state): State<AppState>,
+    Path(agent_id_str): Path<String>,
+    Json(payload): Json<AgentDefinitionRequest>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let agent_id = Uuid::parse_str(&agent_id_str).map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "Invalid agent_id UUID" })),
+        )
+    })?;
+
+    let name = payload.name.filter(|n| !n.trim().is_empty()).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "name and content are required" })),
+        )
+    })?;
+
+    let content = payload.content.filter(|c| !c.trim().is_empty()).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "name and content are required" })),
+        )
+    })?;
+
+    if let Some(pool) = &state.pool {
+        let result = sqlx::query(
+            "UPDATE agent_definitions SET name = $1, content = $2 WHERE id = $3",
+        )
+        .bind(&name)
+        .bind(&content)
+        .bind(agent_id)
+        .execute(pool)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+
+        if result.rows_affected() == 0 {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "Agent definition not found" })),
+            ));
+        }
+
+        return Ok(Json(json!({
+            "id": agent_id.to_string(),
+            "name": name,
+            "content": content
+        })));
+    }
+
+    Ok(Json(json!({
+        "id": agent_id.to_string(),
+        "name": name,
+        "content": content
+    })))
+}
+
+async fn delete_agent_handler(
+    State(state): State<AppState>,
+    Path(agent_id_str): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let agent_id = Uuid::parse_str(&agent_id_str).map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "Invalid agent_id UUID" })),
+        )
+    })?;
+
+    if let Some(pool) = &state.pool {
+        let result = sqlx::query(
+            "DELETE FROM agent_definitions WHERE id = $1",
+        )
+        .bind(agent_id)
+        .execute(pool)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+
+        if result.rows_affected() == 0 {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "Agent definition not found" })),
+            ));
+        }
+
+        return Ok(Json(json!({ "status": "deleted" })));
+    }
+
+    Ok(Json(json!({ "status": "deleted" })))
 }
