@@ -77,6 +77,10 @@ impl SessionStore {
     pub fn update_session(&self, session: AgentSession) {
         self.sessions.insert(session.thread_id.clone(), session);
     }
+
+    pub fn remove(&self, thread_id: &str) -> Option<AgentSession> {
+        self.sessions.remove(thread_id).map(|(_, s)| s)
+    }
 }
 
 #[cfg(test)]

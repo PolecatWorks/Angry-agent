@@ -232,3 +232,67 @@ async fn test_user_settings_api() {
     let after_json: serde_json::Value = resp_after.json();
     assert_eq!(after_json.get("learning_mode_enabled").unwrap(), &json!(true));
 }
+
+#[tokio::test]
+async fn test_thread_crud_lifecycle() {
+    let store = agentrs_be::session_store::SessionStore::new();
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let pool = agentrs_be::db::create_pool().await.ok();
+    let state = agentrs_be::api::AppState { store, catalog, pool: pool.clone() };
+    let app = agentrs_be::api::create_router(state);
+    let server = TestServer::new(app).unwrap();
+
+    let user_id = "test-thread-crud-user";
+    let thread_id = "test-thread-uuid-1";
+
+    if let Some(ref p) = pool {
+        // Seed a thread directly in db for test
+        let _ = sqlx::query(
+            "INSERT INTO threads (thread_id, user_id, title, color) VALUES ($1, $2, $3, $4) ON CONFLICT (thread_id) DO UPDATE SET title = EXCLUDED.title"
+        )
+        .bind(thread_id)
+        .bind(user_id)
+        .bind("Original Title")
+        .bind("#123456")
+        .execute(p)
+        .await;
+    }
+
+    // 1. List threads
+    let list_resp = server
+        .get("/api/threads")
+        .add_header("X-User-ID", user_id)
+        .await;
+    assert_eq!(list_resp.status_code(), StatusCode::OK);
+    let list_json: serde_json::Value = list_resp.json();
+    assert!(list_json.get("threads").is_some());
+
+    // 2. Update thread
+    let update_resp = server
+        .put(&format!("/api/threads/{thread_id}"))
+        .add_header("X-User-ID", user_id)
+        .json(&json!({
+            "title": "Updated Thread Title",
+            "color": "#abcdef"
+        }))
+        .await;
+    assert_eq!(update_resp.status_code(), StatusCode::OK);
+    let update_json: serde_json::Value = update_resp.json();
+    assert_eq!(update_json["status"], "updated");
+
+    // 3. Delete thread
+    let delete_resp = server
+        .delete(&format!("/api/threads/{thread_id}"))
+        .add_header("X-User-ID", user_id)
+        .await;
+    assert_eq!(delete_resp.status_code(), StatusCode::OK);
+    let delete_json: serde_json::Value = delete_resp.json();
+    assert_eq!(delete_json["status"], "deleted");
+
+    // 4. Delete again should return 404
+    let delete_again = server
+        .delete(&format!("/api/threads/{thread_id}"))
+        .add_header("X-User-ID", user_id)
+        .await;
+    assert_eq!(delete_again.status_code(), StatusCode::NOT_FOUND);
+}
