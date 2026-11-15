@@ -20,6 +20,7 @@ WORKDIR /app
 COPY --from=builder /usr/src/agentrs-be/target/release/agentrs-be /app/agentrs-be
 
 ENV PORT=8081
-EXPOSE 8081
+ENV HAMS_PORT=8078
+EXPOSE 8081 8078
 
 CMD ["/app/agentrs-be"]

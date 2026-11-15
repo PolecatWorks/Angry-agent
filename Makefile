@@ -13,11 +13,13 @@ NODE_APPS := agent-ui
 APPS := $(PYTHON_APPS) $(NODE_APPS) $(RUST_APPS)
 
 agentrs-be_PORT := 8081
+agentrs-be_HEALTH_PORT := 8078
 agent-be_PORT := 8080
 agent-be_HEALTH_PORT := 8079
 agent-ui_PORT := 3001
 
 agentrs-be_INTERNAL_PORT := 8081
+agentrs-be_INTERNAL_HEALTH_PORT := 8078
 agent-be_INTERNAL_PORT := 8080
 agent-be_INTERNAL_HEALTH_PORT := 8079
 agent-ui_INTERNAL_PORT := 8080

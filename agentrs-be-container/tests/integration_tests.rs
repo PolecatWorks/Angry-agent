@@ -185,3 +185,10 @@ async fn test_sample_expense_claim_form_switch_and_submission() {
     let submit_sse = submit_resp.text();
     assert!(submit_sse.contains("REQUEST_SUBMIT_APPROVAL"));
 }
+
+#[test]
+fn test_hams_health_and_probes() {
+    let mut hams = agentrs_be::hams::init_hams(8077).expect("Failed to initialize HaMS");
+    hams.start().expect("Failed to start HaMS");
+    hams.stop().expect("Failed to stop HaMS");
+}
