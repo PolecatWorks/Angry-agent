@@ -46,6 +46,12 @@ Implement the HTTP and Server-Sent Events (SSE) server using Axum, exposing rout
 - `POST /api/chat`: Accepts `{ "message": "string", "thread_id": "string", "bypass_learning_mode": bool }`. Atomically checks thread access, acquires a 5-minute row lock on `threads (locked_until)`, returns HTTP 202 `{ "thread_id": "...", "status": "processing" }`, and runs agent execution in the background releasing lock on completion.
 - `POST /api/agent/run`: Header `X-User-ID`, body `{ "thread_id": "...", "run_id": "...", "message": "..." }`, response `Content-Type: text/event-stream` emitting AG-UI events.
 
+### 2.5 Agent Definitions Store
+- `GET /api/agents`: Retrieve all agent definitions (`id`, `name`, `content`).
+- `POST /api/agents`: Create a new agent definition (`name`, `content`), returning 201 Created with generated UUID.
+- `PUT /api/agents/{agent_id}`: Update an agent definition by UUID.
+- `DELETE /api/agents/{agent_id}`: Delete an agent definition by UUID.
+
 ## 3. Concurrency & Header Checks
 - Extracts `X-User-ID` (defaults to "default_user" if omitted in dev).
 - Tokio channel-based broadcast for SSE event streaming to client.
