@@ -34,7 +34,12 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/forms", get(list_forms_handler))
         .route("/api/forms/{form_id}", get(get_form_handler))
         .route("/api/threads", get(list_threads_handler))
-        .route("/api/threads/{thread_id}", get(get_thread_handler))
+        .route(
+            "/api/threads/{thread_id}",
+            get(get_thread_handler)
+                .put(update_thread_handler)
+                .delete(delete_thread_handler),
+        )
         .route("/api/form/register", post(register_form_handler))
         .route("/api/form/sync", post(sync_form_handler))
         .route("/api/agent/run", post(run_agent_handler))
@@ -144,13 +149,164 @@ async fn get_form_handler(
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UpdateThreadRequest {
+    pub color: String,
+    pub title: String,
+    pub learning_mode_enabled: Option<bool>,
+}
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct ThreadSummary {
+    pub thread_id: String,
+    pub title: Option<String>,
+    pub color: Option<String>,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
 async fn list_threads_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let user_id = extract_user_id(&headers);
+
+    if let Some(pool) = &state.pool {
+        // Track user login
+        let _ = sqlx::query(
+            r#"
+            INSERT INTO users (user_id, user_name, last_login_at)
+            VALUES ($1, $1, NOW())
+            ON CONFLICT (user_id) DO UPDATE
+            SET user_name = EXCLUDED.user_name,
+                last_login_at = NOW()
+            "#,
+        )
+        .bind(&user_id)
+        .execute(pool)
+        .await;
+
+        let rows = sqlx::query_as::<_, ThreadSummary>(
+            r#"
+            SELECT DISTINCT t.thread_id, t.title, t.color, t.created_at
+            FROM threads t
+            LEFT JOIN thread_access ta ON t.thread_id = ta.thread_id
+            WHERE t.user_id = $1 OR ta.user_id = $1
+            ORDER BY t.created_at DESC
+            "#,
+        )
+        .bind(&user_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e.to_string() })),
+            )
+        })?;
+
+        let threads_json: Vec<serde_json::Value> = rows
+            .into_iter()
+            .map(|t| {
+                json!({
+                    "thread_id": t.thread_id,
+                    "title": t.title,
+                    "color": t.color,
+                    "created_at": t.created_at.map(|c| c.to_rfc3339()),
+                })
+            })
+            .collect();
+
+        return Ok(Json(json!({ "threads": threads_json })));
+    }
+
     let threads = state.store.list_user_sessions(&user_id);
-    Json(json!({ "threads": threads }))
+    Ok(Json(json!({ "threads": threads })))
+}
+
+async fn update_thread_handler(
+    State(state): State<AppState>,
+    Path(thread_id): Path<String>,
+    headers: HeaderMap,
+    Json(payload): Json<UpdateThreadRequest>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let user_id = extract_user_id(&headers);
+
+    if let Some(pool) = &state.pool {
+        let result = sqlx::query(
+            r#"
+            UPDATE threads
+            SET color = $1, title = $2, updated_at = NOW()
+            WHERE thread_id = $3 AND user_id = $4
+            "#,
+        )
+        .bind(&payload.color)
+        .bind(&payload.title)
+        .bind(&thread_id)
+        .bind(&user_id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e.to_string() })),
+            )
+        })?;
+
+        if result.rows_affected() == 0 {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "Not found or access denied" })),
+            ));
+        }
+
+        return Ok(Json(json!({ "status": "updated" })));
+    }
+
+    // Fallback in-memory
+    match state.store.get(&thread_id) {
+        Some(_) => Ok(Json(json!({ "status": "updated" }))),
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "Not found or access denied" })),
+        )),
+    }
+}
+
+async fn delete_thread_handler(
+    State(state): State<AppState>,
+    Path(thread_id): Path<String>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let user_id = extract_user_id(&headers);
+
+    if let Some(pool) = &state.pool {
+        let result = sqlx::query(
+            "DELETE FROM threads WHERE thread_id = $1 AND user_id = $2",
+        )
+        .bind(&thread_id)
+        .bind(&user_id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e.to_string() })),
+            )
+        })?;
+
+        if result.rows_affected() == 0 {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "Not found or access denied" })),
+            ));
+        }
+
+        return Ok(Json(json!({ "status": "deleted" })));
+    }
+
+    // Fallback in-memory
+    state.store.remove(&thread_id);
+    Ok(Json(json!({ "status": "deleted" })))
 }
 
 async fn get_thread_handler(

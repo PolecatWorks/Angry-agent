@@ -10,6 +10,8 @@ Implement the HTTP and Server-Sent Events (SSE) server using Axum, exposing rout
 - `GET /api/user/settings`: Fetch user settings (e.g., `learning_mode_enabled`).
 - `PUT /api/user/settings`: Upsert user settings (e.g., `{"learning_mode_enabled": bool}`).
 - `GET /api/threads`: List active threads for the user (`X-User-ID`).
+- `PUT /api/threads/{thread_id}`: Update thread metadata (`color`, `title`, optional `learning_mode_enabled`) atomically ensuring user ownership.
+- `DELETE /api/threads/{thread_id}`: Delete thread atomically ensuring user ownership.
 - `GET /api/threads/{thread_id}`: Fetch thread history & active form context.
 
 ### 2.2 Form Registration (`POST /api/form/register`)
