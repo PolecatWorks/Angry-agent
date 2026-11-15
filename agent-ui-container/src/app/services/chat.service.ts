@@ -1,7 +1,6 @@
 import { Injectable, Optional } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, BehaviorSubject, Subject, map, shareReplay, switchMap, tap } from 'rxjs';
-import { AuthService } from './auth.service';
 
 export interface JsonPatchOp {
   op: 'add' | 'replace' | 'remove';
@@ -135,7 +134,7 @@ export class ChatService {
   private activeSelectionSubject = new BehaviorSubject<CanvasSelection | null>(null);
   activeSelection$ = this.activeSelectionSubject.asObservable();
 
-  constructor(private http: HttpClient, private authService: AuthService) {
+  constructor(private http: HttpClient) {
     let configPath = "/assets/contents/config.json";
     try {
       const rel = ["assets", "contents", "config.json"].join("/");
@@ -153,10 +152,8 @@ export class ChatService {
   }
 
   private getHeaders(): HttpHeaders {
-    const userId = this.authService.getUserId() || '';
     return new HttpHeaders({
-      'Content-Type': 'application/json',
-      'X-User-ID': userId
+      'Content-Type': 'application/json'
     });
   }
 
