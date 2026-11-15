@@ -2,7 +2,9 @@ pub mod agent;
 pub mod api;
 pub mod broadcaster;
 pub mod catalog;
+pub mod db;
 pub mod graphrag;
+pub mod hams;
 pub mod models;
 pub mod session_store;
-pub mod hams;
+

@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 async fn test_full_agentrs_form_workflow() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let state = agentrs_be::api::AppState { store, catalog };
+    let state = agentrs_be::api::AppState { store, catalog, pool: None };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -80,7 +80,7 @@ async fn test_full_agentrs_form_workflow() {
 async fn test_sample_vendor_onboarding_form_and_agent_run() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let state = agentrs_be::api::AppState { store, catalog };
+    let state = agentrs_be::api::AppState { store, catalog, pool: None };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -135,7 +135,7 @@ async fn test_sample_vendor_onboarding_form_and_agent_run() {
 async fn test_sample_expense_claim_form_switch_and_submission() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let state = agentrs_be::api::AppState { store, catalog };
+    let state = agentrs_be::api::AppState { store, catalog, pool: None };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -191,4 +191,44 @@ fn test_hams_health_and_probes() {
     let mut hams = agentrs_be::hams::init_hams(8077).expect("Failed to initialize HaMS");
     hams.start().expect("Failed to start HaMS");
     hams.stop().expect("Failed to stop HaMS");
+}
+
+#[tokio::test]
+async fn test_user_settings_api() {
+    let store = agentrs_be::session_store::SessionStore::new();
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let pool = agentrs_be::db::create_pool().await.ok();
+    let state = agentrs_be::api::AppState { store, catalog, pool };
+    let app = agentrs_be::api::create_router(state);
+    let server = TestServer::new(app).unwrap();
+
+    // 1. Get user settings
+    let resp = server
+        .get("/api/user/settings")
+        .add_header("X-User-ID", "test-settings-user")
+        .await;
+    assert_eq!(resp.status_code(), StatusCode::OK);
+    let initial_json: serde_json::Value = resp.json();
+    assert!(initial_json.get("learning_mode_enabled").is_some());
+
+    // 2. Put user settings
+    let put_resp = server
+        .put("/api/user/settings")
+        .add_header("X-User-ID", "test-settings-user")
+        .json(&json!({
+            "learning_mode_enabled": true
+        }))
+        .await;
+    assert_eq!(put_resp.status_code(), StatusCode::OK);
+    let put_json: serde_json::Value = put_resp.json();
+    assert_eq!(put_json["status"], "updated");
+
+    // 3. Verify get reflects update if db is connected
+    let resp_after = server
+        .get("/api/user/settings")
+        .add_header("X-User-ID", "test-settings-user")
+        .await;
+    assert_eq!(resp_after.status_code(), StatusCode::OK);
+    let after_json: serde_json::Value = resp_after.json();
+    assert_eq!(after_json.get("learning_mode_enabled").unwrap(), &json!(true));
 }
