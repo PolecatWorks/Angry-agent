@@ -31,43 +31,42 @@ async def auth_middleware(app, handler):
             response = web.Response()
             response.headers["Access-Control-Allow-Origin"] = "*"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE, PATCH"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-User-ID, Authorization"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
             return response
 
-        # Allow health check without auth (handle prefixed case as well)
+        # Health checks remain public.
         if request.path.endswith("/health"):
             return await handler(request)
 
-        user_id = None
-        user_name = None
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.lower().startswith("bearer "):
+            return web.json_response({"error": "Bearer token required"}, status=401)
 
-        # Try extracting user_id from Authorization Header (JWT)
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.lower().startswith("bearer "):
-            token = auth_header[7:] # remove 'Bearer '
-            try:
-                decoded_payload = jwt.decode(token, options={"verify_signature": False})
-                # Check standard claims
-                user_id = decoded_payload.get("sub") or decoded_payload.get("user_id") or decoded_payload.get("preferred_username")
-                if not user_id:
-                    # If standard claims are missing, serialize payload as a fallback identifier or fallback to default
-                    user_id = "default-user"
-                    logger.warning(f"JWT decoded but no 'sub' or 'user_id' claim found. Payload: {decoded_payload}")
+        token = auth_header[7:].strip()
+        if not token:
+            return web.json_response({"error": "Bearer token required"}, status=401)
 
-                # Extract user_name for tracking logins
-                user_name = decoded_payload.get("name") or decoded_payload.get("preferred_username") or decoded_payload.get("email")
-            except Exception as e:
-                logger.error(f"Failed to decode JWT: {e}")
+        try:
+            # NOTE: Signature verification is intentionally not changed in this
+            # patch. Configure trusted issuer/JWKS validation before production use.
+            decoded_payload = jwt.decode(token, options={"verify_signature": False})
+        except jwt.PyJWTError:
+            return web.json_response({"error": "Invalid bearer token"}, status=401)
 
-        # Fallback to X-User-ID header
-        if not user_id:
-            user_id = request.headers.get("X-User-ID")
+        user_id = (
+            decoded_payload.get("sub")
+            or decoded_payload.get("user_id")
+            or decoded_payload.get("preferred_username")
+        )
+        if not isinstance(user_id, str) or not user_id.strip():
+            return web.json_response({"error": "Bearer token has no user identity claim"}, status=401)
 
-        if not user_id:
-             # Fallback for single user mode if header is missing
-             user_id = "default-user"
-        if not user_name:
-            user_name = user_id
+        user_name = (
+            decoded_payload.get("name")
+            or decoded_payload.get("preferred_username")
+            or decoded_payload.get("email")
+            or user_id
+        )
 
         request["user_id"] = user_id
         request["user_name"] = user_name
@@ -75,13 +74,11 @@ async def auth_middleware(app, handler):
         try:
             response = await handler(request)
         except web.HTTPException:
-            # Let aiohttp handle its own exceptions (404, etc.)
             raise
         except Exception as e:
-             logger.error(f"Error handling request: {e}", exc_info=True)
-             response = web.json_response({"error": str(e)}, status=500)
+            logger.error(f"Error handling request: {e}", exc_info=True)
+            response = web.json_response({"error": "Internal server error"}, status=500)
 
-        # Always add CORS headers
         response.headers["Access-Control-Allow-Origin"] = "*"
         return response
 
