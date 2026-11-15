@@ -1,9 +1,10 @@
 use agentrs_be::api::{create_router, AppState};
+use agentrs_be::hams::init_hams;
 use agentrs_be::session_store::SessionStore;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use tracing::info;
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() {
@@ -18,6 +19,19 @@ async fn main() {
         .ok()
         .and_then(|p| p.parse().ok())
         .unwrap_or(8081);
+
+    let hams_port: u16 = std::env::var("HAMS_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(8078);
+
+    // Initialize and start HaMS health and monitoring
+    let mut hams = init_hams(hams_port).expect("Failed to initialize HaMS");
+    if let Err(e) = hams.start() {
+        error!("Failed to start HaMS: {e}");
+    } else {
+        info!("HaMS health service running on port {hams_port} (/hams/alive, /hams/ready, /hams/startup)");
+    }
 
     let store = SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
@@ -39,5 +53,11 @@ async fn main() {
         .await
         .expect("Failed to bind TCP listener");
 
-    axum::serve(listener, app).await.expect("Server error");
+    if let Err(e) = axum::serve(listener, app).await {
+        error!("Server error: {e}");
+    }
+
+    if let Err(e) = hams.stop() {
+        info!("HaMS stopped or already stopped: {e}");
+    }
 }

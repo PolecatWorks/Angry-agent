@@ -27,8 +27,9 @@
 7. **Comprehensive Integration Testing & Verification Suite**:
    - End-to-end integration tests validating form lifecycle, human-to-backend RFC 6902 state synchronization, focus collision protection, SSE streaming of AG-UI events, conversational form switching, and submission confirmation guardrails.
    - Robot Framework test suites for container-level validation in deployment pipelines.
-8. **Container Independence**:
+8. **Container Independence & Health Monitoring (HaMS)**:
    - Independent Docker container buildable with standard cargo tools, adhering to zero Docker Compose dependency.
+   - Built-in integration with PolecatWorks `hams` (Health Monitoring System) library on dedicated health port (default `8078`), providing standard Kubernetes probes (`/hams/alive`, `/hams/ready`, `/hams/startup`, `/hams/metrics`, `/hams/version`).
 
 ## 3. Architecture & Tech Stack
 - **Language / Runtime**: Rust (Edition 2021/2024, `rustc 1.98+`, Tokio).

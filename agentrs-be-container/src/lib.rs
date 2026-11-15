@@ -5,3 +5,4 @@ pub mod catalog;
 pub mod graphrag;
 pub mod models;
 pub mod session_store;
+pub mod hams;
