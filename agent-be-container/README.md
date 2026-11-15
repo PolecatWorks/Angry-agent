@@ -38,3 +38,21 @@ Example GitHub Action step:
     secrets: |
       "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}"
 ```
+
+## Authentication configuration
+
+Incoming API access tokens are validated using the `auth` section of the Pydantic `ServiceConfig`. Keep these values in the service YAML configuration and/or the configured Pydantic secrets directory; the request middleware does not read process environment variables directly.
+
+Example YAML:
+
+```yaml
+auth:
+  jwt_public_key: |
+    -----BEGIN PUBLIC KEY-----
+    REPLACE_WITH_KEYCLOAK_REALM_PUBLIC_KEY
+    -----END PUBLIC KEY-----
+  jwt_issuer: https://keycloak.example.com/realms/your-realm
+  jwt_audience: angry-agent-api
+```
+
+The public key is a Pydantic `SecretStr`. The issuer and audience must match the claims in the access token. The backend requires RS256 tokens containing `exp`, `iss`, `aud`, and `sub`; missing or invalid credentials are rejected. Configure the matching values in the YAML or secrets directory before deploying.
