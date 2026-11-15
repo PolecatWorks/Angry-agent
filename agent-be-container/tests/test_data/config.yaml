@@ -1,6 +1,11 @@
 webservice:
   url: http://0.0.0.0:8080
 
+auth:
+  jwt_public_key: test-only-placeholder
+  jwt_issuer: https://issuer.example.test
+  jwt_audience: angry-agent-test
+
 persistence:
   db:
     pool_size: 20
