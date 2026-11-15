@@ -12,7 +12,9 @@ Implement the HTTP and Server-Sent Events (SSE) server using Axum, exposing rout
 - `GET /api/threads`: List active threads for the user (`X-User-ID`).
 - `PUT /api/threads/{thread_id}`: Update thread metadata (`color`, `title`, optional `learning_mode_enabled`) atomically ensuring user ownership.
 - `DELETE /api/threads/{thread_id}`: Delete thread atomically ensuring user ownership.
-- `GET /api/threads/{thread_id}`: Fetch thread history & active form context.
+- `GET /api/threads/{thread_id}`: Fetch thread active form context and session.
+- `GET /api/threads/{thread_id}/history`: Fetch thread metadata, conversation messages, and attached visualizations.
+- `GET /api/threads/{thread_id}/visualizations`: Fetch attached MFE visualizations for a thread.
 
 ### 2.2 Form Registration (`POST /api/form/register`)
 - Header: `X-User-ID`

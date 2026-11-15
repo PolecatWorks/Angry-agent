@@ -296,3 +296,67 @@ async fn test_thread_crud_lifecycle() {
         .await;
     assert_eq!(delete_again.status_code(), StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn test_thread_history_and_visualizations_api() {
+    let store = agentrs_be::session_store::SessionStore::new();
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let pool = agentrs_be::db::create_pool().await.ok();
+    let state = agentrs_be::api::AppState { store, catalog, pool: pool.clone() };
+    let app = agentrs_be::api::create_router(state);
+    let server = TestServer::new(app).unwrap();
+
+    let user_id = "test-vis-user";
+    let thread_id = "test-thread-vis-1";
+
+    if let Some(ref p) = pool {
+        let _ = sqlx::query(
+            "INSERT INTO threads (thread_id, user_id, title, color) VALUES ($1, $2, $3, $4) ON CONFLICT (thread_id) DO NOTHING"
+        )
+        .bind(thread_id)
+        .bind(user_id)
+        .bind("Vis Thread")
+        .bind("#ff00ff")
+        .execute(p)
+        .await;
+
+        let vis_id = uuid::Uuid::new_v4();
+        let _ = sqlx::query(
+            r#"
+            INSERT INTO visualizations (id, thread_id, mfe, component, content, description, order_index, name, pin_to_pane)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            "#
+        )
+        .bind(vis_id)
+        .bind(thread_id)
+        .bind("mfe-form")
+        .bind("FormComponent")
+        .bind(json!({ "field": "value" }))
+        .bind("Sample Description")
+        .bind(0)
+        .bind("Test Vis")
+        .bind(true)
+        .execute(p)
+        .await;
+    }
+
+    // 1. Get visualizations
+    let vis_resp = server
+        .get(&format!("/api/threads/{thread_id}/visualizations"))
+        .add_header("X-User-ID", user_id)
+        .await;
+    assert_eq!(vis_resp.status_code(), StatusCode::OK);
+    let vis_json: serde_json::Value = vis_resp.json();
+    assert!(vis_json.get("visualizations").is_some());
+
+    // 2. Get history
+    let hist_resp = server
+        .get(&format!("/api/threads/{thread_id}/history"))
+        .add_header("X-User-ID", user_id)
+        .await;
+    assert_eq!(hist_resp.status_code(), StatusCode::OK);
+    let hist_json: serde_json::Value = hist_resp.json();
+    assert!(hist_json.get("thread").is_some());
+    assert!(hist_json.get("messages").is_some());
+    assert!(hist_json.get("visualizations").is_some());
+}
