@@ -35,7 +35,17 @@ async fn main() {
 
     let store = SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let state = AppState { store, catalog };
+    let pool = match agentrs_be::db::create_pool().await {
+        Ok(p) => {
+            info!("PostgreSQL pool initialized");
+            Some(p)
+        }
+        Err(e) => {
+            tracing::warn!("Failed to initialize PostgreSQL pool: {e}. Running without database.");
+            None
+        }
+    };
+    let state = AppState { store, catalog, pool };
 
     let cors = CorsLayer::new()
         .allow_origin(Any)

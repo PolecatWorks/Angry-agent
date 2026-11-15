@@ -7,6 +7,8 @@ Implement the HTTP and Server-Sent Events (SSE) server using Axum, exposing rout
 
 ### 2.1 Health & Diagnostic
 - `GET /health`: Returns 200 OK `{"status": "ok", "version": "..."}`.
+- `GET /api/user/settings`: Fetch user settings (e.g., `learning_mode_enabled`).
+- `PUT /api/user/settings`: Upsert user settings (e.g., `{"learning_mode_enabled": bool}`).
 - `GET /api/threads`: List active threads for the user (`X-User-ID`).
 - `GET /api/threads/{thread_id}`: Fetch thread history & active form context.
 

@@ -4,14 +4,16 @@ use crate::models::{AgUiEvent, FormSyncRequest, RegisterFormRequest, RunAgentReq
 use crate::session_store::SessionStore;
 use axum::{
     extract::{Path, State},
-    http::HeaderMap,
+    http::{HeaderMap, StatusCode},
     response::sse::{Event, KeepAlive, Sse},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
 use futures::stream::Stream;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use sqlx::PgPool;
 use std::convert::Infallible;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -22,11 +24,13 @@ use uuid::Uuid;
 pub struct AppState {
     pub store: SessionStore,
     pub catalog: FormCatalog,
+    pub pool: Option<PgPool>,
 }
 
 pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_handler))
+        .route("/api/user/settings", get(get_user_settings_handler).put(update_user_settings_handler))
         .route("/api/forms", get(list_forms_handler))
         .route("/api/forms/{form_id}", get(get_form_handler))
         .route("/api/threads", get(list_threads_handler))
@@ -43,6 +47,77 @@ fn extract_user_id(headers: &HeaderMap) -> String {
         .and_then(|v| v.to_str().ok())
         .unwrap_or("default_user")
         .to_string()
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UserSettingsResponse {
+    pub learning_mode_enabled: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UpdateUserSettingsRequest {
+    pub learning_mode_enabled: bool,
+}
+
+pub async fn get_user_settings_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let user_id = extract_user_id(&headers);
+
+    let Some(pool) = &state.pool else {
+        return Ok(Json(json!({ "learning_mode_enabled": false })));
+    };
+
+    let row = sqlx::query_as::<_, (Option<bool>,)>(
+        "SELECT learning_mode_enabled FROM users WHERE user_id = $1",
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": e.to_string() })),
+        )
+    })?;
+
+    let learning_mode_enabled = row.and_then(|(val,)| val).unwrap_or(false);
+
+    Ok(Json(json!({ "learning_mode_enabled": learning_mode_enabled })))
+}
+
+pub async fn update_user_settings_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<UpdateUserSettingsRequest>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let user_id = extract_user_id(&headers);
+
+    let Some(pool) = &state.pool else {
+        return Ok(Json(json!({ "status": "updated" })));
+    };
+
+    sqlx::query(
+        r#"
+        INSERT INTO users (user_id, learning_mode_enabled)
+        VALUES ($1, $2)
+        ON CONFLICT (user_id) DO UPDATE
+        SET learning_mode_enabled = EXCLUDED.learning_mode_enabled
+        "#,
+    )
+    .bind(user_id)
+    .bind(payload.learning_mode_enabled)
+    .execute(pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": e.to_string() })),
+        )
+    })?;
+
+    Ok(Json(json!({ "status": "updated" })))
 }
 
 async fn health_handler() -> impl IntoResponse {

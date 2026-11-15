@@ -54,7 +54,7 @@
 ## 5. Specification Breakdown
 Detailed implementation specifications are broken down into:
 - `SPEC-01-SHARED-MODELS.md`: Domain models, AG-UI event schemas, RFC 6902 patch processing, Session store.
-- `SPEC-02-AXUM-API-SSE.md`: HTTP endpoints (`/api/form/register`, `/api/form/sync`, `/api/agent/run`, `/health`).
+- `SPEC-02-AXUM-API-SSE.md`: HTTP endpoints (`/api/user/settings`, `/api/threads`, `/api/form/register`, `/api/form/sync`, `/api/agent/run`, `/health`).
 - `SPEC-03-RIG-AGENT-TOOLS.md`: `rig-core` agent runner, `DynamicFormPatchTool`, preamble generation, lifecycle tools.
 - `SPEC-04-PERSISTENCE-GRAPHRAG.md`: PostgreSQL session checkpointing and agent-as-data schema modeling.
 - `SPEC-05-FORM-CATALOG-TEST-SUITE.md`: Form catalog registry (`/api/forms`), reference sample forms, and automated integration test specifications.
