@@ -42,17 +42,9 @@ Implement the HTTP and Server-Sent Events (SSE) server using Axum, exposing rout
   ```
 - Effect: Applies patches directly to `active_form.current_data`, updates errors and focus pointer. Does not invoke LLM inference.
 
-### 2.4 Agent Execution & Streaming (`POST /api/agent/run`)
-- Header: `X-User-ID`
-- Body:
-  ```json
-  {
-    "thread_id": "string",
-    "run_id": "string",
-    "message": "string"
-  }
-  ```
-- Response: `Content-Type: text/event-stream` emitting AG-UI JSON events.
+### 2.4 Agent Execution & Streaming
+- `POST /api/chat`: Accepts `{ "message": "string", "thread_id": "string", "bypass_learning_mode": bool }`. Atomically checks thread access, acquires a 5-minute row lock on `threads (locked_until)`, returns HTTP 202 `{ "thread_id": "...", "status": "processing" }`, and runs agent execution in the background releasing lock on completion.
+- `POST /api/agent/run`: Header `X-User-ID`, body `{ "thread_id": "...", "run_id": "...", "message": "..." }`, response `Content-Type: text/event-stream` emitting AG-UI events.
 
 ## 3. Concurrency & Header Checks
 - Extracts `X-User-ID` (defaults to "default_user" if omitted in dev).

@@ -45,6 +45,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/form/register", post(register_form_handler))
         .route("/api/form/sync", post(sync_form_handler))
         .route("/api/agent/run", post(run_agent_handler))
+        .route("/api/chat", post(chat_handler))
         .with_state(state)
 }
 
@@ -637,4 +638,159 @@ async fn run_agent_handler(
     });
 
     Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChatRequest {
+    pub message: Option<String>,
+    pub thread_id: Option<String>,
+    pub bypass_learning_mode: Option<bool>,
+}
+
+async fn chat_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<ChatRequest>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let user_id = extract_user_id(&headers);
+
+    let message = payload.message.filter(|m| !m.trim().is_empty()).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "Message required" })),
+        )
+    })?;
+
+    let thread_id = payload
+        .thread_id
+        .filter(|t| !t.trim().is_empty())
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+
+    if let Some(pool) = &state.pool {
+        // Check if thread exists
+        let row = sqlx::query_as::<_, (String,)>(
+            "SELECT user_id FROM threads WHERE thread_id = $1",
+        )
+        .bind(&thread_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+
+        let is_new_thread = match row {
+            Some((owner_id,)) => {
+                if owner_id != user_id {
+                    let access_row = sqlx::query_as::<_, (i32,)>(
+                        "SELECT 1 FROM thread_access WHERE thread_id = $1 AND user_id = $2",
+                    )
+                    .bind(&thread_id)
+                    .bind(&user_id)
+                    .fetch_optional(pool)
+                    .await
+                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+
+                    if access_row.is_none() {
+                        return Err((
+                            StatusCode::FORBIDDEN,
+                            Json(json!({ "error": "Thread access denied" })),
+                        ));
+                    }
+                }
+                false
+            }
+            None => {
+                let title_snip = if message.len() > 30 {
+                    &message[..30]
+                } else {
+                    &message
+                };
+                sqlx::query(
+                    "INSERT INTO threads (thread_id, user_id, title) VALUES ($1, $2, $3)",
+                )
+                .bind(&thread_id)
+                .bind(&user_id)
+                .bind(title_snip)
+                .execute(pool)
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+                true
+            }
+        };
+
+        // Attempt to acquire lock atomically
+        let lock_query = r#"
+            UPDATE threads
+            SET locked_until = NOW() + INTERVAL '5 minutes'
+            WHERE thread_id = $1 AND (locked_until IS NULL OR locked_until < NOW())
+            RETURNING thread_id
+        "#;
+        let locked_row = sqlx::query_as::<_, (String,)>(lock_query)
+            .bind(&thread_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+
+        if locked_row.is_none() {
+            return Err((
+                StatusCode::CONFLICT,
+                Json(json!({ "error": "Thread is busy processing a previous request." })),
+            ));
+        }
+
+        // Initialize state for new thread
+        if is_new_thread {
+            let _user_settings = sqlx::query_as::<_, (Option<bool>,)>(
+                "SELECT learning_mode_enabled FROM users WHERE user_id = $1",
+            )
+            .bind(&user_id)
+            .fetch_optional(pool)
+            .await
+            .ok()
+            .flatten()
+            .and_then(|(l,)| l)
+            .unwrap_or(false);
+        }
+    }
+
+    // Spawn background execution
+    let mut session = state.store.get_or_create(&thread_id, &user_id);
+    let app_store = state.store.clone();
+    let thread_id_clone = thread_id.clone();
+    let pool_clone = state.pool.clone();
+
+    tokio::spawn(async move {
+        // Record user message
+        let user_msg = crate::models::ChatMessage {
+            id: Uuid::new_v4().to_string(),
+            role: "human".to_string(),
+            content: message.clone(),
+            created_at: chrono::Utc::now().timestamp_millis(),
+        };
+        session.messages.push(user_msg);
+
+        // Dummy channel since chat is async 202
+        let (tx, _rx) = mpsc::unbounded_channel::<AgUiEvent>();
+        let broadcaster = EventBroadcaster::new(tx);
+
+        let updated_session =
+            crate::agent::AgentEngine::execute_turn(session, message, broadcaster).await;
+        app_store.update_session(updated_session);
+
+        // Release lock
+        if let Some(pool) = &pool_clone {
+            let _ = sqlx::query(
+                "UPDATE threads SET locked_until = NULL, updated_at = NOW() WHERE thread_id = $1",
+            )
+            .bind(&thread_id_clone)
+            .execute(pool)
+            .await;
+        }
+    });
+
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(json!({
+            "thread_id": thread_id,
+            "status": "processing"
+        })),
+    ))
 }
