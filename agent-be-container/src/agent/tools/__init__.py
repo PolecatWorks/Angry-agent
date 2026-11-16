@@ -9,7 +9,10 @@ from .mfe import (
     read_visualization,
     edit_visualization,
     add_visualization,
-    delete_visualization
+    delete_visualization,
+    inspect_active_mfe,
+    patch_active_mfe,
+    switch_active_mfe
 )
 from .generate import (
     generate_mfe_of_markdown,
@@ -37,7 +40,10 @@ def get_tools(builder: StateGraph):
         read_visualization,
         edit_visualization,
         add_visualization,
-        delete_visualization
+        delete_visualization,
+        inspect_active_mfe,
+        patch_active_mfe,
+        switch_active_mfe
     ]
 
     @tool

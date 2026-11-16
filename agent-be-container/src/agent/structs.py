@@ -1,9 +1,98 @@
+import copy
 import operator
 import uuid
-from typing import Annotated, List, Literal, Any, Dict
+from typing import Annotated, List, Literal, Any, Dict, Optional
 from pydantic import BaseModel, Field
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+
+
+class JsonPatchOp(BaseModel):
+    op: Literal["add", "replace", "remove"] = Field(description="RFC 6902 JSON Patch operation: 'add', 'replace', or 'remove'")
+    path: str = Field(description="RFC 6902 JSON Pointer path starting with '/' (e.g. '/firstName' or '/fields/0/unit')")
+    value: Any = Field(default=None, description="Value to apply for 'add' or 'replace' operations")
+
+
+class AiFieldAttribution(BaseModel):
+    path: str = Field(description="JSON Pointer path that was modified (e.g. '/firstName')")
+    source: Literal["ai", "user"] = Field(default="ai", description="Whether the field was modified by 'ai' or 'user'")
+    confidence: Optional[float] = Field(default=None, description="Optional AI confidence score between 0.0 and 1.0")
+    rationale: Optional[str] = Field(default=None, description="Short explanation of why the AI set or modified this field")
+    epistemic_status: Optional[str] = Field(default=None, description="Optional epistemic status (hypothesized, empirically_tested, verified, rejected)")
+
+
+class CanvasSelection(BaseModel):
+    canvas_id: str = Field(description="The ID of the visualization canvas where the user focused an element")
+    path: str = Field(description="The JSON Pointer path of the focused element (e.g. '/email' or '/fields/3')")
+    id: Optional[str] = Field(default=None, description="Optional identifier of the focused entity or node")
+    label: str = Field(description="Human-readable label of the focused element")
+    context: Any = Field(default=None, description="Optional contextual metadata for the focused element")
+
+
+def apply_json_patches(target: Any, patches: List[Dict[str, Any] | JsonPatchOp]) -> Any:
+    """Applies RFC 6902 JSON Pointer patch operations ('add', 'replace', 'remove') to a copy of target."""
+    if target is None or not isinstance(target, (dict, list)):
+        result: Any = {}
+    else:
+        result = copy.deepcopy(target)
+
+    for raw_patch in patches or []:
+        patch_dict = raw_patch.model_dump() if hasattr(raw_patch, "model_dump") else raw_patch
+        if not isinstance(patch_dict, dict):
+            continue
+
+        op = patch_dict.get("op")
+        path = patch_dict.get("path", "")
+        value = patch_dict.get("value")
+
+        if not isinstance(path, str) or not path.startswith("/"):
+            continue
+
+        tokens = [
+            t.replace("~1", "/").replace("~0", "~")
+            for t in path.split("/")[1:]
+        ]
+        if not tokens:
+            continue
+
+        cursor = result
+        for i in range(len(tokens) - 1):
+            token = tokens[i]
+            next_token = tokens[i + 1]
+            if isinstance(cursor, list):
+                idx = int(token)
+                while len(cursor) <= idx:
+                    cursor.append([] if next_token.isdigit() else {})
+                if cursor[idx] is None or not isinstance(cursor[idx], (dict, list)):
+                    cursor[idx] = [] if next_token.isdigit() else {}
+                cursor = cursor[idx]
+            elif isinstance(cursor, dict):
+                if token not in cursor or cursor[token] is None or not isinstance(cursor[token], (dict, list)):
+                    cursor[token] = [] if next_token.isdigit() else {}
+                cursor = cursor[token]
+
+        leaf = tokens[-1]
+        if op == "remove":
+            if isinstance(cursor, list) and leaf.isdigit():
+                idx = int(leaf)
+                if 0 <= idx < len(cursor):
+                    cursor.pop(idx)
+            elif isinstance(cursor, dict):
+                cursor.pop(leaf, None)
+        elif op in ("add", "replace"):
+            if isinstance(cursor, list):
+                if leaf == "-":
+                    cursor.append(value)
+                elif leaf.isdigit():
+                    idx = int(leaf)
+                    while len(cursor) <= idx:
+                        cursor.append(None)
+                    cursor[idx] = value
+            elif isinstance(cursor, dict):
+                cursor[leaf] = value
+
+    return result
+
 
 def visualizations_reducer(existing: List['MFEContent'], new: List[Dict[str, Any]] | Dict[str, Any]) -> List['MFEContent']:
     """Reducer for managing the visualizations state list.
@@ -11,6 +100,7 @@ def visualizations_reducer(existing: List['MFEContent'], new: List[Dict[str, Any
     Expects new to be a list of commands or a single command dict, e.g.:
     {"action": "add", "id": "...", ...}   -> appends to the end
     {"action": "update", "id": "...", ...} -> updates in place, or moves if 'index' or 'order_index' is set
+    {"action": "patch", "id": "...", "patches": [...], "attributions": [...]} -> applies RFC 6902 patches in-place
     {"action": "delete", "id": "..."}      -> removes from the list
     {"action": "reorder", "ids": [...]}    -> reorders existing items by their IDs
     {"action": "replace", "visualizations": [...]} -> replaces the entire list
@@ -50,6 +140,37 @@ def visualizations_reducer(existing: List['MFEContent'], new: List[Dict[str, Any
             except Exception:
                 pass
 
+        elif action == "patch":
+            viz_id = item.get("id")
+            if not viz_id:
+                continue
+            idx = find_index(viz_id)
+            if idx is not None:
+                current_data = current_list[idx].model_dump()
+                patches = item.get("patches", [])
+                if patches:
+                    current_data["content"] = apply_json_patches(current_data.get("content", {}), patches)
+                elif "content" in item:
+                    current_data["content"] = item["content"]
+
+                if "json_schema" in item and item["json_schema"] is not None:
+                    current_data["json_schema"] = item["json_schema"]
+
+                if "attributions" in item and item["attributions"] is not None:
+                    existing_attrs = {
+                        a["path"]: a for a in current_data.get("attributions", []) if isinstance(a, dict) and "path" in a
+                    }
+                    for new_attr in item["attributions"]:
+                        attr_dict = new_attr.model_dump() if hasattr(new_attr, "model_dump") else new_attr
+                        if isinstance(attr_dict, dict) and "path" in attr_dict:
+                            existing_attrs[attr_dict["path"]] = attr_dict
+                    current_data["attributions"] = list(existing_attrs.values())
+
+                try:
+                    current_list[idx] = MFEContent.model_validate(current_data)
+                except Exception:
+                    pass
+
         elif action == "update":
             viz_id = item.get("id")
             if not viz_id:
@@ -86,20 +207,15 @@ def visualizations_reducer(existing: List['MFEContent'], new: List[Dict[str, Any
                     current_list.pop(idx)
 
         elif action == "reorder":
-            # Item has an 'ids' list. Reorder existing based on those IDs.
-            # Only keeps items present in 'ids'.
             order_ids = item.get("ids", [])
             viz_map = {v.id: v for v in current_list if v.id}
             reordered = []
             for oid in order_ids:
                 if oid in viz_map:
                     reordered.append(viz_map[oid])
-            # Keep anything NOT in the ids list at the end? (Optional logic)
-            # For now, strictly follow the order defined in 'ids'.
             current_list = reordered
 
         elif action == "replace":
-            # Completely replace list
             current_list = item.get("visualizations", [])
 
     return current_list
@@ -115,7 +231,8 @@ class MFEContent(MFEBase):
     component: str = Field(description="The name of the MFE component to use for rendering. This MUST be taken verbatim from the tool results.")
     content: Any = Field(description="The content to render in the MFE. This MUST be taken verbatim from the tool results.")
     id: str = Field(default_factory=lambda: uuid.uuid4().hex, description="The ID of the visualization from the database, if it's pinned to the pane.")
-
+    json_schema: Optional[Dict[str, Any]] = Field(default=None, description="Optional Draft-07 JSON Schema describing the MFE component's live state and actions.")
+    attributions: List[AiFieldAttribution] = Field(default_factory=list, description="Field-level AI/user attribution metadata for shared canvas co-editing.")
 
 
 class MFEContainer(BaseModel):
@@ -138,4 +255,5 @@ class FollowUpQuestions(BaseModel):
 class AgentState(BaseModel):
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
     visualizations: Annotated[List[MFEContent], visualizations_reducer] = Field(default_factory=list)
+    active_selection: Optional[CanvasSelection] = Field(default=None)
     learning_mode_enabled: bool = Field(default=False)

@@ -101,6 +101,7 @@ async def chat_endpoint(request):
     message = data.get("message")
     thread_id = data.get("thread_id")
     bypass_learning_mode = data.get("bypass_learning_mode", False)
+    canvas_context = data.get("canvas_context")
 
     if not message:
         return web.json_response({"error": "Message required"}, status=400)
@@ -155,6 +156,8 @@ async def chat_endpoint(request):
         }
         await llm_handler.agent.aupdate_state(agent_config, {"learning_mode_enabled": user_learning_mode}, as_node="initial")
 
+    if canvas_context and hasattr(llm_handler, "sync_canvas_context"):
+        await llm_handler.sync_canvas_context(thread_id, canvas_context)
 
     # --- Agent Logic ---
     await llm_handler.chat_async(thread_id, message, bypass_learning_mode)
@@ -480,6 +483,38 @@ async def get_visualizations(request):
 
     return web.json_response({"visualizations": visualizations_list})
 
+async def patch_visualization(request):
+    user_id = request["user_id"]
+    thread_id = request.match_info["thread_id"]
+    viz_id = request.match_info["viz_id"]
+
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT user_id FROM threads WHERE thread_id = $1", thread_id)
+        if not row:
+            return web.json_response({"error": "Thread not found"}, status=404)
+
+        if row["user_id"] != user_id:
+            access_row = await conn.fetchrow(
+                "SELECT 1 FROM thread_access WHERE thread_id = $1 AND user_id = $2",
+                thread_id,
+                user_id
+            )
+            if not access_row:
+                return web.json_response({"error": "Thread access denied"}, status=403)
+
+    llm_handler: LLMHandler = request.app["llm_handler"]
+    updated_viz = await llm_handler.patch_visualization_state(thread_id, viz_id, data)
+    if updated_viz is None:
+        return web.json_response({"error": f"Visualization {viz_id} not found"}, status=404)
+
+    return web.json_response({"status": "updated", "visualization": updated_viz})
+
 async def on_startup(app):
     config: ServiceConfig = app[keys.config]
     logger.info("Starting up and connecting to DB...")
@@ -567,6 +602,7 @@ def create_app_with_middleware(config: ServiceConfig):
         app.router.add_get(f"{prefix}/threads", list_threads)
         app.router.add_get(f"{prefix}/threads/{{thread_id}}/history", get_history)
         app.router.add_get(f"{prefix}/threads/{{thread_id}}/visualizations", get_visualizations)
+        app.router.add_patch(f"{prefix}/threads/{{thread_id}}/visualizations/{{viz_id}}", patch_visualization)
         app.router.add_delete(f"{prefix}/threads/{{thread_id}}", delete_thread)
         app.router.add_put(f"{prefix}/threads/{{thread_id}}", update_thread)
         app.router.add_get(f"{prefix}/user/settings", get_user_settings)

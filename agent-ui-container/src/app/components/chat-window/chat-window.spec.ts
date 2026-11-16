@@ -191,4 +191,28 @@ describe('ChatWindow', () => {
       expect((component as any).lastScrollHeight).toBe(1500);
     });
   });
+
+  describe('Point-and-Ask Focus Context Pill', () => {
+    it('should render focus pill when activeSelection is set and clear it when clearSelection() is called', () => {
+      chatServiceSpy.setActiveSelection = vi.fn();
+      component.activeSelection = {
+        canvasId: 'viz-1',
+        path: '/email',
+        label: 'Email Address'
+      };
+      fixture.detectChanges();
+
+      const pill = fixture.debugElement.query(By.css('.focus-context-pill'));
+      expect(pill).toBeTruthy();
+      expect(pill.nativeElement.textContent).toContain('Email Address');
+
+      const clearBtn = fixture.debugElement.query(By.css('.focus-context-pill button'));
+      clearBtn.nativeElement.click();
+      fixture.detectChanges();
+
+      expect(component.activeSelection).toBeNull();
+      expect(chatServiceSpy.setActiveSelection).toHaveBeenCalledWith(null);
+      expect(fixture.debugElement.query(By.css('.focus-context-pill'))).toBeNull();
+    });
+  });
 });

@@ -118,3 +118,71 @@ async def test_conversation_flow(mock_llm):
     # 2. Regular message
     result = await agent.ainvoke({"messages": [HumanMessage(content="How are you?")]}, config=config)
     assert result["messages"][-1].content == "LLM Response"
+
+
+@pytest.mark.asyncio
+async def test_handler_sync_canvas_context_and_silent_patch(mock_llm):
+    from src.agent.handler import LLMHandler
+    from src.agent.structs import MFEContent
+
+    checkpointer = MemorySaver()
+    handler = LLMHandler(db_dsn="postgresql://dummy", main_llm=mock_llm, packager_llm=mock_llm)
+    handler.checkpointer = checkpointer
+    handler.agent = create_agent(main_llm=mock_llm, packager_llm=mock_llm, checkpointer=checkpointer)
+
+    thread_id = "test-canvas-sync"
+    agent_config = {"configurable": {"thread_id": thread_id, "service_config": None}}
+
+    initial_mfe = MFEContent(
+        id="viz-1",
+        name="Profile Form",
+        title="Profile Form",
+        description="User form",
+        provider="mfe1",
+        component="./PersonalDataFormWrapper",
+        content={"firstName": "John", "email": "john@example.com"}
+    )
+    await handler.agent.aupdate_state(agent_config, {"visualizations": [{"action": "add", **initial_mfe.model_dump()}]}, as_node="initial")
+
+    # 1. Test silent human state sync via patch_visualization_state
+    updated = await handler.patch_visualization_state(
+        thread_id,
+        "viz-1",
+        {
+            "patches": [{"op": "replace", "path": "/firstName", "value": "Grace"}],
+            "active_selection": {
+                "canvas_id": "viz-1",
+                "path": "/email",
+                "label": "Email Address"
+            }
+        }
+    )
+    assert updated is not None
+    assert updated["content"]["firstName"] == "Grace"
+    assert updated["content"]["email"] == "john@example.com"
+
+    # 2. Test sync_canvas_context before a chat turn
+    await handler.sync_canvas_context(
+        thread_id,
+        {
+            "visualizations": [
+                {
+                    "id": "viz-1",
+                    "state": {"firstName": "Grace", "email": "grace@navy.mil"},
+                    "json_schema": {"type": "object", "title": "PersonalDataForm"}
+                }
+            ],
+            "active_selection": {
+                "canvas_id": "viz-1",
+                "path": "/email",
+                "label": "Email Address"
+            }
+        }
+    )
+
+    state = await handler.get_thread_state(thread_id)
+    viz = state.values["visualizations"][0]
+    assert viz.content == {"firstName": "Grace", "email": "grace@navy.mil"}
+    assert viz.json_schema == {"type": "object", "title": "PersonalDataForm"}
+    assert state.values["active_selection"].label == "Email Address"
+
