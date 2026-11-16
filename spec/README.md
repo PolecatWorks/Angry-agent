@@ -15,7 +15,8 @@ This is the navigation hub for the RFC-inspired specification system for the Ang
 - **[Feature Requirements](requirements/features/)** — Functionality, capabilities, integrations (REQ-F###)
 - **[Documentation Requirements](requirements/documentation/)** — Guides, specifications, docs (REQ-D###)
 
-### 🏗️ Architecture & Design
+### 🏗️ Architecture, PRDs & Design
+- **[Product Requirements Documents (spec/prds/)](prds/README.md)** — Bidirectional Shared Canvas MFE & Autonomous Semantic Stewardship PRDs
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — System architecture overview, components, data flow
 - **[GAP_ANALYSIS.md](GAP_ANALYSIS.md)** — Identified gaps and discrepancies across areas
 

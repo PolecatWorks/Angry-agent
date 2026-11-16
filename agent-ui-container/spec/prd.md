@@ -53,6 +53,12 @@ The frontend application must be packaged and run inside a Docker container with
 ### 4.5 Resizable Workspace
 The main layout features a draggable splitter between the central chat area and the right-side visualization panel (AI WORKSPACE). This allows users to dynamically adjust the proportions of the interface to focus on either the conversation or the generated visualizations and data MFEs. The panel width is persisted during the session and constrained between 320px and 850px to maintain layout integrity.
 
+### 4.6 Bidirectional Shared Canvas & Live MFE Co-Editing (`MfeCanvasController`)
+To support live human + AI co-editing of mounted forms and applications (such as `mfe1/./PersonalDataFormWrapper` and `data-engine` steward forms), `MfeRenderer` and `VisualizationsPanel` implement the [Bidirectional Shared Canvas & Live MFE Co-Editing PRD](../../spec/prds/bidirectional-shared-canvas-mfe-prd.md):
+- **In-Place Patching (`ngOnChanges` + `applyPatch`)**: Updates to `viz.content` invoke `controller.applyPatch(patches)` in-place without unmounting the DOM container, preserving cursor focus, scroll position, and active user edits.
+- **Silent Human Edit Sync (`onStateChange`)**: Direct user edits in the RHS form sync silently to `PATCH /api/threads/{thread_id}/visualizations/{viz_id}` without cluttering the chat stream, and the live `getState()` + `getSchema()` are attached to every `/api/chat` request.
+- **"Point-and-Ask" Selection Context (`onSelectionChange`)**: Clicking a field or row in the RHS MFE displays a focus chip (`🎯 Focused: <label>`) above the chat input so the LLM knows which element the user is referencing.
+
 ## 5. Development Guidelines
 
 - Run tests using `ng test --watch=false`.

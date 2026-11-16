@@ -60,6 +60,11 @@ The backend includes specific routing and post-processing mechanisms for process
         - `generate_mfe_of_json`: For general JSON/structured data.
         - `generate_data_visualization`: For interactive charts.
         - `generate_mfe_of_mermaid` and `visualize_graph`: For Mermaid diagrams.
+    - **Generic Bidirectional Shared Canvas Tools & Ecosystem MCP Integration** (see [Bidirectional Shared Canvas PRD](../../spec/prds/bidirectional-shared-canvas-mfe-prd.md) and [Semantic Steward & Provenance Journey PRD](../../spec/prds/semantic-steward-and-provenance-journey-prd.md)):
+        - `inspect_active_mfe`: Reads the current live state, focused selection, and self-describing Draft-07 JSON Schema of any mounted RHS MFE form.
+        - `patch_active_mfe`: Applies fine-grained RFC 6902 JSON Patch operations (`add`, `replace`, `remove`) and AI provenance attributions to a mounted MFE via the `"patch"` action in `visualizations_reducer`.
+        - `switch_active_mfe`: Dynamically switches the RHS workspace between federated MFE applications (including `data-engine`'s `./DataAssetFormWrapper`, `./JoinHypothesisReviewWrapper`, `./AlgorithmSandboxWrapper`, and `./ProvenanceLineageWrapper`).
+        - Connects to `Graphrag` (`/api/v1/mcp`), `data-engine` (`/api/v1/mcp`), and `agent-as-data` (`/mcp`) via `MultiServerMCPClient` (`myai.toolbox.mcps`).
 
 ## 6. API Interface Expectations
 ### 6.1 Configurable API Prefix & VirtualService Composition
