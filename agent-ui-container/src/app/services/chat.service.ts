@@ -1,7 +1,53 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Optional } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, BehaviorSubject, Subject, map, shareReplay, switchMap, tap } from 'rxjs';
 import { AuthService } from './auth.service';
+
+export interface JsonPatchOp {
+  op: 'add' | 'replace' | 'remove';
+  path: string;
+  value?: any;
+}
+
+export interface AiFieldAttribution {
+  path: string;
+  source: 'ai' | 'user';
+  confidence?: number;
+  rationale?: string;
+  epistemic_status?: string;
+}
+
+export interface CanvasSelection {
+  canvasId: string;
+  path: string;
+  id?: string;
+  label: string;
+  context?: any;
+}
+
+export interface MfeCanvasController<T = any> {
+  applyPatch(patches: JsonPatchOp[] | Partial<T>, attributions?: AiFieldAttribution[]): void;
+  getState(): T;
+  getSchema(): Record<string, any>;
+  unmount(): void;
+}
+
+export interface CanvasVisualizationSnapshot {
+  id: string;
+  state: any;
+  json_schema?: Record<string, any>;
+}
+
+export interface CanvasContextPayload {
+  visualizations: CanvasVisualizationSnapshot[];
+  active_selection?: {
+    canvas_id: string;
+    path: string;
+    id?: string;
+    label: string;
+    context?: any;
+  } | null;
+}
 
 export interface Thread {
   thread_id: string;
@@ -69,6 +115,8 @@ export interface Visualization {
   title?: string;
   description?: string;
   order_index: number;
+  json_schema?: Record<string, any>;
+  attributions?: AiFieldAttribution[];
   created_at?: string;
   updated_at?: string;
 }
@@ -82,6 +130,10 @@ export interface VisualizationsResponse {
 })
 export class ChatService {
   private apiUrl$: Observable<string>;
+  private canvasControllers = new Map<string, MfeCanvasController>();
+
+  private activeSelectionSubject = new BehaviorSubject<CanvasSelection | null>(null);
+  activeSelection$ = this.activeSelectionSubject.asObservable();
 
   constructor(private http: HttpClient, private authService: AuthService) {
     let configPath = "/assets/contents/config.json";
@@ -125,6 +177,95 @@ export class ChatService {
     this.currentVisualizationsSubject.next(visualizations);
   }
 
+  registerCanvasController(id: string, controller: MfeCanvasController) {
+    if (!id) return;
+    this.canvasControllers.set(id, controller);
+  }
+
+  unregisterCanvasController(id: string) {
+    if (!id) return;
+    this.canvasControllers.delete(id);
+    const currentSel = this.activeSelectionSubject.getValue();
+    if (currentSel && currentSel.canvasId === id) {
+      this.activeSelectionSubject.next(null);
+    }
+  }
+
+  setActiveSelection(selection: CanvasSelection | null) {
+    this.activeSelectionSubject.next(selection);
+  }
+
+  getActiveSelection(): CanvasSelection | null {
+    return this.activeSelectionSubject.getValue();
+  }
+
+  getCanvasContext(): CanvasContextPayload | undefined {
+    const vizSnapshots: CanvasVisualizationSnapshot[] = [];
+    for (const [id, ctrl] of this.canvasControllers.entries()) {
+      try {
+        vizSnapshots.push({
+          id,
+          state: ctrl.getState(),
+          json_schema: ctrl.getSchema()
+        });
+      } catch (e) {
+        console.warn(`Failed to read state/schema from canvas controller ${id}`, e);
+      }
+    }
+
+    const activeSel = this.activeSelectionSubject.getValue();
+    if (vizSnapshots.length === 0 && !activeSel) {
+      return undefined;
+    }
+
+    return {
+      visualizations: vizSnapshots,
+      active_selection: activeSel
+        ? {
+            canvas_id: activeSel.canvasId,
+            path: activeSel.path,
+            id: activeSel.id,
+            label: activeSel.label,
+            context: activeSel.context
+          }
+        : null
+    };
+  }
+
+  patchVisualizationState(
+    threadId: string,
+    vizId: string,
+    content: any,
+    patches: JsonPatchOp[] = [],
+    jsonSchema?: Record<string, any>
+  ): Observable<any> {
+    const activeSel = this.activeSelectionSubject.getValue();
+    const payload: Record<string, any> = {
+      content,
+      patches
+    };
+    if (jsonSchema) {
+      payload['json_schema'] = jsonSchema;
+    }
+    if (activeSel && activeSel.canvasId === vizId) {
+      payload['active_selection'] = {
+        canvas_id: activeSel.canvasId,
+        path: activeSel.path,
+        id: activeSel.id,
+        label: activeSel.label,
+        context: activeSel.context
+      };
+    }
+
+    return this.apiUrl$.pipe(
+      switchMap(apiUrl =>
+        this.http.patch(`${apiUrl}/threads/${threadId}/visualizations/${vizId}`, payload, {
+          headers: this.getHeaders()
+        })
+      )
+    );
+  }
+
   refreshThreads() {
     this.getThreads().subscribe({
       next: (res) => {
@@ -135,8 +276,18 @@ export class ChatService {
   }
 
   sendMessage(message: string, threadId?: string, bypassLearningMode: boolean = false): Observable<ChatResponse> {
+    const body: Record<string, any> = {
+      message,
+      thread_id: threadId,
+      bypass_learning_mode: bypassLearningMode
+    };
+    const canvasContext = this.getCanvasContext();
+    if (canvasContext) {
+      body['canvas_context'] = canvasContext;
+    }
+
     return this.apiUrl$.pipe(
-      switchMap(apiUrl => this.http.post<ChatResponse>(`${apiUrl}/chat`, { message, thread_id: threadId, bypass_learning_mode: bypassLearningMode }, { headers: this.getHeaders() }))
+      switchMap(apiUrl => this.http.post<ChatResponse>(`${apiUrl}/chat`, body, { headers: this.getHeaders() }))
     );
   }
 

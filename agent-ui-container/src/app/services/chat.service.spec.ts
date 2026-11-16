@@ -178,4 +178,65 @@ describe('ChatService', () => {
             }
         });
     });
+
+    it('should patch visualization state silently via PATCH endpoint', () => {
+        httpClientSpy.patch.mockReturnValue(of({ status: 'updated' }));
+        const patches = [{ op: 'replace' as const, path: '/firstName', value: 'Grace' }];
+
+        service.patchVisualizationState('thread-1', 'viz-1', { firstName: 'Grace' }, patches).subscribe((res) => {
+            expect(res).toEqual({ status: 'updated' });
+        });
+
+        expect(httpClientSpy.patch).toHaveBeenCalledWith(
+            expect.stringContaining('/api/threads/thread-1/visualizations/viz-1'),
+            expect.objectContaining({
+                content: { firstName: 'Grace' },
+                patches
+            }),
+            expect.anything()
+        );
+    });
+
+    it('should include live canvas_context (state, schema, and active_selection) when sending a chat message', () => {
+        httpClientSpy.post.mockReturnValue(of({ thread_id: 'thread-1', status: 'processing' }));
+
+        service.registerCanvasController('viz-1', {
+            applyPatch: vi.fn(),
+            getState: () => ({ firstName: 'Grace', email: 'grace@navy.mil' }),
+            getSchema: () => ({ type: 'object', title: 'PersonalDataForm' }),
+            unmount: vi.fn()
+        });
+        service.setActiveSelection({
+            canvasId: 'viz-1',
+            path: '/email',
+            label: 'Email Address'
+        });
+
+        service.sendMessage('Change this email domain to fleet.mil', 'thread-1').subscribe();
+
+        expect(httpClientSpy.post).toHaveBeenCalledWith(
+            expect.stringContaining('/api/chat'),
+            expect.objectContaining({
+                message: 'Change this email domain to fleet.mil',
+                thread_id: 'thread-1',
+                canvas_context: {
+                    visualizations: [
+                        {
+                            id: 'viz-1',
+                            state: { firstName: 'Grace', email: 'grace@navy.mil' },
+                            json_schema: { type: 'object', title: 'PersonalDataForm' }
+                        }
+                    ],
+                    active_selection: {
+                        canvas_id: 'viz-1',
+                        path: '/email',
+                        id: undefined,
+                        label: 'Email Address',
+                        context: undefined
+                    }
+                }
+            }),
+            expect.anything()
+        );
+    });
 });

@@ -11,6 +11,7 @@ from psycopg_pool import AsyncConnectionPool
 from psycopg.rows import dict_row
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from ..database import get_db_pool
+from .structs import CanvasSelection
 
 from langchain_core.messages import (
     HumanMessage,
@@ -162,6 +163,103 @@ class LLMHandler:
         }
         state = await self.agent.aget_state(agent_config)
         return state
+
+    async def sync_canvas_context(self, thread_id: str, canvas_context: dict) -> None:
+        """Synchronizes live unsubmitted frontend MFE states, schemas, and active_selection into AgentState."""
+        if not self.agent or not isinstance(canvas_context, dict):
+            return
+
+        agent_config = {
+            "configurable": {
+                "thread_id": thread_id,
+                "service_config": self.service_config
+            }
+        }
+
+        state_updates: dict = {}
+        viz_snapshots = canvas_context.get("visualizations")
+        if isinstance(viz_snapshots, list) and viz_snapshots:
+            reducer_cmds = []
+            for snap in viz_snapshots:
+                if isinstance(snap, dict) and snap.get("id"):
+                    cmd = {
+                        "action": "patch",
+                        "id": snap["id"],
+                        "content": snap.get("state")
+                    }
+                    if snap.get("json_schema"):
+                        cmd["json_schema"] = snap["json_schema"]
+                    reducer_cmds.append(cmd)
+            if reducer_cmds:
+                state_updates["visualizations"] = reducer_cmds
+
+        if "active_selection" in canvas_context:
+            raw_sel = canvas_context.get("active_selection")
+            if isinstance(raw_sel, dict):
+                try:
+                    state_updates["active_selection"] = CanvasSelection(**raw_sel)
+                except Exception:
+                    state_updates["active_selection"] = raw_sel
+            else:
+                state_updates["active_selection"] = raw_sel
+
+        if state_updates:
+            await self.agent.aupdate_state(agent_config, state_updates, as_node="initial")
+
+    async def patch_visualization_state(self, thread_id: str, viz_id: str, payload: dict) -> dict | None:
+        """Silently updates a visualization's state in AgentState without triggering an LLM run."""
+        if not self.agent:
+            raise RuntimeError("LLMHandler is not initialized. Call initialize() first.")
+
+        agent_config = {
+            "configurable": {
+                "thread_id": thread_id,
+                "service_config": self.service_config
+            }
+        }
+
+        state = await self.agent.aget_state(agent_config)
+        visualizations = state.values.get("visualizations", []) if state and state.values else []
+        target_viz = None
+        for v in visualizations:
+            if v.id == viz_id:
+                target_viz = v
+                break
+
+        if not target_viz:
+            return None
+
+        patch_cmd: dict = {
+            "action": "patch",
+            "id": viz_id,
+        }
+        if "patches" in payload and payload["patches"]:
+            patch_cmd["patches"] = payload["patches"]
+        if "content" in payload and payload["content"] is not None:
+            patch_cmd["content"] = payload["content"]
+        if "json_schema" in payload and payload["json_schema"] is not None:
+            patch_cmd["json_schema"] = payload["json_schema"]
+        if "attributions" in payload and payload["attributions"] is not None:
+            patch_cmd["attributions"] = payload["attributions"]
+
+        state_updates: dict = {"visualizations": [patch_cmd]}
+        if "active_selection" in payload:
+            raw_sel = payload["active_selection"]
+            if isinstance(raw_sel, dict):
+                try:
+                    state_updates["active_selection"] = CanvasSelection(**raw_sel)
+                except Exception:
+                    state_updates["active_selection"] = raw_sel
+            else:
+                state_updates["active_selection"] = raw_sel
+
+        await self.agent.aupdate_state(agent_config, state_updates, as_node="initial")
+
+        updated_state = await self.agent.aget_state(agent_config)
+        for v in updated_state.values.get("visualizations", []):
+            if v.id == viz_id:
+                return v.model_dump()
+        return None
 
 
     async def close(self):

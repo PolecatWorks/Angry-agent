@@ -6,7 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ChatService, Message } from '../../services/chat.service';
+import { ChatService, Message, CanvasSelection } from '../../services/chat.service';
 import { AudioService } from '../../services/audio.service';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { interval, Subscription, of } from 'rxjs';
@@ -34,9 +34,11 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     totalDuration: string | null = null;
     loading: boolean = false;
     sending: boolean = false;
+    activeSelection: CanvasSelection | null = null;
     pollingSubscription?: Subscription;
     durationSubscription?: Subscription;
     externalMessageSub?: Subscription;
+    activeSelectionSub?: Subscription;
     pollCount: number = 0;
     pollingError: string | null = null;
     serverOffset: number = 0;
@@ -56,6 +58,13 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
     ) { }
 
     ngOnInit() {
+        if (this.chatService.activeSelection$) {
+            this.activeSelectionSub = this.chatService.activeSelection$.subscribe(sel => {
+                this.activeSelection = sel;
+                this.cdr.detectChanges();
+            });
+        }
+
         this.externalMessageSub = this.chatService.externalMessage$.subscribe(threadId => {
             if (this.threadId && this.threadId === threadId) {
                 if (!this.sending) {
@@ -84,6 +93,13 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         });
     }
 
+    clearSelection() {
+        this.activeSelection = null;
+        if (this.chatService.setActiveSelection) {
+            this.chatService.setActiveSelection(null);
+        }
+    }
+
     ngAfterViewChecked() {
         this.handleAutoScroll();
     }
@@ -110,6 +126,9 @@ export class ChatWindow implements OnInit, AfterViewChecked, OnDestroy {
         this.stopPolling();
         if (this.externalMessageSub) {
             this.externalMessageSub.unsubscribe();
+        }
+        if (this.activeSelectionSub) {
+            this.activeSelectionSub.unsubscribe();
         }
     }
 

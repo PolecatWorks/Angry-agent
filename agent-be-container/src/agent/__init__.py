@@ -259,6 +259,11 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             viz_json = json.dumps(viz_list, indent=2)
             viz_context = f"\n\n### Current Visualizations Pinned to Workspace (JSON):\n```json\n{viz_json}\n```"
 
+        selection_context = ""
+        if getattr(state, "active_selection", None):
+            sel_json = json.dumps(state.active_selection.model_dump(), indent=2)
+            selection_context = f"\n\n### User's Currently Focused Canvas Element (Point-and-Ask Context):\n```json\n{sel_json}\n```"
+
         # Search for relevant agent definition based on the last user message
         agent_context = ""
         if state.messages and isinstance(state.messages[-1], HumanMessage):
@@ -271,7 +276,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             except Exception as e:
                 logger.error(f"Failed to search for agent definitions: {e}")
 
-        final_prompt = f"{main_prompt}{viz_context}{agent_context}"
+        final_prompt = f"{main_prompt}{viz_context}{selection_context}{agent_context}"
         system_instruction = SystemMessage(content=final_prompt)
         messages = [system_instruction] + state.messages
 

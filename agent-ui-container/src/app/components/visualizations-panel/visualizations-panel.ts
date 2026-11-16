@@ -1,7 +1,7 @@
 import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { ChatService, Visualization } from '../../services/chat.service';
+import { ChatService, Visualization, JsonPatchOp, CanvasSelection } from '../../services/chat.service';
 import { MfeRenderer } from '../mfe-renderer/mfe-renderer';
 import { Subscription } from 'rxjs';
 
@@ -20,6 +20,7 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
   loading: boolean = false;
   showJsonIds: Set<string> = new Set<string>();
   private pollSubscription?: Subscription;
+  private stateSyncTimers = new Map<string, any>();
 
   constructor(private chatService: ChatService) {}
 
@@ -36,6 +37,14 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
 
   ngOnDestroy() {
     this.stopPolling();
+    for (const timer of this.stateSyncTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.stateSyncTimers.clear();
+  }
+
+  trackByVizId(index: number, viz: Visualization): string {
+    return viz.id;
   }
 
   private restartPolling() {
@@ -80,7 +89,50 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
     return JSON.stringify(viz, null, 2);
   }
 
-  handleMfeAction(event: {action: string, payload: any}, vizId: string) {
+  /**
+   * Silent human state sync: updates the visualization state in the backend
+   * (debounced 300ms) WITHOUT injecting a synthetic chat message or triggering an LLM turn.
+   */
+  handleMfeStateChange(event: { state: any; patches: JsonPatchOp[] }, vizId: string) {
+    if (!this.threadId) return;
+
+    const viz = this.visualizations.find((v) => v.id === vizId);
+    if (viz) {
+      viz.content = event.state;
+    }
+
+    const existingTimer = this.stateSyncTimers.get(vizId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    const threadId = this.threadId;
+    const timer = setTimeout(() => {
+      this.stateSyncTimers.delete(vizId);
+      this.chatService.patchVisualizationState(threadId, vizId, event.state, event.patches).subscribe({
+        error: (err) => console.error('Error syncing live MFE state:', err)
+      });
+    }, 300);
+
+    this.stateSyncTimers.set(vizId, timer);
+  }
+
+  /**
+   * Point-and-Ask focus tracking: forwards the user's currently focused MFE field/row
+   * to ChatService so ChatWindow can display a focus pill and include it in POST /api/chat.
+   */
+  handleMfeSelectionChange(selection: CanvasSelection | null, vizId: string) {
+    if (selection) {
+      this.chatService.setActiveSelection({
+        ...selection,
+        canvasId: vizId
+      });
+    } else {
+      this.chatService.setActiveSelection(null);
+    }
+  }
+
+  handleMfeAction(event: { action: string; payload: any }, vizId: string) {
     if (!this.threadId) return;
     
     // Format the payload as a string that the LLM can easily understand including the visualization ID

@@ -22,3 +22,6 @@ def test_visualize_graph_tool_registration():
 
     tool_names = [t.name for t in tools]
     assert "visualize_graph" in tool_names
+    assert "inspect_active_mfe" in tool_names
+    assert "patch_active_mfe" in tool_names
+    assert "switch_active_mfe" in tool_names

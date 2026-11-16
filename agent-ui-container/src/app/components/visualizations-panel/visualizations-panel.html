@@ -7,7 +7,7 @@
     <p>No active visualizations in this thread.</p>
   </div>
 
-  <div *ngFor="let viz of visualizations" class="bg-white/70 rounded-2xl overflow-hidden shadow-sm border border-white/40 hover:shadow-md transition-all hover:scale-[1.01] active:scale-[0.99] group cursor-pointer">
+  <div *ngFor="let viz of visualizations; trackBy: trackByVizId" class="bg-white/70 rounded-2xl overflow-hidden shadow-sm border border-white/40 hover:shadow-md transition-all hover:scale-[1.01] active:scale-[0.99] group cursor-pointer">
     <div class="p-5">
       <div class="flex justify-between items-start mb-4">
         <div>
@@ -23,7 +23,19 @@
       </div>
       <div class="overflow-x-auto">
         <div *ngIf="!isJsonView(viz.id)">
-          <app-mfe-renderer [mfe]="viz.provider" [component]="viz.component" [content]="viz.content" [title]="viz.title ?? ''" [name]="viz.name ?? ''" [description]="viz.description ?? ''" [id]="viz.id" (action)="handleMfeAction($event, viz.id)"></app-mfe-renderer>
+          <app-mfe-renderer
+            [mfe]="viz.provider"
+            [component]="viz.component"
+            [content]="viz.content"
+            [attributions]="viz.attributions ?? []"
+            [title]="viz.title ?? ''"
+            [name]="viz.name ?? ''"
+            [description]="viz.description ?? ''"
+            [id]="viz.id"
+            (action)="handleMfeAction($event, viz.id)"
+            (stateChange)="handleMfeStateChange($event, viz.id)"
+            (selectionChange)="handleMfeSelectionChange($event, viz.id)">
+          </app-mfe-renderer>
         </div>
         <div *ngIf="isJsonView(viz.id)" class="json-viewer-container">
           <pre><code>{{ getFormattedJson(viz) }}</code></pre>
@@ -31,7 +43,7 @@
       </div>
     </div>
     <div class="bg-primary/5 p-4 flex justify-between items-center border-t border-white/40 opacity-0 group-hover:opacity-100 transition-opacity">
-      <p class="text-[10px] font-bold text-primary uppercase tracking-widest">Interact with MFE</p>
+      <p class="text-[10px] font-bold text-primary uppercase tracking-widest">Live Shared Canvas</p>
       <span class="material-symbols-outlined text-sm text-primary" data-icon="arrow_forward">arrow_forward</span>
     </div>
   </div>
