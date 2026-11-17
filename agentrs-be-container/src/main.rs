@@ -6,8 +6,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
-#[tokio::main]
-async fn main() {
+fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -25,7 +24,7 @@ async fn main() {
         .and_then(|p| p.parse().ok())
         .unwrap_or(8078);
 
-    // Initialize and start HaMS health and monitoring
+    // Initialize and start HaMS health and monitoring before entering Tokio runtime
     let mut hams = init_hams(hams_port).expect("Failed to initialize HaMS");
     if let Err(e) = hams.start() {
         error!("Failed to start HaMS: {e}");
@@ -33,43 +32,52 @@ async fn main() {
         info!("HaMS health service running on port {hams_port} (/hams/alive, /hams/ready, /hams/startup)");
     }
 
-    let store = SessionStore::new();
-    let catalog = agentrs_be::catalog::FormCatalog::new();
-    let pool = match agentrs_be::db::create_pool().await {
-        Ok(p) => {
-            info!("PostgreSQL pool initialized");
-            Some(p)
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Failed to create Tokio runtime");
+
+    rt.block_on(async {
+        let store = SessionStore::new();
+        let catalog = agentrs_be::catalog::FormCatalog::new();
+        let pool = match agentrs_be::db::create_pool().await {
+            Ok(p) => {
+                info!("PostgreSQL pool initialized");
+                Some(p)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to initialize PostgreSQL pool: {e}. Running without database."
+                );
+                None
+            }
+        };
+        let state = AppState {
+            store,
+            catalog,
+            pool,
+        };
+
+        let cors = CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any);
+
+        let app = create_router(state)
+            .layer(cors)
+            .layer(TraceLayer::new_for_http());
+
+        let addr = SocketAddr::from(([0, 0, 0, 0], port));
+        info!("🚀 agentrs-be-container starting on http://{}", addr);
+
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
+            .expect("Failed to bind TCP listener");
+
+        if let Err(e) = axum::serve(listener, app).await {
+            error!("Server error: {e}");
         }
-        Err(e) => {
-            tracing::warn!("Failed to initialize PostgreSQL pool: {e}. Running without database.");
-            None
-        }
-    };
-    let state = AppState {
-        store,
-        catalog,
-        pool,
-    };
-
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
-
-    let app = create_router(state)
-        .layer(cors)
-        .layer(TraceLayer::new_for_http());
-
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    info!("🚀 agentrs-be-container starting on http://{}", addr);
-
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("Failed to bind TCP listener");
-
-    if let Err(e) = axum::serve(listener, app).await {
-        error!("Server error: {e}");
-    }
+    });
 
     if let Err(e) = hams.stop() {
         info!("HaMS stopped or already stopped: {e}");
