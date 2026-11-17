@@ -62,15 +62,26 @@ The backend includes specific routing and post-processing mechanisms for process
         - `generate_mfe_of_mermaid` and `visualize_graph`: For Mermaid diagrams.
 
 ## 6. API Interface Expectations
-### 6.1 Chat & Threads
-- The service exposes endpoints for the frontend to submit messages (`/api/chat`), list threads (`/api/threads`), and fetch thread history (`/api/threads/{thread_id}/history`).
-- The `get_history` API exposes `additional_kwargs` on messages to support extended capabilities like returning image URLs, MFE content, and Mermaid diagrams.
-- Requests must include the necessary authentication headers (`X-User-ID`) to allow proper multi-user state retrieval.
+### 6.1 Configurable API Prefix & VirtualService Composition
+- The backend supports a configurable API route prefix via `webservice.prefix` in `ServiceConfig` (configured in Kubernetes deployments as `/api/angry-agent/v1`).
+- By serving API endpoints directly under `{api_prefix}` (e.g., `/api/angry-agent/v1`), the service integrates with an Istio `VirtualService` **without requiring URI path rewrites**.
+- Health checks are registered at both root `/health` and `{api_prefix}/health` (in addition to `/hams/*` on the dedicated HaMS port) so Kubernetes readiness/liveness probes remain stable regardless of prefix changes.
 
-### 6.2 User Settings
+### 6.2 Chat, Threads & Agents
+- The service exposes endpoints for the frontend under the configured `{api_prefix}` (e.g., `/api/angry-agent/v1`, with backward-compatible mounting at `/api` when no `/api` prefix is specified):
+    - `POST {api_prefix}/chat`: Submit user messages to the agent.
+    - `GET {api_prefix}/threads`: List threads accessible to the user.
+    - `GET {api_prefix}/threads/{thread_id}/history`: Fetch thread message history and workspace state.
+    - `GET {api_prefix}/threads/{thread_id}/visualizations`: Fetch pinned visualizations for a thread.
+    - `PUT {api_prefix}/threads/{thread_id}` and `DELETE {api_prefix}/threads/{thread_id}`: Update or delete a thread.
+    - `GET/POST {api_prefix}/agents` and `PUT/DELETE {api_prefix}/agents/{agent_id}`: Manage agent definitions.
+- The `get_history` API exposes `additional_kwargs` on messages to support extended capabilities like returning image URLs, MFE content, and Mermaid diagrams.
+- Requests must include the necessary authentication headers (`X-User-ID` or `Authorization: Bearer <JWT>`) to allow proper multi-user state retrieval.
+
+### 6.3 User Settings
 - The service provides endpoints to manage per-user configuration:
-    - `GET /api/user/settings`: Retrieves the current settings for the authenticated user (e.g., `learning_mode_enabled`).
-    - `PUT /api/user/settings`: Updates the settings for the authenticated user.
+    - `GET {api_prefix}/user/settings`: Retrieves the current settings for the authenticated user (e.g., `learning_mode_enabled`).
+    - `PUT {api_prefix}/user/settings`: Updates the settings for the authenticated user.
 - These settings are used as defaults for new threads and to control global agent behavior.
 
 ## 7. Development Guidelines

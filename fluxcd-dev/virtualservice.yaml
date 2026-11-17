@@ -20,7 +20,7 @@ spec:
     - name: angry-agent-be
       match:
         - uri:
-            prefix: /agent-be/api
+            prefix: /api/angry-agent/v1
       route:
         - destination:
             host: angry-agent-agent-be

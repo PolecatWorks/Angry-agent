@@ -42,11 +42,13 @@ Chats are isolated by a `User ID`. Currently, this is handled via a mocked login
 
 *Note: Future iterations plan to replace this mocked authentication with standard OAuth2 flows.*
 
-### 4.3 Module Federation Integration
+### 4.3 Module Federation Integration & Runtime Configuration
 To support embedding within a shell application, the container exposes its core functionality via a specific route configuration (`./routes`), which is mapped to `remote.routes.ts`. This configuration includes the primary `chat` routes and the `settings` route, ensuring they are accessible when the application is loaded as a remote module.
+- **Sub-path Serving (`SERVE_ROOT`)**: In Kubernetes deployments, the MFE container is served under `/mfe/angry-agent` (`SERVE_ROOT=/mfe/angry-agent`) and routed directly via an Istio `VirtualService` without URI path rewrites.
+- **Runtime API Discovery (`config.json`)**: `ChatService` resolves `assets/contents/config.json` relative to `import.meta.url` at runtime so that it works both standalone and when federated into a host shell. In Kubernetes, `config.json` configures `"apiUrl": "/api/angry-agent/v1"`.
 
 ### 4.4 Dockerization
-The frontend application must be packaged and run inside a Docker container without relying on Docker Compose, aligning with the project's strategy for eventual Kubernetes migration.
+The frontend application must be packaged and run inside a Docker container without relying on Docker Compose, aligning with the project's strategy for Kubernetes deployment.
 
 ### 4.5 Resizable Workspace
 The main layout features a draggable splitter between the central chat area and the right-side visualization panel (AI WORKSPACE). This allows users to dynamically adjust the proportions of the interface to focus on either the conversation or the generated visualizations and data MFEs. The panel width is persisted during the session and constrained between 320px and 850px to maintain layout integrity.

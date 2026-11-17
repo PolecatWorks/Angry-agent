@@ -540,25 +540,54 @@ def create_app_with_middleware(config: ServiceConfig):
     """
     app = web.Application(middlewares=[auth_middleware])
     app[keys.config] = config
-    path_prefix = config.webservice.url.path if config.webservice.url.path and config.webservice.url.path != "/" else ""
-    path_prefix = path_prefix.rstrip("/")
 
-    app.router.add_get(f"{path_prefix}/health", health_check)
-    app.router.add_post(f"{path_prefix}/api/chat", chat_endpoint)
-    app.router.add_get(f"{path_prefix}/api/threads", list_threads)
-    app.router.add_get(f"{path_prefix}/api/threads/{{thread_id}}/history", get_history)
-    app.router.add_get(f"{path_prefix}/api/threads/{{thread_id}}/visualizations", get_visualizations)
+    # Determine api_prefix:
+    # 1. Use config.webservice.prefix if present
+    # 2. Fall back to config.webservice.url.path if present and not "/"
+    # 3. Default to "/api/angry-agent/v1"
+    raw_prefix = ""
+    if getattr(config.webservice, "prefix", None):
+        raw_prefix = config.webservice.prefix
+    elif config.webservice.url.path and config.webservice.url.path != "/":
+        raw_prefix = config.webservice.url.path
 
-    app.router.add_delete(f"{path_prefix}/api/threads/{{thread_id}}", delete_thread)
-    app.router.add_put(f"{path_prefix}/api/threads/{{thread_id}}", update_thread)
+    if raw_prefix:
+        api_prefix = ("/" + raw_prefix.strip("/")).rstrip("/")
+    else:
+        api_prefix = "/api/angry-agent/v1"
 
-    app.router.add_get(f"{path_prefix}/api/user/settings", get_user_settings)
-    app.router.add_put(f"{path_prefix}/api/user/settings", update_user_settings)
+    # Health check registered at root /health and {api_prefix}/health
+    app.router.add_get("/health", health_check)
+    if api_prefix != "" and api_prefix != "/health":
+        app.router.add_get(f"{api_prefix}/health", health_check)
 
-    app.router.add_get(f"{path_prefix}/api/agents", get_agents)
-    app.router.add_post(f"{path_prefix}/api/agents", create_agent)
-    app.router.add_put(f"{path_prefix}/api/agents/{{agent_id}}", update_agent)
-    app.router.add_delete(f"{path_prefix}/api/agents/{{agent_id}}", delete_agent)
+    # Helper to register resource routes at a given prefix
+    def register_resource_routes(prefix: str):
+        app.router.add_post(f"{prefix}/chat", chat_endpoint)
+        app.router.add_get(f"{prefix}/threads", list_threads)
+        app.router.add_get(f"{prefix}/threads/{{thread_id}}/history", get_history)
+        app.router.add_get(f"{prefix}/threads/{{thread_id}}/visualizations", get_visualizations)
+        app.router.add_delete(f"{prefix}/threads/{{thread_id}}", delete_thread)
+        app.router.add_put(f"{prefix}/threads/{{thread_id}}", update_thread)
+        app.router.add_get(f"{prefix}/user/settings", get_user_settings)
+        app.router.add_put(f"{prefix}/user/settings", update_user_settings)
+        app.router.add_get(f"{prefix}/agents", get_agents)
+        app.router.add_post(f"{prefix}/agents", create_agent)
+        app.router.add_put(f"{prefix}/agents/{{agent_id}}", update_agent)
+        app.router.add_delete(f"{prefix}/agents/{{agent_id}}", delete_agent)
+
+    # Register main configured prefix routes
+    register_resource_routes(api_prefix)
+
+    # Backward compatibility: also mount at /api (and url.path if distinct)
+    if api_prefix != "/api":
+        register_resource_routes("/api")
+
+    url_path = config.webservice.url.path.rstrip("/") if config.webservice.url.path and config.webservice.url.path != "/" else ""
+    if url_path:
+        url_api_path = f"{url_path}/api"
+        if url_api_path != api_prefix and url_api_path != "/api":
+            register_resource_routes(url_api_path)
 
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)

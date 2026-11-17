@@ -63,9 +63,3 @@ async def aiohttp_app():
     app = web.Application()
     yield app
     await app.cleanup()
-
-
-@pytest.fixture
-def aiohttp_client(aiohttp_app, aiohttp_client):
-    """Create an aiohttp test client"""
-    return aiohttp_client(aiohttp_app)

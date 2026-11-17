@@ -48,6 +48,7 @@ spec:
     configs:
       webservice:
         url: http://0.0.0.0:8080/agent-be
+        prefix: "/api/angry-agent/v1"
       persistence:
         db:
           connection:
@@ -94,7 +95,7 @@ spec:
       contents:
         config.json: |
           {
-            "apiUrl": "/agent-be/api"
+            "apiUrl": "/api/angry-agent/v1"
           }
 
 ---
