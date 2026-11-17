@@ -30,7 +30,10 @@ pub struct AppState {
 pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_handler))
-        .route("/api/user/settings", get(get_user_settings_handler).put(update_user_settings_handler))
+        .route(
+            "/api/user/settings",
+            get(get_user_settings_handler).put(update_user_settings_handler),
+        )
         .route("/api/forms", get(list_forms_handler))
         .route("/api/forms/{form_id}", get(get_form_handler))
         .route("/api/threads", get(list_threads_handler))
@@ -40,13 +43,22 @@ pub fn create_router(state: AppState) -> Router {
                 .put(update_thread_handler)
                 .delete(delete_thread_handler),
         )
-        .route("/api/threads/{thread_id}/history", get(get_thread_history_handler))
-        .route("/api/threads/{thread_id}/visualizations", get(get_visualizations_handler))
+        .route(
+            "/api/threads/{thread_id}/history",
+            get(get_thread_history_handler),
+        )
+        .route(
+            "/api/threads/{thread_id}/visualizations",
+            get(get_visualizations_handler),
+        )
         .route("/api/form/register", post(register_form_handler))
         .route("/api/form/sync", post(sync_form_handler))
         .route("/api/agent/run", post(run_agent_handler))
         .route("/api/chat", post(chat_handler))
-        .route("/api/agents", get(get_agents_handler).post(create_agent_handler))
+        .route(
+            "/api/agents",
+            get(get_agents_handler).post(create_agent_handler),
+        )
         .route(
             "/api/agents/{agent_id}",
             put(update_agent_handler).delete(delete_agent_handler),
@@ -97,7 +109,9 @@ pub async fn get_user_settings_handler(
 
     let learning_mode_enabled = row.and_then(|(val,)| val).unwrap_or(false);
 
-    Ok(Json(json!({ "learning_mode_enabled": learning_mode_enabled })))
+    Ok(Json(
+        json!({ "learning_mode_enabled": learning_mode_enabled }),
+    ))
 }
 
 pub async fn update_user_settings_handler(
@@ -288,19 +302,17 @@ async fn delete_thread_handler(
     let user_id = extract_user_id(&headers);
 
     if let Some(pool) = &state.pool {
-        let result = sqlx::query(
-            "DELETE FROM threads WHERE thread_id = $1 AND user_id = $2",
-        )
-        .bind(&thread_id)
-        .bind(&user_id)
-        .execute(pool)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": e.to_string() })),
-            )
-        })?;
+        let result = sqlx::query("DELETE FROM threads WHERE thread_id = $1 AND user_id = $2")
+            .bind(&thread_id)
+            .bind(&user_id)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": e.to_string() })),
+                )
+            })?;
 
         if result.rows_affected() == 0 {
             return Err((
@@ -359,13 +371,17 @@ async fn get_visualizations_handler(
 
     if let Some(pool) = &state.pool {
         // Check access
-        let thread_row = sqlx::query_as::<_, (String,)>(
-            "SELECT user_id FROM threads WHERE thread_id = $1",
-        )
-        .bind(&thread_id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+        let thread_row =
+            sqlx::query_as::<_, (String,)>("SELECT user_id FROM threads WHERE thread_id = $1")
+                .bind(&thread_id)
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({ "error": e.to_string() })),
+                    )
+                })?;
 
         let Some((owner_id,)) = thread_row else {
             return Ok(Json(json!({ "visualizations": [] })));
@@ -379,7 +395,12 @@ async fn get_visualizations_handler(
             .bind(&user_id)
             .fetch_optional(pool)
             .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": e.to_string() })),
+                )
+            })?;
 
             if access_row.is_none() {
                 return Ok(Json(json!({ "visualizations": [] })));
@@ -456,7 +477,12 @@ async fn get_thread_history_handler(
             .bind(&user_id)
             .fetch_optional(pool)
             .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": e.to_string() })),
+                )
+            })?;
 
             if access_row.is_none() {
                 return Ok(Json(json!({
@@ -659,12 +685,15 @@ async fn chat_handler(
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let user_id = extract_user_id(&headers);
 
-    let message = payload.message.filter(|m| !m.trim().is_empty()).ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "Message required" })),
-        )
-    })?;
+    let message = payload
+        .message
+        .filter(|m| !m.trim().is_empty())
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "Message required" })),
+            )
+        })?;
 
     let thread_id = payload
         .thread_id
@@ -673,13 +702,17 @@ async fn chat_handler(
 
     if let Some(pool) = &state.pool {
         // Check if thread exists
-        let row = sqlx::query_as::<_, (String,)>(
-            "SELECT user_id FROM threads WHERE thread_id = $1",
-        )
-        .bind(&thread_id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+        let row =
+            sqlx::query_as::<_, (String,)>("SELECT user_id FROM threads WHERE thread_id = $1")
+                .bind(&thread_id)
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({ "error": e.to_string() })),
+                    )
+                })?;
 
         let is_new_thread = match row {
             Some((owner_id,)) => {
@@ -691,7 +724,12 @@ async fn chat_handler(
                     .bind(&user_id)
                     .fetch_optional(pool)
                     .await
-                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+                    .map_err(|e| {
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(json!({ "error": e.to_string() })),
+                        )
+                    })?;
 
                     if access_row.is_none() {
                         return Err((
@@ -708,15 +746,18 @@ async fn chat_handler(
                 } else {
                     &message
                 };
-                sqlx::query(
-                    "INSERT INTO threads (thread_id, user_id, title) VALUES ($1, $2, $3)",
-                )
-                .bind(&thread_id)
-                .bind(&user_id)
-                .bind(title_snip)
-                .execute(pool)
-                .await
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+                sqlx::query("INSERT INTO threads (thread_id, user_id, title) VALUES ($1, $2, $3)")
+                    .bind(&thread_id)
+                    .bind(&user_id)
+                    .bind(title_snip)
+                    .execute(pool)
+                    .await
+                    .map_err(|e| {
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(json!({ "error": e.to_string() })),
+                        )
+                    })?;
                 true
             }
         };
@@ -732,7 +773,12 @@ async fn chat_handler(
             .bind(&thread_id)
             .fetch_optional(pool)
             .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": e.to_string() })),
+                )
+            })?;
 
         if locked_row.is_none() {
             return Err((
@@ -822,7 +868,12 @@ async fn get_agents_handler(
         )
         .fetch_all(pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e.to_string() })),
+            )
+        })?;
 
         let agents_json: Vec<serde_json::Value> = rows
             .into_iter()
@@ -845,32 +896,41 @@ async fn create_agent_handler(
     State(state): State<AppState>,
     Json(payload): Json<AgentDefinitionRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let name = payload.name.filter(|n| !n.trim().is_empty()).ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "name and content are required" })),
-        )
-    })?;
+    let name = payload
+        .name
+        .filter(|n| !n.trim().is_empty())
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "name and content are required" })),
+            )
+        })?;
 
-    let content = payload.content.filter(|c| !c.trim().is_empty()).ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "name and content are required" })),
-        )
-    })?;
+    let content = payload
+        .content
+        .filter(|c| !c.trim().is_empty())
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "name and content are required" })),
+            )
+        })?;
 
     let agent_id = Uuid::new_v4();
 
     if let Some(pool) = &state.pool {
-        sqlx::query(
-            "INSERT INTO agent_definitions (id, name, content) VALUES ($1, $2, $3)",
-        )
-        .bind(agent_id)
-        .bind(&name)
-        .bind(&content)
-        .execute(pool)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+        sqlx::query("INSERT INTO agent_definitions (id, name, content) VALUES ($1, $2, $3)")
+            .bind(agent_id)
+            .bind(&name)
+            .bind(&content)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": e.to_string() })),
+                )
+            })?;
 
         return Ok((
             StatusCode::CREATED,
@@ -904,30 +964,40 @@ async fn update_agent_handler(
         )
     })?;
 
-    let name = payload.name.filter(|n| !n.trim().is_empty()).ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "name and content are required" })),
-        )
-    })?;
+    let name = payload
+        .name
+        .filter(|n| !n.trim().is_empty())
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "name and content are required" })),
+            )
+        })?;
 
-    let content = payload.content.filter(|c| !c.trim().is_empty()).ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "name and content are required" })),
-        )
-    })?;
+    let content = payload
+        .content
+        .filter(|c| !c.trim().is_empty())
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "name and content are required" })),
+            )
+        })?;
 
     if let Some(pool) = &state.pool {
-        let result = sqlx::query(
-            "UPDATE agent_definitions SET name = $1, content = $2 WHERE id = $3",
-        )
-        .bind(&name)
-        .bind(&content)
-        .bind(agent_id)
-        .execute(pool)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+        let result =
+            sqlx::query("UPDATE agent_definitions SET name = $1, content = $2 WHERE id = $3")
+                .bind(&name)
+                .bind(&content)
+                .bind(agent_id)
+                .execute(pool)
+                .await
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({ "error": e.to_string() })),
+                    )
+                })?;
 
         if result.rows_affected() == 0 {
             return Err((
@@ -962,13 +1032,16 @@ async fn delete_agent_handler(
     })?;
 
     if let Some(pool) = &state.pool {
-        let result = sqlx::query(
-            "DELETE FROM agent_definitions WHERE id = $1",
-        )
-        .bind(agent_id)
-        .execute(pool)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+        let result = sqlx::query("DELETE FROM agent_definitions WHERE id = $1")
+            .bind(agent_id)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": e.to_string() })),
+                )
+            })?;
 
         if result.rows_affected() == 0 {
             return Err((
