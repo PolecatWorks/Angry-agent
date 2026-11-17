@@ -51,7 +51,7 @@ class WebServerConfig(BaseModel):
     """
 
     url: HttpUrl = Field(description="Host to listen on")
-    prefix: str = Field(default="", description="Prefix for the name of the resources")
+    prefix: str = Field(default="/api/angry-agent/v1", description="Prefix for the name of the resources")
 
 
 # Define a timing object to capture time between event processing

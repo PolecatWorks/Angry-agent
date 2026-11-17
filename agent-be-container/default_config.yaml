@@ -1,5 +1,6 @@
 webservice:
   url: "http://0.0.0.0:8080"
+  prefix: "/api/angry-agent/v1"
 persistence:
   db:
     connection:

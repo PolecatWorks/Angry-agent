@@ -245,9 +245,9 @@ User Browser                 Frontend Container         Backend Container
 ```
 
 **Detailed Steps:**
-1. User types message or clicks action in Angular UI
-2. Frontend creates HTTP request with X-User-ID header
-3. Aiohttp server receives request on /api/chat endpoint
+1. User types message or clicks action in Angular UI (served under `/mfe/angry-agent` in Kubernetes)
+2. Frontend resolves `apiUrl` from `assets/contents/config.json` via `import.meta.url` and creates HTTP request with `X-User-ID` / `Authorization` header
+3. Aiohttp server receives request on `{api_prefix}/chat` endpoint (configured via `webservice.prefix`, e.g., `/api/angry-agent/v1/chat`)
 4. Backend validates authentication via header
 5. Loads LangGraph state checkpoint from PostgreSQL
 6. Executes graph nodes with user input
@@ -283,14 +283,17 @@ Developer Machine
 └────────────────────────────────────┘
 ```
 
-**Setup:** Each container runs independently. Frontend accessible on :4200, backend on :8000.
+**Setup:** Each container runs independently. Frontend accessible on :4200, backend on :8000 (or :8080).
 
-### Production Environment (Future Kubernetes)
+### Production Environment (Kubernetes + Istio VirtualService)
 
 ```
 Kubernetes Cluster
 ┌──────────────────────────────────────────────┐
-│  Ingress / Load Balancer                     │
+│  Istio Ingress / VirtualService              │
+│  (No URI Path Rewrites)                      │
+│  • /mfe/angry-agent     → Frontend Service   │
+│  • /api/angry-agent/v1  → Backend Service    │
 └────────────┬─────────────────────────────────┘
              │
     ┌────────┴─────────┐
@@ -299,7 +302,7 @@ Kubernetes Cluster
 │ Frontend  │    │  Backend  │
 │ Pod       │    │  Pod      │
 │ Replicas  │    │  Replicas │
-│ :4200     │    │  :8000    │
+│ :8080     │    │  :8080    │
 └───┬──────┘    └─────┬────┘
     │                 │
     │                 │
@@ -315,10 +318,13 @@ Kubernetes Cluster
 ```
 
 **Key Points:**
+- **No URI Rewrites in Istio `VirtualService`**: Applications expose their routes directly at their public path prefixes:
+  - MFE UI (`agent-ui-container`) serves under `SERVE_ROOT=/mfe/angry-agent` and resolves `assets/contents/config.json` via `import.meta.url` with `apiUrl: "/api/angry-agent/v1"`.
+  - Backend (`agent-be-container`) configures `webservice.prefix: "/api/angry-agent/v1"` so endpoints are natively mounted at `/api/angry-agent/v1/chat`, `/api/angry-agent/v1/threads`, etc., while preserving `/health` at both root `/health` and `{api_prefix}/health` (plus `/hams/*` on port 8079) for Kubernetes probes.
 - Frontend and backend scale independently
-- PostgreSQL as StatefulSet for persistence
+- PostgreSQL as StatefulSet/CNPG cluster for persistence
 - External LLM API calls handled by backend
-- No Docker Compose — direct Kubernetes manifests
+- No Docker Compose — direct Kubernetes manifests / Helm charts
 
 ---
 
