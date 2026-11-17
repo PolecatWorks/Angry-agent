@@ -6,12 +6,17 @@ use std::net::SocketAddr;
 use tracing::info;
 
 pub fn init_hams(hams_port: u16) -> Result<Hams, Box<dyn std::error::Error + Send + Sync>> {
-    let mut config = HamsConfig::default();
-    config.name = env!("CARGO_PKG_NAME").to_string();
-    config.version = env!("CARGO_PKG_VERSION").to_string();
-    config.address = SocketAddr::from(([0, 0, 0, 0], hams_port));
+    let config = HamsConfig {
+        name: env!("CARGO_PKG_NAME").to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        address: SocketAddr::from(([0, 0, 0, 0], hams_port)),
+        ..Default::default()
+    };
 
-    info!("Initializing HaMS for {} on {}", config.name, config.address);
+    info!(
+        "Initializing HaMS for {} on {}",
+        config.name, config.address
+    );
 
     let mut hams = Hams::new(config);
 

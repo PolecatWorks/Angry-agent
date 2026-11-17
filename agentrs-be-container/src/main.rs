@@ -45,7 +45,11 @@ async fn main() {
             None
         }
     };
-    let state = AppState { store, catalog, pool };
+    let state = AppState {
+        store,
+        catalog,
+        pool,
+    };
 
     let cors = CorsLayer::new()
         .allow_origin(Any)

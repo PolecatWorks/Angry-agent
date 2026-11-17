@@ -6,7 +6,11 @@ use serde_json::{json, Value};
 async fn test_full_agentrs_form_workflow() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let state = agentrs_be::api::AppState { store, catalog, pool: None };
+    let state = agentrs_be::api::AppState {
+        store,
+        catalog,
+        pool: None,
+    };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -80,7 +84,11 @@ async fn test_full_agentrs_form_workflow() {
 async fn test_sample_vendor_onboarding_form_and_agent_run() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let state = agentrs_be::api::AppState { store, catalog, pool: None };
+    let state = agentrs_be::api::AppState {
+        store,
+        catalog,
+        pool: None,
+    };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -135,7 +143,11 @@ async fn test_sample_vendor_onboarding_form_and_agent_run() {
 async fn test_sample_expense_claim_form_switch_and_submission() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let state = agentrs_be::api::AppState { store, catalog, pool: None };
+    let state = agentrs_be::api::AppState {
+        store,
+        catalog,
+        pool: None,
+    };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -198,7 +210,11 @@ async fn test_user_settings_api() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
     let pool = agentrs_be::db::create_pool().await.ok();
-    let state = agentrs_be::api::AppState { store, catalog, pool };
+    let state = agentrs_be::api::AppState {
+        store,
+        catalog,
+        pool: pool.clone(),
+    };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -224,13 +240,18 @@ async fn test_user_settings_api() {
     assert_eq!(put_json["status"], "updated");
 
     // 3. Verify get reflects update if db is connected
-    let resp_after = server
-        .get("/api/user/settings")
-        .add_header("X-User-ID", "test-settings-user")
-        .await;
-    assert_eq!(resp_after.status_code(), StatusCode::OK);
-    let after_json: serde_json::Value = resp_after.json();
-    assert_eq!(after_json.get("learning_mode_enabled").unwrap(), &json!(true));
+    if pool.is_some() {
+        let resp_after = server
+            .get("/api/user/settings")
+            .add_header("X-User-ID", "test-settings-user")
+            .await;
+        assert_eq!(resp_after.status_code(), StatusCode::OK);
+        let after_json: serde_json::Value = resp_after.json();
+        assert_eq!(
+            after_json.get("learning_mode_enabled").unwrap(),
+            &json!(true)
+        );
+    }
 }
 
 #[tokio::test]
@@ -238,7 +259,11 @@ async fn test_thread_crud_lifecycle() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
     let pool = agentrs_be::db::create_pool().await.ok();
-    let state = agentrs_be::api::AppState { store, catalog, pool: pool.clone() };
+    let state = agentrs_be::api::AppState {
+        store,
+        catalog,
+        pool: pool.clone(),
+    };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -256,45 +281,45 @@ async fn test_thread_crud_lifecycle() {
         .bind("#123456")
         .execute(p)
         .await;
+
+        // 1. List threads
+        let list_resp = server
+            .get("/api/threads")
+            .add_header("X-User-ID", user_id)
+            .await;
+        assert_eq!(list_resp.status_code(), StatusCode::OK);
+        let list_json: serde_json::Value = list_resp.json();
+        assert!(list_json.get("threads").is_some());
+
+        // 2. Update thread
+        let update_resp = server
+            .put(&format!("/api/threads/{thread_id}"))
+            .add_header("X-User-ID", user_id)
+            .json(&json!({
+                "title": "Updated Thread Title",
+                "color": "#abcdef"
+            }))
+            .await;
+        assert_eq!(update_resp.status_code(), StatusCode::OK);
+        let update_json: serde_json::Value = update_resp.json();
+        assert_eq!(update_json["status"], "updated");
+
+        // 3. Delete thread
+        let delete_resp = server
+            .delete(&format!("/api/threads/{thread_id}"))
+            .add_header("X-User-ID", user_id)
+            .await;
+        assert_eq!(delete_resp.status_code(), StatusCode::OK);
+        let delete_json: serde_json::Value = delete_resp.json();
+        assert_eq!(delete_json["status"], "deleted");
+
+        // 4. Delete again should return 404
+        let delete_again = server
+            .delete(&format!("/api/threads/{thread_id}"))
+            .add_header("X-User-ID", user_id)
+            .await;
+        assert_eq!(delete_again.status_code(), StatusCode::NOT_FOUND);
     }
-
-    // 1. List threads
-    let list_resp = server
-        .get("/api/threads")
-        .add_header("X-User-ID", user_id)
-        .await;
-    assert_eq!(list_resp.status_code(), StatusCode::OK);
-    let list_json: serde_json::Value = list_resp.json();
-    assert!(list_json.get("threads").is_some());
-
-    // 2. Update thread
-    let update_resp = server
-        .put(&format!("/api/threads/{thread_id}"))
-        .add_header("X-User-ID", user_id)
-        .json(&json!({
-            "title": "Updated Thread Title",
-            "color": "#abcdef"
-        }))
-        .await;
-    assert_eq!(update_resp.status_code(), StatusCode::OK);
-    let update_json: serde_json::Value = update_resp.json();
-    assert_eq!(update_json["status"], "updated");
-
-    // 3. Delete thread
-    let delete_resp = server
-        .delete(&format!("/api/threads/{thread_id}"))
-        .add_header("X-User-ID", user_id)
-        .await;
-    assert_eq!(delete_resp.status_code(), StatusCode::OK);
-    let delete_json: serde_json::Value = delete_resp.json();
-    assert_eq!(delete_json["status"], "deleted");
-
-    // 4. Delete again should return 404
-    let delete_again = server
-        .delete(&format!("/api/threads/{thread_id}"))
-        .add_header("X-User-ID", user_id)
-        .await;
-    assert_eq!(delete_again.status_code(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
@@ -302,7 +327,11 @@ async fn test_thread_history_and_visualizations_api() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
     let pool = agentrs_be::db::create_pool().await.ok();
-    let state = agentrs_be::api::AppState { store, catalog, pool: pool.clone() };
+    let state = agentrs_be::api::AppState {
+        store,
+        catalog,
+        pool: pool.clone(),
+    };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -366,7 +395,11 @@ async fn test_chat_endpoint_lifecycle() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
     let pool = agentrs_be::db::create_pool().await.ok();
-    let state = agentrs_be::api::AppState { store, catalog, pool };
+    let state = agentrs_be::api::AppState {
+        store,
+        catalog,
+        pool,
+    };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -393,7 +426,11 @@ async fn test_agent_definitions_crud() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
     let pool = agentrs_be::db::create_pool().await.ok();
-    let state = agentrs_be::api::AppState { store, catalog, pool };
+    let state = agentrs_be::api::AppState {
+        store,
+        catalog,
+        pool: pool.clone(),
+    };
     let app = agentrs_be::api::create_router(state);
     let server = TestServer::new(app).unwrap();
 
@@ -410,31 +447,38 @@ async fn test_agent_definitions_crud() {
     let agent_id = create_json["id"].as_str().unwrap().to_string();
     assert_eq!(create_json["name"], "Integration Test Agent");
 
-    // 2. List agents
-    let list_resp = server.get("/api/agents").await;
-    assert_eq!(list_resp.status_code(), StatusCode::OK);
-    let list_json: serde_json::Value = list_resp.json();
-    assert!(list_json.as_array().unwrap().iter().any(|a| a["id"] == agent_id));
+    // Only verify DB-dependent operations if database connection is available
+    if pool.is_some() {
+        // 2. List agents
+        let list_resp = server.get("/api/agents").await;
+        assert_eq!(list_resp.status_code(), StatusCode::OK);
+        let list_json: serde_json::Value = list_resp.json();
+        assert!(list_json
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|a| a["id"] == agent_id));
 
-    // 3. Update agent
-    let update_resp = server
-        .put(&format!("/api/agents/{agent_id}"))
-        .json(&json!({
-            "name": "Updated Agent Name",
-            "content": "Updated content"
-        }))
-        .await;
-    assert_eq!(update_resp.status_code(), StatusCode::OK);
-    let update_json: serde_json::Value = update_resp.json();
-    assert_eq!(update_json["name"], "Updated Agent Name");
+        // 3. Update agent
+        let update_resp = server
+            .put(&format!("/api/agents/{agent_id}"))
+            .json(&json!({
+                "name": "Updated Agent Name",
+                "content": "Updated content"
+            }))
+            .await;
+        assert_eq!(update_resp.status_code(), StatusCode::OK);
+        let update_json: serde_json::Value = update_resp.json();
+        assert_eq!(update_json["name"], "Updated Agent Name");
 
-    // 4. Delete agent
-    let delete_resp = server.delete(&format!("/api/agents/{agent_id}")).await;
-    assert_eq!(delete_resp.status_code(), StatusCode::OK);
-    let delete_json: serde_json::Value = delete_resp.json();
-    assert_eq!(delete_json["status"], "deleted");
+        // 4. Delete agent
+        let delete_resp = server.delete(&format!("/api/agents/{agent_id}")).await;
+        assert_eq!(delete_resp.status_code(), StatusCode::OK);
+        let delete_json: serde_json::Value = delete_resp.json();
+        assert_eq!(delete_json["status"], "deleted");
 
-    // 5. Delete again should return 404
-    let delete_again = server.delete(&format!("/api/agents/{agent_id}")).await;
-    assert_eq!(delete_again.status_code(), StatusCode::NOT_FOUND);
+        // 5. Delete again should return 404
+        let delete_again = server.delete(&format!("/api/agents/{agent_id}")).await;
+        assert_eq!(delete_again.status_code(), StatusCode::NOT_FOUND);
+    }
 }
