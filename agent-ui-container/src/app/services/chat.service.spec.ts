@@ -128,7 +128,7 @@ describe('ChatService', () => {
 
     describe('API Prefix resolution and validation', () => {
         it('POSITIVE: resolves endpoints using the configured /api/angry-agent/v1 prefix', () => {
-            const prefixSpy = {
+            const prefixSpy: any = {
                 get: vi.fn().mockReturnValue(of({ apiUrl: '/api/angry-agent/v1' })),
                 post: vi.fn().mockReturnValue(of({ thread_id: 't1', response: 'ok' })),
                 delete: vi.fn(),
@@ -146,7 +146,7 @@ describe('ChatService', () => {
         });
 
         it('POSITIVE: strips trailing slashes from configured apiUrl to prevent double slashes in routes', () => {
-            const trailingSlashSpy = {
+            const trailingSlashSpy: any = {
                 get: vi.fn().mockReturnValue(of({ apiUrl: '/api/angry-agent/v1/' })),
                 post: vi.fn().mockReturnValue(of({ thread_id: 't1', response: 'ok' })),
                 delete: vi.fn(),

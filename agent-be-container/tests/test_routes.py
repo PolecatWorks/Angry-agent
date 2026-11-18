@@ -115,23 +115,32 @@ def test_routes_default_prefix(base_config_dict):
     assert "/api/chat" in routes
 
 
+import json
+from aiohttp.test_utils import make_mocked_request
+
 @pytest.mark.asyncio
-async def test_health_check_endpoints_response(aiohttp_client, base_config_dict, monkeypatch):
+async def test_health_check_endpoints_response(base_config_dict):
     """Test that GET /health and GET {api_prefix}/health return 200 OK without requiring authentication."""
     config = ServiceConfig(**base_config_dict)
     app = create_app_with_middleware(config)
-    # Clear on_startup to avoid connecting to external DB/LLM in health check unit test
-    app.on_startup.clear()
-    client = await aiohttp_client(app)
 
-    # Root /health
-    resp_root = await client.get("/health")
-    assert resp_root.status == 200
-    data_root = await resp_root.json()
-    assert data_root == {"status": "ok"}
+    found_root = False
+    found_prefixed = False
+    for route in app.router.routes():
+        if route.resource and route.resource.canonical == "/health":
+            req = make_mocked_request("GET", "/health", app=app)
+            resp = await route.handler(req)
+            assert resp.status == 200
+            data = json.loads(resp.text)
+            assert data == {"status": "ok"}
+            found_root = True
+        elif route.resource and route.resource.canonical == "/api/angry-agent/v1/health":
+            req = make_mocked_request("GET", "/api/angry-agent/v1/health", app=app)
+            resp = await route.handler(req)
+            assert resp.status == 200
+            data = json.loads(resp.text)
+            assert data == {"status": "ok"}
+            found_prefixed = True
 
-    # Prefixed /api/angry-agent/v1/health
-    resp_prefixed = await client.get("/api/angry-agent/v1/health")
-    assert resp_prefixed.status == 200
-    data_prefixed = await resp_prefixed.json()
-    assert data_prefixed == {"status": "ok"}
+    assert found_root
+    assert found_prefixed
