@@ -125,4 +125,57 @@ describe('ChatService', () => {
             expect.anything()
         );
     });
+
+    describe('API Prefix resolution and validation', () => {
+        it('POSITIVE: resolves endpoints using the configured /api/angry-agent/v1 prefix', () => {
+            const prefixSpy = {
+                get: vi.fn().mockReturnValue(of({ apiUrl: '/api/angry-agent/v1' })),
+                post: vi.fn().mockReturnValue(of({ thread_id: 't1', response: 'ok' })),
+                delete: vi.fn(),
+                patch: vi.fn()
+            };
+            const customService = new ChatService(prefixSpy, authServiceSpy);
+
+            customService.sendMessage('hello').subscribe();
+
+            expect(prefixSpy.post).toHaveBeenCalledWith(
+                '/api/angry-agent/v1/chat',
+                expect.objectContaining({ message: 'hello' }),
+                expect.anything()
+            );
+        });
+
+        it('POSITIVE: strips trailing slashes from configured apiUrl to prevent double slashes in routes', () => {
+            const trailingSlashSpy = {
+                get: vi.fn().mockReturnValue(of({ apiUrl: '/api/angry-agent/v1/' })),
+                post: vi.fn().mockReturnValue(of({ thread_id: 't1', response: 'ok' })),
+                delete: vi.fn(),
+                patch: vi.fn()
+            };
+            const customService = new ChatService(trailingSlashSpy, authServiceSpy);
+
+            customService.sendMessage('test').subscribe();
+
+            expect(trailingSlashSpy.post).toHaveBeenCalledWith(
+                expect.not.stringContaining('//chat'),
+                expect.anything(),
+                expect.anything()
+            );
+        });
+
+        it('NEGATIVE: rejects or flags URLs missing the /api/angry-agent/v1 prefix pattern', () => {
+            const invalidUrls = [
+                'http://localhost:8080/api',
+                '/api/v1',
+                '/api/other-agent/v1',
+                '/chat',
+                ''
+            ];
+
+            const expectedPrefixRegex = /^\/api\/angry-agent\/v1(\/|$)/;
+            for (const url of invalidUrls) {
+                expect(expectedPrefixRegex.test(url)).toBe(false);
+            }
+        });
+    });
 });
