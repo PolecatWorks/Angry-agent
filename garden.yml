@@ -6,7 +6,7 @@ variables:
   pr-number: ${local.env.PR_NUMBER || "local"}
   pr-namespace: angry-agent-pr-${var.pr-number}
   kube-context: "${local.env.GARDEN_KUBECONTEXT || (local.env.CI == 'true' ? 'local' : 'kubernetes-admin@kubernetes')}"
-  current-namespace: ${environment.defaultNamespace || "default"}
+  current-namespace: ${environment.namespace || var.pr-namespace}
 
 sources:
   - name: central-base
