@@ -25,4 +25,4 @@ name: integration-all
 dependencies:
   - deploy.robot-test-runner
 spec:
-  command: ["/bin/bash", "-c", "GARDEN_NAMESPACE=${var.current-namespace} ./run-tests.sh"]
+  command: ["/bin/bash", "-c", "GARDEN_NAMESPACE=${var.pr-namespace} ./run-tests.sh"]
