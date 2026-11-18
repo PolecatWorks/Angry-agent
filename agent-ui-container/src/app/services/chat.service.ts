@@ -87,7 +87,7 @@ export class ChatService {
     const basePath = new URL('./', import.meta.url).href;
     const configPath = basePath.endsWith('/') ? `${basePath}assets/contents/config.json` : `${basePath}/assets/contents/config.json`;
     this.apiUrl$ = this.http.get<{ apiUrl: string }>(configPath).pipe(
-      map(config => config.apiUrl),
+      map(config => (config.apiUrl ? config.apiUrl.replace(/\/+$/, '') : '')),
       shareReplay(1)
     );
   }
