@@ -63,7 +63,9 @@ spec:
         db:
           connection:
             url: postgresql://cnpg-db0-cluster-rw.dbs:5432/angry_agent
-      aiclient:
+      main_aiclient:
+        ollama_base_url: http://ollama.ollama:11434
+      packager_aiclient:
         ollama_base_url: http://ollama.ollama:11434
     volumes:
       - name: configs
