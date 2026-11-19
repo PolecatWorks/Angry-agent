@@ -58,6 +58,20 @@ spec:
       packager_aiclient:
         ollama_base_url: http://ollama.ollama:11434
     secretName: db0-angry-agent-user
+    volumes:
+      - name: configs
+        configMap:
+          name: '{{ template "agent-be.fullname" . }}'
+      - name: secrets
+        projected:
+          sources:
+            - secret:
+                name: db0-angry-agent-user
+                items:
+                  - key: username
+                    path: persistence/db/connection/username
+                  - key: password
+                    path: persistence/db/connection/password
     env:
       - name: APP_PERSISTENCE__DB__CONNECTION__USERNAME
         valueFrom:
