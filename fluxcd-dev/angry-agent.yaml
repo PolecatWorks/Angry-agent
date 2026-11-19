@@ -73,7 +73,7 @@ spec:
         projected:
           sources:
             - secret:
-                name: db0-angry-agent-user
+                name: db0-agent-as-data-user
                 items:
                   - key: username
                     path: persistence/db/connection/username
