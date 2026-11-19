@@ -14,6 +14,9 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 # Wait for the pod to be ready
 kubectl wait --for=condition=Ready pod/$POD_NAME -n $NS --timeout=120s
 
+# Ensure robotframework-requests is installed in the pod virtualenv
+kubectl exec $POD_NAME -n $NS -- /home/pwuser/.venv/bin/pip install robotframework-requests
+
 # Create target directory and copy tests
 kubectl exec $POD_NAME -n $NS -- mkdir -p /tmp/robot-tests /tmp/reports
 kubectl cp ./tests $POD_NAME:/tmp/robot-tests -n $NS
