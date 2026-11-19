@@ -283,10 +283,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
 
         # Coerce tool calls from content if tool_calls is empty
         if not response.tool_calls and response.content:
-            if isinstance(response.content, list):
-                content = "".join([part if isinstance(part, str) else str(part.get("text", "")) for part in response.content]).strip()
-            else:
-                content = str(response.content).strip()
+            content = response.content.strip()
             json_str = None
 
             # 1. Check for markdown code block
@@ -344,9 +341,7 @@ def create_agent(main_llm: BaseChatModel, packager_llm: BaseChatModel, main_prom
             m for m in state.messages
             if isinstance(m, (HumanMessage, AIMessage, ToolMessage))
         ]
-        # Google GenAI requires conversation to end with a user turn or user prompt
-        follow_up_prompt = HumanMessage(content="Based on the above conversation, generate 3 follow-up questions.")
-        messages = [system_instruction] + relevant_history + [follow_up_prompt]
+        messages = [system_instruction] + relevant_history
 
         raw_response = await follow_up_llm_with_schema.ainvoke(messages)
 
