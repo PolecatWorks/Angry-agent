@@ -73,6 +73,7 @@ spec:
     image:
       repository: ${local.env.AGENT_BE_IMAGE || "ghcr.io/polecatworks/angry-agent-be"}
       tag: ${local.env.AGENT_BE_TAG || "latest"}
+      pullPolicy: Always
 
 ---
 kind: Deploy
