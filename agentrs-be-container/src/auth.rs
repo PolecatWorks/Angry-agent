@@ -1,3 +1,4 @@
+use crate::config::AuthConfig;
 use axum::{
     extract::Request,
     http::StatusCode,
@@ -9,7 +10,6 @@ use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
-use crate::config::AuthConfig;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
@@ -28,10 +28,7 @@ pub struct AuthenticatedUser {
     pub user_name: String,
 }
 
-pub async fn auth_middleware(
-    request: Request,
-    next: Next,
-) -> Response {
+pub async fn auth_middleware(request: Request, next: Next) -> Response {
     let path = request.uri().path();
 
     // Health checks remain public without authentication
@@ -44,9 +41,16 @@ pub async fn auth_middleware(
         return next.run(request).await;
     }
 
-    let auth_config = request.extensions().get::<Arc<Option<AuthConfig>>>().cloned();
+    let auth_config = request
+        .extensions()
+        .get::<Arc<Option<AuthConfig>>>()
+        .cloned();
 
-    let auth_header = match request.headers().get("Authorization").and_then(|h| h.to_str().ok()) {
+    let auth_header = match request
+        .headers()
+        .get("Authorization")
+        .and_then(|h| h.to_str().ok())
+    {
         Some(h) if h.to_lowercase().starts_with("bearer ") => &h[7..].trim(),
         _ => {
             return (
@@ -131,9 +135,9 @@ pub async fn auth_middleware(
 
     // In dev / test when auth config is omitted, attempt insecure parse for sub claim
     // But fail closed if token is invalid
-    return (
+    (
         StatusCode::SERVICE_UNAVAILABLE,
         Json(json!({ "error": "Authentication is not configured" })),
     )
-        .into_response();
+        .into_response()
 }

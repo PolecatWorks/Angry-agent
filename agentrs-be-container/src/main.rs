@@ -15,7 +15,11 @@ use tower_http::trace::TraceLayer;
 use tracing::{error, info, warn};
 
 #[derive(Parser, Debug)]
-#[command(name = "agentrs-be", version, about = "Angry Agent Rust Backend Service")]
+#[command(
+    name = "agentrs-be",
+    version,
+    about = "Angry Agent Rust Backend Service"
+)]
 struct Cli {
     #[arg(long, default_value = "false")]
     debug: bool,
@@ -70,7 +74,11 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Commands::Migrate { action, config, secrets }) => {
+        Some(Commands::Migrate {
+            action,
+            config,
+            secrets,
+        }) => {
             let rt = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
@@ -96,11 +104,17 @@ fn load_service_config(config_path: Option<&Path>, secrets_path: Option<&Path>) 
             match ServiceConfig::from_yaml_and_secrets(cfg_p, secrets_path) {
                 Ok(cfg) => return cfg,
                 Err(e) => {
-                    warn!("Failed to load configuration from {}: {e}. Falling back to defaults.", cfg_p.display());
+                    warn!(
+                        "Failed to load configuration from {}: {e}. Falling back to defaults.",
+                        cfg_p.display()
+                    );
                 }
             }
         } else {
-            warn!("Config file {} not found; falling back to defaults.", cfg_p.display());
+            warn!(
+                "Config file {} not found; falling back to defaults.",
+                cfg_p.display()
+            );
         }
     }
 
@@ -163,7 +177,9 @@ async fn run_migrate_cmd(action: MigrationAction, config: Option<&Path>, secrets
     info!("Running migrate command with action: {:?}", action);
     let cfg = load_service_config(config, secrets);
 
-    let pool = create_pg_pool_from_config(&cfg).await.expect("Database connection is required for migrations");
+    let pool = create_pg_pool_from_config(&cfg)
+        .await
+        .expect("Database connection is required for migrations");
 
     match action {
         MigrationAction::Apply => {
@@ -190,7 +206,11 @@ fn run_start_cmd(config_path: Option<&Path>, secrets_path: Option<&Path>) {
         .ok()
         .and_then(|p| p.parse().ok())
         .or_else(|| {
-            cfg.webservice.url.split(':').last().and_then(|p| p.parse().ok())
+            cfg.webservice
+                .url
+                .split(':')
+                .next_back()
+                .and_then(|p| p.parse().ok())
         })
         .unwrap_or(8080);
 
