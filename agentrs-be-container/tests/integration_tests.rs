@@ -482,3 +482,75 @@ async fn test_agent_definitions_crud() {
         assert_eq!(delete_again.status_code(), StatusCode::NOT_FOUND);
     }
 }
+
+#[tokio::test]
+async fn test_prefixed_routing_and_auth_middleware() {
+    use agentrs_be::auth::auth_middleware;
+    use agentrs_be::config::AuthConfig;
+    use std::sync::Arc;
+
+    let store = agentrs_be::session_store::SessionStore::new();
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let state = agentrs_be::api::AppState {
+        store,
+        catalog,
+        pool: None,
+    };
+
+    let auth_config = Arc::new(Some(AuthConfig {
+        jwt_public_key: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqcAgTagDgfhm3VCxV4FA\nWl3Yos4/f9xyFNkJwkudV4b52KcLSHomBEVFfIb65CnSJUHIs8E0vLda3wmZTNdc\nld9K7a4stkfItDGd1JJKqAZNiYlWkgwwMj+TeQUt4mbiVUvt2KZY78r4RlrKE1w7\nGuzs711R/HZz7mz4FFiNAR4GRynZHH6BLbIJA8EJ+JvtRJZ59tybWpuZt5bUUbxv\n9V1fQsF2HR6jCvt/OnctqarMfHm3B/0Ko0EtXCNhzJIqlByvw1n8u0pDEMoLUkOv\neXvigynPOk29FEEYji+UOEvZZHMpMHqgZukUr9dDKYysj18mr06zgpy9HWxEXU1J\n4wIDAQAB\n-----END PUBLIC KEY-----".to_string(),
+        jwt_issuer: "https://keycloak.example.com/realms/test".to_string(),
+        jwt_audience: "angry-agent-api".to_string(),
+    }));
+
+    let app = agentrs_be::api::create_prefixed_router(state, "/api/angry-agent/v1")
+        .layer(axum::middleware::from_fn(auth_middleware))
+        .layer(axum::Extension(auth_config));
+
+    let server = TestServer::new(app).unwrap();
+
+    // 1. Health check should remain public under /health and /api/angry-agent/v1/health
+    let resp1 = server.get("/health").await;
+    assert_eq!(resp1.status_code(), StatusCode::OK);
+
+    let resp2 = server.get("/api/angry-agent/v1/health").await;
+    assert_eq!(resp2.status_code(), StatusCode::OK);
+
+    // 2. Protected endpoint without token should return 401 Unauthorized
+    let resp_no_auth = server.get("/api/angry-agent/v1/threads").await;
+    assert_eq!(resp_no_auth.status_code(), StatusCode::UNAUTHORIZED);
+
+    // 3. Protected endpoint with invalid bearer token should return 401
+    let resp_bad_token = server
+        .get("/api/angry-agent/v1/threads")
+        .add_header("Authorization", "Bearer invalid-jwt-token")
+        .await;
+    assert_eq!(resp_bad_token.status_code(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_patch_visualization_endpoint() {
+    let store = agentrs_be::session_store::SessionStore::new();
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let state = agentrs_be::api::AppState {
+        store,
+        catalog,
+        pool: None,
+    };
+
+    let app = agentrs_be::api::create_router(state);
+    let server = TestServer::new(app).unwrap();
+
+    let patch_resp = server
+        .patch("/api/threads/thread-101/visualizations/00000000-0000-0000-0000-000000000001")
+        .add_header("X-User-ID", "test-user")
+        .json(&json!({
+            "content": { "title": "Updated Canvas Content" }
+        }))
+        .await;
+
+    assert_eq!(patch_resp.status_code(), StatusCode::OK);
+    let patch_json: serde_json::Value = patch_resp.json();
+    assert_eq!(patch_json["status"], "updated");
+    assert_eq!(patch_json["visualization"]["id"], "00000000-0000-0000-0000-000000000001");
+}

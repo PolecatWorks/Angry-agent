@@ -7,7 +7,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::sse::{Event, KeepAlive, Sse},
     response::IntoResponse,
-    routing::{get, post, put},
+    routing::{get, patch, post, put},
     Json, Router,
 };
 use futures::stream::Stream;
@@ -28,45 +28,98 @@ pub struct AppState {
 }
 
 pub fn create_router(state: AppState) -> Router {
-    Router::new()
-        .route("/health", get(health_handler))
-        .route(
-            "/api/user/settings",
-            get(get_user_settings_handler).put(update_user_settings_handler),
-        )
-        .route("/api/forms", get(list_forms_handler))
-        .route("/api/forms/{form_id}", get(get_form_handler))
-        .route("/api/threads", get(list_threads_handler))
-        .route(
-            "/api/threads/{thread_id}",
-            get(get_thread_handler)
-                .put(update_thread_handler)
-                .delete(delete_thread_handler),
-        )
-        .route(
-            "/api/threads/{thread_id}/history",
-            get(get_thread_history_handler),
-        )
-        .route(
-            "/api/threads/{thread_id}/visualizations",
-            get(get_visualizations_handler),
-        )
-        .route("/api/form/register", post(register_form_handler))
-        .route("/api/form/sync", post(sync_form_handler))
-        .route("/api/agent/run", post(run_agent_handler))
-        .route("/api/chat", post(chat_handler))
-        .route(
-            "/api/agents",
-            get(get_agents_handler).post(create_agent_handler),
-        )
-        .route(
-            "/api/agents/{agent_id}",
-            put(update_agent_handler).delete(delete_agent_handler),
-        )
-        .with_state(state)
+    create_prefixed_router(state, "/api/angry-agent/v1")
+}
+
+pub fn create_prefixed_router(state: AppState, prefix: &str) -> Router {
+    let clean_prefix = if prefix.is_empty() || prefix == "/" {
+        "".to_string()
+    } else {
+        format!("/{}", prefix.trim_matches('/'))
+    };
+
+    let mut router = Router::new()
+        .route("/health", get(health_handler));
+
+    if !clean_prefix.is_empty() && clean_prefix != "/health" {
+        router = router.route(&format!("{}/health", clean_prefix), get(health_handler));
+    }
+
+    // Helper to register resource routes under a given prefix
+    let add_resource_routes = |r: Router<AppState>, p: &str| {
+        let base = if p.is_empty() { "".to_string() } else { format!("/{}", p.trim_matches('/')) };
+        r.route(&format!("{}/user/settings", base), get(get_user_settings_handler).put(update_user_settings_handler))
+            .route(&format!("{}/forms", base), get(list_forms_handler))
+            .route(&format!("{}/forms/{{form_id}}", base), get(get_form_handler))
+            .route(&format!("{}/threads", base), get(list_threads_handler))
+            .route(
+                &format!("{}/threads/{{thread_id}}", base),
+                get(get_thread_handler)
+                    .put(update_thread_handler)
+                    .delete(delete_thread_handler),
+            )
+            .route(
+                &format!("{}/threads/{{thread_id}}/history", base),
+                get(get_thread_history_handler),
+            )
+            .route(
+                &format!("{}/threads/{{thread_id}}/visualizations", base),
+                get(get_visualizations_handler),
+            )
+            .route(
+                &format!("{}/threads/{{thread_id}}/visualizations/{{viz_id}}", base),
+                patch(patch_visualization_handler),
+            )
+            .route(&format!("{}/form/register", base), post(register_form_handler))
+            .route(&format!("{}/form/sync", base), post(sync_form_handler))
+            .route(&format!("{}/agent/run", base), post(run_agent_handler))
+            .route(&format!("{}/chat", base), post(chat_handler))
+            .route(
+                &format!("{}/agents", base),
+                get(get_agents_handler).post(create_agent_handler),
+            )
+            .route(
+                &format!("{}/agents/{{agent_id}}", base),
+                put(update_agent_handler).delete(delete_agent_handler),
+            )
+    };
+
+    router = add_resource_routes(router, &clean_prefix);
+
+    // Backward compatibility: also mount under /api if configured prefix is distinct
+    if clean_prefix != "/api" {
+        router = add_resource_routes(router, "/api");
+    }
+
+    router.with_state(state)
 }
 
 fn extract_user_id(headers: &HeaderMap) -> String {
+    // 1. Check if Authorization Bearer JWT is passed and decode sub claim payload
+    if let Some(auth_val) = headers.get("Authorization").and_then(|h| h.to_str().ok()) {
+        if auth_val.to_lowercase().starts_with("bearer ") {
+            let token = auth_val[7..].trim();
+            let parts: Vec<&str> = token.split('.').collect();
+            if parts.len() >= 2 {
+                use base64::Engine;
+                let payload_b64 = parts[1];
+                let decoded_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+                    .decode(payload_b64)
+                    .or_else(|_| base64::engine::general_purpose::STANDARD.decode(payload_b64));
+                if let Ok(bytes) = decoded_bytes {
+                    if let Ok(claims) = serde_json::from_slice::<crate::auth::Claims>(&bytes) {
+                        if let Some(sub) = claims.sub {
+                            if !sub.trim().is_empty() {
+                                return sub;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Fall back to X-User-ID header if provided
     headers
         .get("X-User-ID")
         .and_then(|v| v.to_str().ok())
@@ -443,6 +496,133 @@ async fn get_visualizations_handler(
     }
 
     Ok(Json(json!({ "visualizations": [] })))
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PatchVisualizationPayload {
+    pub patches: Option<Vec<serde_json::Value>>,
+    pub content: Option<serde_json::Value>,
+    pub json_schema: Option<serde_json::Value>,
+    pub attributions: Option<serde_json::Value>,
+    pub active_selection: Option<serde_json::Value>,
+}
+
+async fn patch_visualization_handler(
+    State(state): State<AppState>,
+    Path((thread_id, viz_id)): Path<(String, String)>,
+    headers: HeaderMap,
+    Json(payload): Json<PatchVisualizationPayload>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let user_id = extract_user_id(&headers);
+
+    if let Some(pool) = &state.pool {
+        // Verify thread exists
+        let thread_row =
+            sqlx::query_as::<_, (String,)>("SELECT user_id FROM threads WHERE thread_id = $1")
+                .bind(&thread_id)
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({ "error": e.to_string() })),
+                    )
+                })?;
+
+        let Some((owner_id,)) = thread_row else {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "Thread not found" })),
+            ));
+        };
+
+        if owner_id != user_id {
+            let access_row = sqlx::query_as::<_, (i32,)>(
+                "SELECT 1 FROM thread_access WHERE thread_id = $1 AND user_id = $2",
+            )
+            .bind(&thread_id)
+            .bind(&user_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": e.to_string() })),
+                )
+            })?;
+
+            if access_row.is_none() {
+                return Err((
+                    StatusCode::FORBIDDEN,
+                    Json(json!({ "error": "Thread access denied" })),
+                ));
+            }
+        }
+
+        // Parse UUID
+        let Ok(parsed_viz_uuid) = Uuid::parse_str(&viz_id) else {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": format!("Visualization {} not found", viz_id) })),
+            ));
+        };
+
+        // Fetch existing visualization content
+        let existing = sqlx::query_as::<_, (serde_json::Value,)>(
+            "SELECT content FROM visualizations WHERE id = $1 AND thread_id = $2",
+        )
+        .bind(parsed_viz_uuid)
+        .bind(&thread_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+
+        let Some((mut content_val,)) = existing else {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": format!("Visualization {} not found", viz_id) })),
+            ));
+        };
+
+        // Apply RFC 6902 patches if provided
+        if let Some(patches) = payload.patches {
+            if let Ok(patch_arr) = serde_json::from_value::<json_patch::Patch>(serde_json::Value::Array(patches)) {
+                let _ = json_patch::patch(&mut content_val, &patch_arr);
+            }
+        } else if let Some(direct_content) = payload.content {
+            content_val = direct_content;
+        }
+
+        // Update database row
+        sqlx::query(
+            "UPDATE visualizations SET content = $1, updated_at = NOW() WHERE id = $2 AND thread_id = $3",
+        )
+        .bind(&content_val)
+        .bind(parsed_viz_uuid)
+        .bind(&thread_id)
+        .execute(pool)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+
+        return Ok(Json(json!({
+            "status": "updated",
+            "visualization": {
+                "id": viz_id,
+                "thread_id": thread_id,
+                "content": content_val
+            }
+        })));
+    }
+
+    // In-memory fallback if pool is not configured
+    Ok(Json(json!({
+        "status": "updated",
+        "visualization": {
+            "id": viz_id,
+            "thread_id": thread_id,
+            "content": payload.content.unwrap_or(json!({}))
+        }
+    })))
 }
 
 async fn get_thread_history_handler(
