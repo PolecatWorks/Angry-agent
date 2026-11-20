@@ -1,0 +1,38 @@
+apiVersion: v1.edp.epam.com/v1
+kind: KeycloakClient
+metadata:
+  name: angry-agent-api
+  namespace: dev
+spec:
+  clientId: angry-agent-api
+  name: Angry Agent Backend API
+  description: Bearer-only API client for Angry Agent
+  realmRef:
+    kind: KeycloakRealm
+    name: dev
+  public: false
+  bearerOnly: true
+  clientRolesV2:
+    - name: "agent:execute"
+      description: "Execute agent workflows and conversational sessions"
+    - name: "agent:create"
+      description: "Author and register new agent configurations"
+    - name: "agent:admin"
+      description: "Administer system prompts, global sessions, and audit logs"
+---
+apiVersion: v1.edp.epam.com/v1
+kind: KeycloakClient
+metadata:
+  name: angry-agent-sa
+  namespace: dev
+spec:
+  clientId: angry-agent-sa
+  name: Angry Agent Service Account
+  description: Confidential M2M client for Angry Agent calling downstream services (Graphrag, data-engine)
+  realmRef:
+    kind: KeycloakRealm
+    name: dev
+  public: false
+  clientAuthenticatorType: client-secret
+  serviceAccount:
+    enabled: true
