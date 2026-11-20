@@ -32,6 +32,10 @@ rig-core = "0.46"
 hams = { git = "https://github.com/PolecatWorks/hams.git", version = "0.3.0" }
 ffi-log2 = { git = "https://github.com/PolecatWorks/hams.git", version = "0.1.0" }
 sqlx = { version = "0.9.0", features = ["postgres", "runtime-tokio", "tls-rustls", "chrono", "uuid"] }
+jsonwebtoken = "9"
+clap = { version = "4.6.9", features = ["derive"] }
+serde_yaml = "0.9.34"
+base64 = "0.23.1"
 
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }

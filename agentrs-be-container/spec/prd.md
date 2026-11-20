@@ -27,9 +27,14 @@
 7. **Comprehensive Integration Testing & Verification Suite**:
    - End-to-end integration tests validating form lifecycle, human-to-backend RFC 6902 state synchronization, focus collision protection, SSE streaming of AG-UI events, conversational form switching, and submission confirmation guardrails.
    - Robot Framework test suites for container-level validation in deployment pipelines.
-8. **Container Independence & Health Monitoring (HaMS)**:
+8. **Container Independence & Kubernetes Interchangeability**:
    - Independent Docker container buildable with standard cargo tools, adhering to zero Docker Compose dependency.
-   - Built-in integration with PolecatWorks `hams` (Health Monitoring System) library on dedicated health port (default `8078`), providing standard Kubernetes probes (`/hams/alive`, `/hams/ready`, `/hams/startup`, `/hams/metrics`, `/hams/version`).
+   - Built-in drop-in interchangeability with `agent-be-container`:
+     - CLI entrypoint supporting `start` and `migrate` (`migrate --action apply --config <path> --secrets <path>`).
+     - Port alignment: Web traffic on `8080`, HaMS monitoring on `8079` (`/hams/alive`, `/hams/ready`, `/hams/startup`, `/hams/metrics`, `/hams/version`).
+     - Configuration parsing matching `ServiceConfig` YAML schema and `/opt/app/secrets` projection (`persistence/db/connection/username` and `password`).
+     - Configurable API route prefix via `webservice.prefix` (e.g. `/api/angry-agent/v1`) with backward compatible `/api` fallback.
+     - Strict zero-fallback authentication matching `agent-be-container`: verified RS256 Bearer JWTs with required `exp`, `iss`, `aud`, and `sub` claims, failing closed with 401 Unauthorized for unauthenticated requests or invalid tokens, while keeping `/health` public.
 
 ## 3. Architecture & Tech Stack
 - **Language / Runtime**: Rust (Edition 2021/2024, `rustc 1.98+`, Tokio).

@@ -6,15 +6,16 @@ Implement the HTTP and Server-Sent Events (SSE) server using Axum, exposing rout
 ## 2. API Endpoints
 
 ### 2.1 Health & Diagnostic
-- `GET /health`: Returns 200 OK `{"status": "ok", "version": "..."}`.
+- `GET /health` and `GET {prefix}/health`: Returns 200 OK `{"status": "ok", "version": "...", "container": "agentrs-be-container"}`.
 - `GET /api/user/settings`: Fetch user settings (e.g., `learning_mode_enabled`).
 - `PUT /api/user/settings`: Upsert user settings (e.g., `{"learning_mode_enabled": bool}`).
-- `GET /api/threads`: List active threads for the user (`X-User-ID`).
+- `GET /api/threads`: List active threads for the user.
 - `PUT /api/threads/{thread_id}`: Update thread metadata (`color`, `title`, optional `learning_mode_enabled`) atomically ensuring user ownership.
 - `DELETE /api/threads/{thread_id}`: Delete thread atomically ensuring user ownership.
 - `GET /api/threads/{thread_id}`: Fetch thread active form context and session.
 - `GET /api/threads/{thread_id}/history`: Fetch thread metadata, conversation messages, and attached visualizations.
 - `GET /api/threads/{thread_id}/visualizations`: Fetch attached MFE visualizations for a thread.
+- `PATCH /api/threads/{thread_id}/visualizations/{viz_id}`: Bidirectional co-editing of visualization content using RFC 6902 JSON patches or direct content replacement.
 
 ### 2.2 Form Registration (`POST /api/form/register`)
 - Header: `X-User-ID`
