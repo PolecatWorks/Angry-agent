@@ -4,8 +4,8 @@ This project consists of an Angular Frontend and alternative Python and Rust Bac
 
 ## Project Structure
 - `agent-ui-container/`: Angular Application (Module Federation Remote / Host Shell)
-- `agent-be-container/`: Python Backend (Poetry, Aiohttp, LangGraph, PostgreSQL)
-- `agentrs-be-container/`: High-performance Rust Backend (Tokio, Axum, rig-core, AG-UI protocol over SSE, RFC 6902 JSON Patch state delta handling, inspired by `agent-as-data` and `Graphrag`)
+- `agent-be-container/`: High-performance Rust Backend (Tokio, Axum, rig-core, AG-UI protocol over SSE, RFC 6902 JSON Patch state delta handling, inspired by `agent-as-data` and `Graphrag`)
+- `agentpy-be-container/`: Python Backend (Poetry, Aiohttp, LangGraph, PostgreSQL)
 
 > 📖 **New to the app? Check out the [Getting Started Tutorial](docs/GETTING_STARTED.md)** for a guided walkthrough of the split-pane workspace and live co-editing canvas.
 
@@ -23,22 +23,25 @@ make db-local
 
 ### 2. Backend
 
-#### Option A: Python Backend (LangGraph)
-Build and run the Python backend container. It connects to the Postgres database:
-
-```bash
-make agent-be-docker-run
-```
-
-#### Option B: Rust Backend (agentrs-be-container)
+#### Option A: Rust Backend (agent-be-container)
 Run the Rust backend locally or via Cargo/Docker:
 
 ```bash
 # Run locally
-make agentrs-be-dev
+make agent-be-dev
 
 # Run tests
-make agentrs-be-test
+make agent-be-test
+
+# Build/run container
+make agent-be-docker-run
+```
+
+#### Option B: Python Backend (agentpy-be-container)
+Build and run the Python backend container:
+
+```bash
+make agentpy-be-docker-run
 ```
 
 ### 3. Frontend

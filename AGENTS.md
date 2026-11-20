@@ -2,13 +2,14 @@
 
 Welcome to the AI Agent application repository. This repository contains a full-stack AI agent application divided into two independent containers:
 - `agent-ui-container`: An Angular Micro-Frontend (MFE) application.
-- `agent-be-container`: A Python Backend application powered by Aiohttp and LangGraph.
+- `agent-be-container`: A Rust Backend application powered by Axum, Tokio, rig-core, and sqlx.
+- `agentpy-be-container`: A Python Backend application powered by Aiohttp and LangGraph.
 
 When working within this repository as an automated agent, please follow the guidelines outlined below to ensure consistency, reliability, and maintainability of the codebase.
 
 ## 1. Specification Files (PRD) Maintenance
 
-**CRITICAL:** The specification documents located in `agent-ui-container/spec/` and `agent-be-container/spec/` must be kept up to date at all times.
+**CRITICAL:** The specification documents located in `agent-ui-container/spec/`, `agent-be-container/spec/`, and `agentpy-be-container/spec/` must be kept up to date at all times.
 
 - Whenever a new feature is added, an existing feature is modified, or the application's functionality is changed, you **must** update the corresponding Product Requirements Document (PRD) in the respective `spec` directory.
 - The PRDs act as the source of truth for the design, objectives, and functionality of each container.
@@ -16,7 +17,7 @@ When working within this repository as an automated agent, please follow the gui
 
 ## 2. Container Independence
 
-- The frontend (`agent-ui-container`) and backend (`agent-be-container`) are designed to run as independent Docker containers.
+- The frontend (`agent-ui-container`) and backend (`agent-be-container` / `agentpy-be-container`) are designed to run as independent Docker containers.
 - **Do not use Docker Compose.** The user explicitly prohibits its use to facilitate future migration to Kubernetes.
 - Changes in one container should be isolated as much as possible, relying on stable API contracts to communicate.
 
@@ -29,7 +30,15 @@ When working within this repository as an automated agent, please follow the gui
 - **Testing:** Frontend tests are executed using `ng test --watch=false` (integrated with Vitest).
 - **Authentication:** Currently mocked via headers (e.g., `X-User-ID`). *Note: Future plans involve migrating to OAuth2.*
 
-## 4. Backend Guidelines (`agent-be-container`)
+## 4. Backend Guidelines (`agent-be-container` - Rust)
+
+- **Framework:** Axum and Tokio.
+- **Dependency Manager:** Cargo.
+- **AI/Logic:** `rig-core` for agent logic and tools; `sqlx` (PostgreSQL) for persistence and checkpointing.
+- **Execution Model:** Router, database connection pools, agent tools, and in-memory session/catalog stores are constructed at startup.
+- **Atomic Operations:** When verifying access or constraints before modifying data, incorporate those criteria directly into the `UPDATE` or `DELETE` SQL statement (e.g., `WHERE id = $1 AND user_id = $2`). Avoid read-then-write anti-patterns to prevent race conditions.
+
+## 5. Python Backend Guidelines (`agentpy-be-container` - Python)
 
 - **Framework:** Aiohttp.
 - **Dependency Manager:** Poetry.

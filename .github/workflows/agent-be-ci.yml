@@ -1,16 +1,16 @@
-name: AgentRS-BE CI
+name: Agent-BE CI
 
 on:
   push:
     branches: ["main"]
     paths:
-      - "agentrs-be-container/**"
-      - ".github/workflows/agentrs-be-ci.yml"
+      - "agent-be-container/**"
+      - ".github/workflows/agent-be-ci.yml"
   pull_request:
     branches: ["main"]
     paths:
-      - "agentrs-be-container/**"
-      - ".github/workflows/agentrs-be-ci.yml"
+      - "agent-be-container/**"
+      - ".github/workflows/agent-be-ci.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,16 +32,16 @@ jobs:
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "agentrs-be-container -> target"
+          workspaces: "agent-be-container -> target"
 
       - name: Check Formatting
-        working-directory: agentrs-be-container
+        working-directory: agent-be-container
         run: cargo fmt --check
 
       - name: Run Clippy Linter
-        working-directory: agentrs-be-container
+        working-directory: agent-be-container
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Run Tests
-        working-directory: agentrs-be-container
+        working-directory: agent-be-container
         run: cargo test --verbose
