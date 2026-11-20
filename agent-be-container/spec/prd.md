@@ -33,7 +33,7 @@ The agent's personality and instructions are managed via system prompts.
 
 ### 4.3 Multi-User Isolation & State Checkpointing
 The backend securely manages and isolates the state of individual users.
-- Authentication currently relies on a mocked header (e.g., `X-User-ID`), but the architecture supports future integration with standard OAuth2 flows.
+- Authentication requires verified RS256 Bearer JWTs with required `exp`, `iss`, `aud`, and `sub` claims loaded via `ServiceConfig.auth`. Unauthenticated requests or requests with client-controlled identity headers (`X-User-ID`, fake unsigned JWTs) fail closed with 401 Unauthorized.
 - LangGraph integrates directly with a PostgreSQL backend to manage check-pointing.
 - **Unified State Management**: All session data, including chat history and the current workspace of pinned visualizations, is stored within the `AgentState`. This state is persisted across requests using LangGraph's PostgreSQL checkpointing mechanism, eliminating the need for separate database tables for visualization metadata.
 
@@ -81,7 +81,7 @@ The backend includes specific routing and post-processing mechanisms for process
     - `PUT {api_prefix}/threads/{thread_id}` and `DELETE {api_prefix}/threads/{thread_id}`: Update or delete a thread.
     - `GET/POST {api_prefix}/agents` and `PUT/DELETE {api_prefix}/agents/{agent_id}`: Manage agent definitions.
 - The `get_history` API exposes `additional_kwargs` on messages to support extended capabilities like returning image URLs, MFE content, and Mermaid diagrams.
-- Requests must include the necessary authentication headers (`X-User-ID` or `Authorization: Bearer <JWT>`) to allow proper multi-user state retrieval.
+- Requests must include a verified `Authorization: Bearer <JWT>` header to authenticate the user via `sub` claim for multi-user state retrieval.
 
 ### 6.3 User Settings
 - The service provides endpoints to manage per-user configuration:
