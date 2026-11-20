@@ -7,26 +7,26 @@ BASE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 HELM_CHART := agent-be
 HELM_DIR := charts/$(HELM_CHART)
 
-RUST_APPS := agentrs-be
-PYTHON_APPS := agent-be
+RUST_APPS := agent-be
+PYTHON_APPS := agentpy-be
 NODE_APPS := agent-ui
 APPS := $(PYTHON_APPS) $(NODE_APPS) $(RUST_APPS)
 
-agentrs-be_PORT := 8081
-agentrs-be_HEALTH_PORT := 8078
 agent-be_PORT := 8080
 agent-be_HEALTH_PORT := 8079
+agentpy-be_PORT := 8080
+agentpy-be_HEALTH_PORT := 8079
 agent-ui_PORT := 3001
 
-agentrs-be_INTERNAL_PORT := 8081
-agentrs-be_INTERNAL_HEALTH_PORT := 8078
 agent-be_INTERNAL_PORT := 8080
 agent-be_INTERNAL_HEALTH_PORT := 8079
+agentpy-be_INTERNAL_PORT := 8080
+agentpy-be_INTERNAL_HEALTH_PORT := 8079
 agent-ui_INTERNAL_PORT := 8080
 
 # Docker Build
-agentrs-be_DOCKER_BUILD_OPTS :=
-agent-be_DOCKER_BUILD_OPTS := --secret id=GOOGLE_API_KEY,env=GOOGLE_API_KEY
+agent-be_DOCKER_BUILD_OPTS :=
+agentpy-be_DOCKER_BUILD_OPTS := --secret id=GOOGLE_API_KEY,env=GOOGLE_API_KEY
 agent-ui_DOCKER_BUILD_OPTS := --secret id=NODE_AUTH_TOKEN,env=NODE_AUTH_TOKEN
 
 export APP_MAIN_AICLIENT__GOOGLE_API_KEY := ${GOOGLE_API_KEY}
@@ -42,7 +42,7 @@ test:
 
 build-fe: agent-ui-docker
 build-be: agent-be-docker
-build-rs-be: agentrs-be-docker
+build-py-be: agentpy-be-docker
 
 helm-package:
 	helm package $(HELM_DIR) -d charts

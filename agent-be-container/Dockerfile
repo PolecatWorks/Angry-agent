@@ -1,75 +1,34 @@
-# Stage 1: Build environment
-FROM python:3.11-slim AS build
+# Build stage
+FROM rust:1.98-slim as builder
 
-# Install poetry
-RUN pip install poetry
+WORKDIR /usr/src/agentrs-be
 
-WORKDIR /app
+RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 
-# Copy project files
-COPY pyproject.toml poetry.lock ./
-COPY README.md ./
-
-# Copy application source and migrations
+COPY Cargo.toml Cargo.lock ./
 COPY src ./src
-COPY migrations ./migrations
-COPY yoyo.ini ./yoyo.ini
-
-# Create virtual environment
-RUN python -m venv /opt/venv
-ENV VIRTUAL_ENV=/opt/venv \
-    PATH="/opt/venv/bin:$PATH" \
-    POETRY_NO_INTERACTION=1
-
-RUN poetry install --no-root --only main
-
-# Build the project to generate the entrypoint script
-RUN poetry install --only main
-
-# Stage 2: Test environment
-FROM build AS test
-
-# Copy test files
 COPY tests ./tests
 
-# Install dev dependencies
-RUN poetry install --no-interaction --no-ansi --with dev
+RUN cargo build --release
 
-# Run tests and create success flag
-ENV PYTHONPATH=src
-RUN --mount=type=secret,id=GOOGLE_API_KEY,env=GOOGLE_API_KEY \
-    export APP_MAIN_AICLIENT__GOOGLE_API_KEY=$GOOGLE_API_KEY && \
-    export APP_PACKAGER_AICLIENT__GOOGLE_API_KEY=$GOOGLE_API_KEY && \
-    export APP_EMBEDDING_CLIENT__GOOGLE_API_KEY=$GOOGLE_API_KEY && \
-    poetry run pytest && touch /app/tests/.test_success
-
-# Stage 3: Final image
-FROM python:3.11-slim
+# Runtime stage
+FROM debian:bookworm-slim
 
 # Add OCI labels
-LABEL org.opencontainers.image.title="Agent Backend"
-LABEL org.opencontainers.image.description="AI Agent Backend with LangGraph"
+LABEL org.opencontainers.image.title="Agent Backend (Rust)"
+LABEL org.opencontainers.image.description="AI Agent Backend in Rust with Tokio, Axum, sqlx, and rig-core"
 LABEL org.opencontainers.image.authors="Ben Greene <BenJGreene@gmail.com>"
 LABEL org.opencontainers.image.source="https://github.com/polecatworks/Angry-agent"
-LABEL org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+RUN apt-get update && apt-get install -y ca-certificates libssl3 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+COPY --from=builder /usr/src/agentrs-be/target/release/agentrs-be /app/agentrs-be
+RUN ln -s /app/agentrs-be /usr/local/bin/agent-be && ln -s /app/agentrs-be /usr/local/bin/agentrs-be
 
-# Expose required port
+ENV PORT=8080
+ENV HAMS_PORT=8079
 EXPOSE 8080 8079
 
-# Copy test success flag, venv, and source code from previous stages
-COPY --from=test /app/tests/.test_success /app/tests/.test_success
-COPY --from=build /opt/venv /opt/venv
-COPY --from=build /app/src ./src
-COPY --from=build /app/migrations ./migrations
-COPY --from=build /app/yoyo.ini ./yoyo.ini
-
-# Setup environment variables
-ENV VIRTUAL_ENV=/opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-ENV PYTHONPATH=/app/src
-
-# Command to run the application via CLI
-ENTRYPOINT ["agent-be"]
-CMD ["--help"]
+ENTRYPOINT ["/app/agentrs-be"]
+CMD ["start", "--config", "/opt/app/configs/config.yaml", "--secrets", "/opt/app/secrets"]
