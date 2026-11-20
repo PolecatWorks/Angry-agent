@@ -5,7 +5,6 @@ import { vi } from 'vitest';
 describe('ChatService', () => {
     let service: ChatService;
     let httpClientSpy: any;
-    let authServiceSpy: any;
 
     beforeEach(() => {
         httpClientSpy = {
@@ -14,12 +13,8 @@ describe('ChatService', () => {
             delete: vi.fn(),
             patch: vi.fn()
         };
-        authServiceSpy = {
-            getUserId: vi.fn().mockReturnValue('test-user'),
-            isLoggedIn: vi.fn()
-        };
 
-        service = new ChatService(httpClientSpy, authServiceSpy);
+        service = new ChatService(httpClientSpy);
     });
 
     it('should be created', () => {
@@ -134,7 +129,7 @@ describe('ChatService', () => {
                 delete: vi.fn(),
                 patch: vi.fn()
             };
-            const customService = new ChatService(prefixSpy, authServiceSpy);
+            const customService = new ChatService(prefixSpy);
 
             customService.sendMessage('hello').subscribe();
 
@@ -152,7 +147,7 @@ describe('ChatService', () => {
                 delete: vi.fn(),
                 patch: vi.fn()
             };
-            const customService = new ChatService(trailingSlashSpy, authServiceSpy);
+            const customService = new ChatService(trailingSlashSpy);
 
             customService.sendMessage('test').subscribe();
 
