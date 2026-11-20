@@ -38,8 +38,7 @@ pub fn create_prefixed_router(state: AppState, prefix: &str) -> Router {
         format!("/{}", prefix.trim_matches('/'))
     };
 
-    let mut router = Router::new()
-        .route("/health", get(health_handler));
+    let mut router = Router::new().route("/health", get(health_handler));
 
     if !clean_prefix.is_empty() && clean_prefix != "/health" {
         router = router.route(&format!("{}/health", clean_prefix), get(health_handler));
@@ -47,41 +46,54 @@ pub fn create_prefixed_router(state: AppState, prefix: &str) -> Router {
 
     // Helper to register resource routes under a given prefix
     let add_resource_routes = |r: Router<AppState>, p: &str| {
-        let base = if p.is_empty() { "".to_string() } else { format!("/{}", p.trim_matches('/')) };
-        r.route(&format!("{}/user/settings", base), get(get_user_settings_handler).put(update_user_settings_handler))
-            .route(&format!("{}/forms", base), get(list_forms_handler))
-            .route(&format!("{}/forms/{{form_id}}", base), get(get_form_handler))
-            .route(&format!("{}/threads", base), get(list_threads_handler))
-            .route(
-                &format!("{}/threads/{{thread_id}}", base),
-                get(get_thread_handler)
-                    .put(update_thread_handler)
-                    .delete(delete_thread_handler),
-            )
-            .route(
-                &format!("{}/threads/{{thread_id}}/history", base),
-                get(get_thread_history_handler),
-            )
-            .route(
-                &format!("{}/threads/{{thread_id}}/visualizations", base),
-                get(get_visualizations_handler),
-            )
-            .route(
-                &format!("{}/threads/{{thread_id}}/visualizations/{{viz_id}}", base),
-                patch(patch_visualization_handler),
-            )
-            .route(&format!("{}/form/register", base), post(register_form_handler))
-            .route(&format!("{}/form/sync", base), post(sync_form_handler))
-            .route(&format!("{}/agent/run", base), post(run_agent_handler))
-            .route(&format!("{}/chat", base), post(chat_handler))
-            .route(
-                &format!("{}/agents", base),
-                get(get_agents_handler).post(create_agent_handler),
-            )
-            .route(
-                &format!("{}/agents/{{agent_id}}", base),
-                put(update_agent_handler).delete(delete_agent_handler),
-            )
+        let base = if p.is_empty() {
+            "".to_string()
+        } else {
+            format!("/{}", p.trim_matches('/'))
+        };
+        r.route(
+            &format!("{}/user/settings", base),
+            get(get_user_settings_handler).put(update_user_settings_handler),
+        )
+        .route(&format!("{}/forms", base), get(list_forms_handler))
+        .route(
+            &format!("{}/forms/{{form_id}}", base),
+            get(get_form_handler),
+        )
+        .route(&format!("{}/threads", base), get(list_threads_handler))
+        .route(
+            &format!("{}/threads/{{thread_id}}", base),
+            get(get_thread_handler)
+                .put(update_thread_handler)
+                .delete(delete_thread_handler),
+        )
+        .route(
+            &format!("{}/threads/{{thread_id}}/history", base),
+            get(get_thread_history_handler),
+        )
+        .route(
+            &format!("{}/threads/{{thread_id}}/visualizations", base),
+            get(get_visualizations_handler),
+        )
+        .route(
+            &format!("{}/threads/{{thread_id}}/visualizations/{{viz_id}}", base),
+            patch(patch_visualization_handler),
+        )
+        .route(
+            &format!("{}/form/register", base),
+            post(register_form_handler),
+        )
+        .route(&format!("{}/form/sync", base), post(sync_form_handler))
+        .route(&format!("{}/agent/run", base), post(run_agent_handler))
+        .route(&format!("{}/chat", base), post(chat_handler))
+        .route(
+            &format!("{}/agents", base),
+            get(get_agents_handler).post(create_agent_handler),
+        )
+        .route(
+            &format!("{}/agents/{{agent_id}}", base),
+            put(update_agent_handler).delete(delete_agent_handler),
+        )
     };
 
     router = add_resource_routes(router, &clean_prefix);
@@ -575,7 +587,12 @@ async fn patch_visualization_handler(
         .bind(&thread_id)
         .fetch_optional(pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e.to_string() })),
+            )
+        })?;
 
         let Some((mut content_val,)) = existing else {
             return Err((
@@ -586,7 +603,9 @@ async fn patch_visualization_handler(
 
         // Apply RFC 6902 patches if provided
         if let Some(patches) = payload.patches {
-            if let Ok(patch_arr) = serde_json::from_value::<json_patch::Patch>(serde_json::Value::Array(patches)) {
+            if let Ok(patch_arr) =
+                serde_json::from_value::<json_patch::Patch>(serde_json::Value::Array(patches))
+            {
                 let _ = json_patch::patch(&mut content_val, &patch_arr);
             }
         } else if let Some(direct_content) = payload.content {

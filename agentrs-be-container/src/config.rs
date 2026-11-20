@@ -78,15 +78,9 @@ impl DbConnectionConfig {
             (Some(user), Some(pass)) => {
                 Some(format!("postgresql://{}:{}@{}", user, pass, clean_base))
             }
-            (Some(user), None) => {
-                Some(format!("postgresql://{}@{}", user, clean_base))
-            }
-            (None, None) => {
-                Some(format!("postgresql://{}", clean_base))
-            }
-            (None, Some(pass)) => {
-                Some(format!("postgresql://:{}@{}", pass, clean_base))
-            }
+            (Some(user), None) => Some(format!("postgresql://{}@{}", user, clean_base)),
+            (None, None) => Some(format!("postgresql://{}", clean_base)),
+            (None, Some(pass)) => Some(format!("postgresql://:{}@{}", pass, clean_base)),
         }
     }
 }
@@ -99,7 +93,10 @@ pub struct HamsConfig {
 }
 
 impl ServiceConfig {
-    pub fn from_yaml_and_secrets(yaml_path: &Path, secrets_path: Option<&Path>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_yaml_and_secrets(
+        yaml_path: &Path,
+        secrets_path: Option<&Path>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let content = fs::read_to_string(yaml_path)?;
         let mut config: ServiceConfig = serde_yaml::from_str(&content)?;
 

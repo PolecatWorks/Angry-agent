@@ -552,5 +552,8 @@ async fn test_patch_visualization_endpoint() {
     assert_eq!(patch_resp.status_code(), StatusCode::OK);
     let patch_json: serde_json::Value = patch_resp.json();
     assert_eq!(patch_json["status"], "updated");
-    assert_eq!(patch_json["visualization"]["id"], "00000000-0000-0000-0000-000000000001");
+    assert_eq!(
+        patch_json["visualization"]["id"],
+        "00000000-0000-0000-0000-000000000001"
+    );
 }
