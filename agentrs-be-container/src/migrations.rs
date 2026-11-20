@@ -1,3 +1,4 @@
+use sqlx::raw_sql;
 use sqlx::PgPool;
 use tracing::info;
 
@@ -5,7 +6,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
     info!("Running database schema migrations for agentrs-be...");
 
     // 001_initial_schema
-    sqlx::query(
+    raw_sql(
         r#"
         CREATE TABLE IF NOT EXISTS threads (
             thread_id TEXT PRIMARY KEY,
@@ -25,7 +26,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
     .await?;
 
     // 002_thread_access
-    sqlx::query(
+    raw_sql(
         r#"
         CREATE TABLE IF NOT EXISTS thread_access (
             thread_id TEXT NOT NULL REFERENCES threads(thread_id) ON DELETE CASCADE,
@@ -41,7 +42,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
     .await?;
 
     // 003_users_table
-    sqlx::query(
+    raw_sql(
         r#"
         CREATE TABLE IF NOT EXISTS users (
             user_id TEXT PRIMARY KEY,
@@ -55,7 +56,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
     .await?;
 
     // 004_visualizations
-    sqlx::query(
+    raw_sql(
         r#"
         CREATE TABLE IF NOT EXISTS visualizations (
             id UUID PRIMARY KEY,
@@ -75,7 +76,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
     .await?;
 
     // 005_agent_definitions
-    sqlx::query(
+    raw_sql(
         r#"
         CREATE TABLE IF NOT EXISTS agent_definitions (
             id UUID PRIMARY KEY,
@@ -89,7 +90,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
     .await?;
 
     // 008_learning_mode
-    sqlx::query(
+    raw_sql(
         r#"
         CREATE TABLE IF NOT EXISTS user_settings (
             user_id TEXT PRIMARY KEY,
