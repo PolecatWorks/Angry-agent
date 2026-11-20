@@ -35,8 +35,8 @@ flowchart TD
     end
 
     subgraph Downstream ["Ecosystem Services"]
-        GraphRAG["Graphrag (:8080/api/v1/mcp)"]
-        DataEngine["data-engine (:8080/api/v1/mcp)"]
+        GraphRAG["Graphrag (/api/graphrag/v1/mcp)"]
+        DataEngine["data-engine (/api/data-engine/v1/mcp)"]
     end
 
     Shell -->|1. Auth Code + PKCE| Client_Shell

@@ -25,9 +25,9 @@ flowchart LR
     end
 
     subgraph MCPServers["Ecosystem MCP Services"]
-        GR_MCP["GraphRAG-RS (:8080/api/v1/mcp)\nOntology, Business Rules & Join Paths"]
-        DE_MCP["Data-Engine (:8080/api/v1/mcp)\nProfiling, Join Probes, DataFusion,\nPython Sandbox & Provenance"]
-        AAD_MCP["Agent-As-Data (:8080/mcp)\nGoverned Agent & Skill Registry"]
+        GR_MCP["GraphRAG-RS (/api/graphrag/v1/mcp)\nOntology, Business Rules & Join Paths"]
+        DE_MCP["Data-Engine (/api/data-engine/v1/mcp)\nProfiling, Join Probes, DataFusion,\nPython Sandbox & Provenance"]
+        AAD_MCP["Agent-As-Data (/api/aad-mcp/v1/mcp)\nGoverned Agent & Skill Registry"]
     end
 
     Chat <--> LG
