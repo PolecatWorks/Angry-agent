@@ -58,3 +58,7 @@ When working within this repository as an automated agent, please follow the gui
 ## 6. Pre-commit Checks
 
 Always perform the required pre-commit checks before submitting any changes. Verify functionality and ensure all tests pass.
+
+## 7. Build & Test Execution
+
+- **Always Use `Makefile` Targets**: When running builds or tests, always use the `Makefile` rather than invoking `cargo`, `npm`, `ng`, or `poetry` directly. Run `make help` to see all available targets.
