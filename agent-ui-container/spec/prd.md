@@ -2,7 +2,7 @@
 
 ## 1. Introduction
 
-The `agent-ui-container` is the frontend application of the AI Agent application. It provides an intuitive web interface for users to interact with the LangGraph-powered AI agent backend. The container is designed as an independent Micro-Frontend (MFE) that can be developed, tested, and deployed in isolation or embedded within a larger shell application.
+The `agent-ui-container` is the frontend application of the AI Agent application. It provides an intuitive web interface for users to interact with the Rust (`agent-be-container`) AI agent backend. The container is designed as an independent Micro-Frontend (MFE) that can be developed, tested, and deployed in isolation or embedded within a larger shell application.
 
 ## 2. Goals
 

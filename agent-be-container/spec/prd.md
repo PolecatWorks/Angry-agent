@@ -1,7 +1,7 @@
-# Product Requirements Document (PRD): agentrs-be-container
+# Product Requirements Document (PRD): agent-be-container (`agentrs-be`)
 
 ## 1. Executive Summary & Vision
-`agentrs-be-container` is a high-performance, asynchronous Rust backend designed to replace or complement `agent-be-container`. Powered by **Tokio**, **Axum**, and **rig-core**, it provides stateful AI orchestration, bidirectional real-time state synchronization using the **AG-UI protocol (over SSE)**, RFC 6902 JSON Patch state delta handling, and concepts from:
+`agent-be-container` (crate `agentrs-be`) is the sole, high-performance, asynchronous Rust backend for Angry-agent (replacing the removed legacy Python `agentpy-be-container`). Powered by **Tokio**, **Axum**, and **rig-core**, it provides stateful AI orchestration, bidirectional real-time state synchronization using the **AG-UI protocol (over SSE)**, RFC 6902 JSON Patch state delta handling, and concepts from:
 - **`PolecatWorks/agent-as-data`**: Structuring agent state, tools, context, and capabilities as reactive, schema-validated data representations.
 - **`PolecatWorks/Graphrag`**: Document and context relationship graphs stored and indexed in PostgreSQL, enabling semantic and relational context injection into agent sessions.
 - **Bidirectional Agentic Form Canvas**: Real-time split-pane collaboration between human direct manipulation in Angular Micro-Frontends (RHS) and conversational agent manipulation (LHS).
