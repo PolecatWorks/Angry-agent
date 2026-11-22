@@ -175,7 +175,7 @@ fn run_start_cmd(config_path: Option<&Path>, secrets_path: Option<&Path>) -> Res
         .build()
         .map_err(BootError::Runtime)?;
 
-    rt.block_on(async {
+    let (listener, app, addr) = rt.block_on(async {
         // 2. Connect PgPool (fatal if DB URL configured and connect fails)
         let pool = create_pg_pool_from_config(&cfg).await?;
 
@@ -228,23 +228,27 @@ fn run_start_cmd(config_path: Option<&Path>, secrets_path: Option<&Path>) -> Res
             .await
             .map_err(|source| BootError::Bind { addr, source })?;
 
-        // 6. Start HaMS & flip ready probe only after all boot checks and bind succeed
-        let mut hams = init_hams(hams_port)?;
-        hams.start()?;
-        hams.mark_ready();
-        info!(
-            "HaMS health service running on port {hams_port} (/hams/alive, /hams/ready, /hams/startup)"
-        );
+        Ok::<_, BootError>((listener, app, addr))
+    })?;
 
-        // 7. Serve HTTP traffic
-        info!("🚀 agentrs-be-container starting on http://{}", addr);
-        let serve_result = axum::serve(listener, app).await.map_err(BootError::Serve);
+    // 6. Start HaMS & flip ready probe outside Tokio runtime (hams uses internal block_on)
+    // only after all boot checks, migrations, and TCP bind succeed.
+    let mut hams = init_hams(hams_port)?;
+    hams.start()?;
+    hams.mark_ready();
+    info!(
+        "HaMS health service running on port {hams_port} (/hams/alive, /hams/ready, /hams/startup)"
+    );
 
-        hams.mark_not_ready();
-        if let Err(e) = hams.stop() {
-            info!("HaMS stopped or already stopped: {e}");
-        }
+    // 7. Serve HTTP traffic
+    info!("🚀 agentrs-be-container starting on http://{}", addr);
+    let serve_result =
+        rt.block_on(async { axum::serve(listener, app).await.map_err(BootError::Serve) });
 
-        serve_result
-    })
+    hams.mark_not_ready();
+    if let Err(e) = hams.stop() {
+        info!("HaMS stopped or already stopped: {e}");
+    }
+
+    serve_result
 }
