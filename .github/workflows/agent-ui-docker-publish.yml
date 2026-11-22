@@ -38,9 +38,60 @@ jobs:
               - 'agent-ui-container/**'
               - '.github/workflows/agent-ui-docker-publish.yml'
 
-  build:
+  check-image:
     needs: check-paths
     if: needs.check-paths.outputs.ui == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine UI Content SHA
+        id: ui-content
+        run: |
+          UI_SHA=$(git log -1 --format=%H -- agent-ui-container/ .github/workflows/agent-ui-docker-publish.yml)
+          echo "UI_SHA=$UI_SHA" >> $GITHUB_OUTPUT
+
+      - name: Determine Image Name
+        id: image-name
+        run: |
+          repo_name="${{ github.repository }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "IMAGE_NAME_LOWERCASE=$(echo "$repo_name" | tr '[:upper:]' '[:lower:]')-ui/dev" >> $GITHUB_OUTPUT
+          else
+            echo "IMAGE_NAME_LOWERCASE=$(echo "$repo_name" | tr '[:upper:]' '[:lower:]')-ui" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if image exists
+        id: check
+        run: |
+          IMAGE_REF="${{ env.REGISTRY }}/${{ steps.image-name.outputs.IMAGE_NAME_LOWERCASE }}:sha-${{ steps.ui-content.outputs.UI_SHA }}"
+          echo "Checking if image exists: $IMAGE_REF"
+          if docker manifest inspect "$IMAGE_REF" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Image exists!"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Image does not exist."
+          fi
+
+  build:
+    needs: [check-paths, check-image]
+    if: needs.check-paths.outputs.ui == 'true' && needs.check-image.outputs.exists != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -132,9 +183,8 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWERCASE }},push-by-digest=true,name-canonical=true,push=true,oci-mediatypes=true
           cache-from: |
-            type=gha,scope=${{ github.repository }}-agent-ui-${{ github.ref_name }}-${{ matrix.platform }}
             type=gha,scope=${{ github.repository }}-agent-ui-main-${{ matrix.platform }}
-          cache-to: type=gha,mode=max,scope=${{ github.repository }}-agent-ui-${{ github.ref_name }}-${{ matrix.platform }}
+          cache-to: ${{ github.ref_name == 'main' && format('type=gha,mode=max,scope={0}-agent-ui-main-{1}', github.repository, matrix.platform) || '' }}
 
       - name: Export digest
         run: |
@@ -169,7 +219,10 @@ jobs:
       security-events: read
       statuses: read
     needs:
+      - check-paths
+      - check-image
       - build
+    if: always() && needs.check-paths.outputs.ui == 'true' && (needs.build.result == 'success' || needs.check-image.outputs.exists == 'true')
     steps:
       - name: Prepare environment
         run: |
@@ -192,6 +245,7 @@ jobs:
           echo "UI_SHA=$UI_SHA" >> $GITHUB_ENV
 
       - name: Download digests
+        if: needs.build.result == 'success'
         uses: actions/download-artifact@v6
         with:
           path: /tmp/digests
@@ -231,6 +285,7 @@ jobs:
           echo "timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
 
       - name: Create manifest list and push
+        if: needs.build.result == 'success'
         working-directory: /tmp/digests
         id: manifest-annotate
         continue-on-error: true
@@ -244,11 +299,18 @@ jobs:
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWERCASE }}@sha256:%s ' *)
 
       - name: Create manifest list and push without annotations
-        if: steps.manifest-annotate.outcome == 'failure'
+        if: needs.build.result == 'success' && steps.manifest-annotate.outcome == 'failure'
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create  $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWERCASE }}@sha256:%s ' *)
+
+      - name: Apply tags to existing image
+        if: needs.build.result != 'success'
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWERCASE }}:sha-${{ env.UI_SHA }}
 
       - name: Inspect image
         id: inspect
@@ -269,13 +331,21 @@ jobs:
 
   ci-success:
     name: Agent-UI CI Success
-    needs: [check-paths, merge]
+    needs: [check-paths, check-image, merge]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Check Status
         run: |
+          if [[ "${{ needs.check-paths.result }}" != 'success' ]]; then
+            echo "Path check failed!"
+            exit 1
+          fi
           if [[ "${{ needs.check-paths.outputs.ui }}" == 'true' ]]; then
+            if [[ "${{ needs.check-image.result }}" != 'success' ]]; then
+               echo "Image check failed!"
+               exit 1
+            fi
             if [[ "${{ needs.merge.result }}" != 'success' ]]; then
                echo "Build/Merge failed!"
                exit 1
