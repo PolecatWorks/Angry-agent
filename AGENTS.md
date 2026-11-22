@@ -48,6 +48,14 @@ When working within this repository as an automated agent, please follow the gui
 
 Always perform the required pre-commit checks before submitting any changes. Verify functionality and ensure all tests pass.
 
-## 7. Build & Test Execution
+## 7. Boot-Time Validation & Code Refinement Standards
+
+- **Fail-Fast Boot Sequence**: Validate all CLI arguments, configuration files, secrets, database connectivity, and migrations **before** starting HaMS (`/hams/alive`, `/hams/ready`) or binding the HTTP listener: `Parse CLI -> Load & validate config -> Connect DB & run migrations -> Init domain stores/clients -> Start HaMS & mark ready -> Bind HTTP listener`.
+- **No Config Defaults / No Soft-Fail**: Operational configuration fields must be explicitly defined and validated. Never use `#[serde(default)]` for required settings, and never fall back to a default value when validation or loading fails—treat it as a fatal boot error.
+- **Minimize `Option<T>`**: Never use `Option<T>` for required runtime dependencies or CLI plumbing (e.g., `--config`, `--secrets`, DB pools, auth config). Use `Option<T>` only where absence is a valid domain state (e.g., optional query filters or lookup results).
+- **Propagate Errors with `?` & Never Swallow Errors**: Use `thiserror` + `#[from]` and propagate via `?` instead of nested `match`/`if let` blocks. Translate errors only at system boundaries (`IntoResponse`). Never discard fallible results via `let _ = ...`, `.ok()`, or `.unwrap_or_default()` on DB/deserialization reads.
+- **Parse, Don't Validate & Minimize Ambiguity**: Parse raw inputs into strong types (`Url`, `SocketAddr`, `Uuid`, domain enums) at the boundary; avoid stringly-typed flags, duplicate routes, or `200 OK` error payloads.
+
+## 8. Build & Test Execution
 
 - **Always Use `Makefile` Targets**: When running builds or tests, always use the `Makefile` rather than invoking `cargo`, `npm`, or `ng` directly. Run `make help` to see all available targets.
