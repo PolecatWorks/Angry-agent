@@ -49,6 +49,19 @@ spec:
       webservice:
         url: http://0.0.0.0:8080/agent-be
         prefix: "/api/angry-agent/v1"
+      auth:
+        jwt_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAph+QsjO1eU+ysJ/NnWrT
+          7PNnMTe76rQKMIGbEzeFX2n6hIA2cJ2JBNEqXohDS3hJCKre9ARD4Ly6Mo2Gq8+T
+          o0K05QmQs6Qj0c4Iij2UwnCMyurrpN7SveHj4525yUZ6BxGS/InsvmZgbNe3KVXR
+          nNT7LEcD+p5Y3Nl6mprcViBfGdGOn1D6/wgNpqkbAP1fIQ/8oTP4mJx8nuEWQlxP
+          Vgpcbkg0q0DP35+RibAfXxFXhGWRqt79qDmsfpAELkKBVFVMp45LMN4Pz6D28z77
+          /TUT4luoTE72TdOfx/2vtm/O0KSsYmWN9uiscSvd2Dh1jwMfDglLLeWmLO/uYiou
+          PQIDAQAB
+          -----END PUBLIC KEY-----
+        jwt_issuer: https://keycloak.example.com/realms/dev
+        jwt_audience: angry-agent-api
       persistence:
         db:
           connection:
