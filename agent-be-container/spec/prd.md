@@ -29,20 +29,21 @@
    - Robot Framework test suites for container-level validation in deployment pipelines.
 8. **Container Independence & Kubernetes Interchangeability**:
    - Independent Docker container buildable with standard cargo tools, adhering to zero Docker Compose dependency.
-   - Built-in drop-in interchangeability with `agent-be-container`:
-     - CLI entrypoint supporting `start` and `migrate` (`migrate --action apply --config <path> --secrets <path>`).
-     - Port alignment: Web traffic on `8080`, HaMS monitoring on `8079` (`/hams/alive`, `/hams/ready`, `/hams/startup`, `/hams/metrics`, `/hams/version`).
-     - Configuration parsing matching `ServiceConfig` YAML schema and `/opt/app/secrets` projection (`persistence/db/connection/username` and `password`).
-     - Configurable API route prefix via `webservice.prefix` (e.g. `/api/angry-agent/v1`) with backward compatible `/api` fallback.
-     - Strict zero-fallback authentication matching `agent-be-container`: verified RS256 Bearer JWTs with required `exp`, `iss`, `aud`, and `sub` claims, failing closed with 401 Unauthorized for unauthenticated requests or invalid tokens, while keeping `/health` public.
+    - Built-in drop-in interchangeability with `agent-be-container`:
+      - Dedicated `src/cli.rs` (`clap` derive) entrypoint supporting `start` and `migrate` (`migrate --action apply|rollback|list --config <path> --secrets <path>`).
+      - Port alignment: Web traffic on `8080` (parsed from `webservice.url` via `WebServerConfig::port()`, supporting path-suffixed URLs such as `http://0.0.0.0:8080/agent-be`), HaMS monitoring on `8079` (`/hams/alive`, `/hams/ready`, `/hams/startup`, `/hams/metrics`, `/hams/version`).
+      - Fail-fast configuration loading & validation (`ServiceConfig::from_yaml_and_secrets` + `ServiceConfig::validate()`) returning typed `thiserror` `ConfigError` (`src/error.rs`), rejecting missing/invalid `--config` files or malformed settings immediately at startup, and supporting `/opt/app/secrets` projection (`persistence/db/connection/username` and `password`).
+      - Reversible `sqlx` schema migrations (`migrations/0001_initial_schema.up.sql` and `0001_initial_schema.down.sql`) embedded via `sqlx::migrate!("./migrations")` covering `threads`, `thread_access`, `users`, `visualizations` (with `name` and `pin_to_pane`), `agent_definitions`, and `user_settings`.
+      - Configurable API route prefix via `webservice.prefix` (e.g. `/api/angry-agent/v1`) with backward compatible `/api` fallback.
+      - Strict zero-fallback authentication matching `agent-be-container`: verified RS256 Bearer JWTs with required `exp`, `iss`, `aud`, and `sub` claims injected as `AuthenticatedUser` in request extensions (preferred by all API handlers over raw headers), failing closed with 401 Unauthorized for unauthenticated requests or invalid tokens, while keeping `/health` public.
 
 ## 3. Architecture & Tech Stack
-- **Language / Runtime**: Rust (Edition 2021/2024, `rustc 1.98+`, Tokio).
-- **Web Framework**: Axum, Tower, Tower-HTTP (CORS, Trace, Compression).
+- **Language / Runtime**: Rust (Edition 2021, `rustc 1.98+`, Tokio).
+- **Web Framework**: Axum, Tower, Tower-HTTP (CORS, Trace).
 - **Agent Framework**: `rig-core` (v0.46+) for LLM orchestration, completions, and dynamic tool execution.
-- **State & Patching**: `json-patch` (RFC 6902), `serde`, `serde_json`, `DashMap` (concurrent sessions), `sqlx` (PostgreSQL).
+- **State, Patching & Persistence**: `json-patch` (RFC 6902), `serde`, `serde_json`, `DashMap` (concurrent sessions), `sqlx` (PostgreSQL with reversible `sqlx::migrate!` migrations).
 - **Event Streaming**: Axum SSE (`axum::response::sse`) emitting AG-UI v1.0 events.
-- **Configuration & Logging**: `tracing`, `tracing-subscriber`, `config` / `dotenvy`.
+- **CLI, Configuration & Error Handling**: `clap` (`derive` in `src/cli.rs`), `serde_yaml`, typed `thiserror` errors (`src/error.rs`), `tracing`, `tracing-subscriber`.
 
 ## 4. System Flow & Sequence
 1. **Form Registration (`POST /api/form/register`)**:
