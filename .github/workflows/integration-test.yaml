@@ -94,7 +94,28 @@ jobs:
           version: 'latest'
 
       - name: Login to GitHub Container Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Wait for Docker Images
+        run: |
+          wait_for_image() {
+            local img="$1"
+            echo "Waiting for image ${img}..."
+            for i in $(seq 1 60); do
+              if docker manifest inspect "$img" >/dev/null 2>&1; then
+                echo "Image ${img} is available."
+                return 0
+              fi
+              echo "Attempt $i/60: ${img} not yet available, sleeping 15s..."
+              sleep 15
+            done
+            echo "Timed out waiting for image ${img}"
+            return 1
+          }
+          wait_for_image "${AGENT_BE_IMAGE}:${AGENT_BE_TAG}"
+          wait_for_image "${AGENT_UI_IMAGE}:${AGENT_UI_TAG}"
 
       - name: Create Mock Secrets
         run: |
