@@ -2,7 +2,7 @@ use agentrs_be::api::{create_prefixed_router, AppState};
 use agentrs_be::auth::auth_middleware;
 use agentrs_be::cli::{Cli, Commands, MigrationAction};
 use agentrs_be::config::ServiceConfig;
-use agentrs_be::error::ConfigError;
+use agentrs_be::error::{BootError, ConfigError};
 use agentrs_be::hams::init_hams;
 use agentrs_be::migrations::{rollback_migrations, run_migrations, MIGRATOR};
 use agentrs_be::session_store::SessionStore;
@@ -26,27 +26,34 @@ fn main() {
 
     let cli = Cli::parse();
 
-    match cli.command {
+    let result = match cli.command {
         Some(Commands::Migrate {
             action,
             config,
             secrets,
-        }) => {
-            let rt = tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .expect("Failed to create Tokio runtime");
-            rt.block_on(async {
-                run_migrate_cmd(action, config.as_deref(), secrets.as_deref()).await;
-            });
-        }
+        }) => tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .map_err(BootError::Runtime)
+            .and_then(|rt| {
+                rt.block_on(run_migrate_cmd(
+                    action,
+                    config.as_deref(),
+                    secrets.as_deref(),
+                ))
+            }),
         Some(Commands::Start { config, secrets }) => {
-            run_start_cmd(config.as_deref(), secrets.as_deref());
+            run_start_cmd(config.as_deref(), secrets.as_deref())
         }
         None => {
             // If invoked without a subcommand, check if --config was supplied or run default start
-            run_start_cmd(cli.config.as_deref(), cli.secrets.as_deref());
+            run_start_cmd(cli.config.as_deref(), cli.secrets.as_deref())
         }
+    };
+
+    if let Err(err) = result {
+        error!("Fatal error: {err}");
+        std::process::exit(1);
     }
 }
 
@@ -64,7 +71,9 @@ fn load_service_config(
     Ok(cfg)
 }
 
-async fn create_pg_pool_from_config(config: &ServiceConfig) -> Option<sqlx::PgPool> {
+async fn create_pg_pool_from_config(
+    config: &ServiceConfig,
+) -> Result<Option<sqlx::PgPool>, BootError> {
     let dsn = config
         .persistence
         .as_ref()
@@ -75,7 +84,7 @@ async fn create_pg_pool_from_config(config: &ServiceConfig) -> Option<sqlx::PgPo
 
     let Some(dsn_str) = dsn else {
         warn!("No database connection URL or DSN configured. Running without database pool.");
-        return None;
+        return Ok(None);
     };
 
     info!("Connecting to PostgreSQL database...");
@@ -93,45 +102,26 @@ async fn create_pg_pool_from_config(config: &ServiceConfig) -> Option<sqlx::PgPo
         .and_then(|db| db.acquire_timeout)
         .unwrap_or(5);
 
-    match PgPoolOptions::new()
+    let pool = PgPoolOptions::new()
         .max_connections(pool_size)
         .acquire_timeout(Duration::from_secs(acquire_timeout))
         .connect(&dsn_str)
         .await
-    {
-        Ok(pool) => {
-            info!("Connected to PostgreSQL database successfully");
-            Some(pool)
-        }
-        Err(e) => {
-            error!("Failed to connect to PostgreSQL database: {e}");
-            None
-        }
-    }
+        .map_err(BootError::DatabaseConnect)?;
+
+    info!("Connected to PostgreSQL database successfully");
+    Ok(Some(pool))
 }
 
-async fn run_migrate_cmd(action: MigrationAction, config: Option<&Path>, secrets: Option<&Path>) {
+async fn run_migrate_cmd(
+    action: MigrationAction,
+    config: Option<&Path>,
+    secrets: Option<&Path>,
+) -> Result<(), BootError> {
     info!("Running migrate command with action: {:?}", action);
-    let cfg = match load_service_config(config, secrets) {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            error!("Configuration error: {e}");
-            std::process::exit(1);
-        }
-    };
-
-    let pool = create_pg_pool_from_config(&cfg)
-        .await
-        .expect("Database connection is required for migrations");
+    let cfg = load_service_config(config, secrets)?;
 
     match action {
-        MigrationAction::Apply => {
-            if let Err(e) = run_migrations(&pool).await {
-                error!("Migration failed: {e}");
-                std::process::exit(1);
-            }
-            info!("Migrations applied successfully.");
-        }
         MigrationAction::List => {
             for m in MIGRATOR.iter() {
                 info!(
@@ -141,63 +131,55 @@ async fn run_migrate_cmd(action: MigrationAction, config: Option<&Path>, secrets
             }
             info!("Migration action list completed.");
         }
+        MigrationAction::Apply => {
+            let pool = create_pg_pool_from_config(&cfg)
+                .await?
+                .ok_or(BootError::DatabaseMissing)?;
+            run_migrations(&pool).await?;
+            info!("Migrations applied successfully.");
+        }
         MigrationAction::Rollback => {
-            if let Err(e) = rollback_migrations(&pool).await {
-                error!("Migration rollback failed: {e}");
-                std::process::exit(1);
-            }
+            let pool = create_pg_pool_from_config(&cfg)
+                .await?
+                .ok_or(BootError::DatabaseMissing)?;
+            rollback_migrations(&pool).await?;
             info!("Migrations rolled back successfully.");
         }
     }
+
+    Ok(())
 }
 
-fn run_start_cmd(config_path: Option<&Path>, secrets_path: Option<&Path>) {
-    let cfg = match load_service_config(config_path, secrets_path) {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            error!("Configuration error: {e}");
-            std::process::exit(1);
-        }
-    };
+fn run_start_cmd(config_path: Option<&Path>, secrets_path: Option<&Path>) -> Result<(), BootError> {
+    // 1. Load & validate configuration
+    let cfg = load_service_config(config_path, secrets_path)?;
 
     // Resolve port from env var or validated webservice config
-    let port: u16 = std::env::var("PORT")
-        .ok()
-        .and_then(|p| p.parse().ok())
-        .unwrap_or_else(|| {
-            cfg.webservice
-                .port()
-                .expect("Validated webservice URL must contain a valid port")
-        });
+    let port: u16 = match std::env::var("PORT") {
+        Ok(p) => p
+            .parse()
+            .map_err(|_| ConfigError::InvalidWebServerPort(p))?,
+        Err(_) => cfg.webservice.port()?,
+    };
 
     // Resolve HAMS port from env var or hams config
-    let hams_port: u16 = std::env::var("HAMS_PORT")
-        .ok()
-        .and_then(|p| p.parse().ok())
-        .or_else(|| cfg.hams.as_ref().and_then(|h| h.port))
-        .unwrap_or(8079);
-
-    // Initialize and start HaMS health and monitoring before entering Tokio runtime
-    let mut hams = init_hams(hams_port).expect("Failed to initialize HaMS");
-    if let Err(e) = hams.start() {
-        error!("Failed to start HaMS: {e}");
-    } else {
-        info!(
-            "HaMS health service running on port {hams_port} (/hams/alive, /hams/ready, /hams/startup)"
-        );
-    }
+    let hams_port: u16 = match std::env::var("HAMS_PORT") {
+        Ok(p) => p
+            .parse()
+            .map_err(|_| ConfigError::InvalidHamsConfig(format!("invalid HAMS_PORT: {p}")))?,
+        Err(_) => cfg.hams.as_ref().and_then(|h| h.port).unwrap_or(8079),
+    };
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
-        .expect("Failed to create Tokio runtime");
+        .map_err(BootError::Runtime)?;
 
     rt.block_on(async {
-        let store = SessionStore::new();
-        let catalog = agentrs_be::catalog::FormCatalog::new();
-        let pool = create_pg_pool_from_config(&cfg).await;
+        // 2. Connect PgPool (fatal if DB URL configured and connect fails)
+        let pool = create_pg_pool_from_config(&cfg).await?;
 
-        // Automigrate if configured
+        // 3. Run migrations (fatal on error)
         if let Some(ref p) = pool {
             let automigrate = cfg
                 .persistence
@@ -208,12 +190,13 @@ fn run_start_cmd(config_path: Option<&Path>, secrets_path: Option<&Path>) {
 
             if automigrate {
                 info!("Automigrate is enabled. Running migrations...");
-                if let Err(e) = run_migrations(p).await {
-                    error!("Automigrate failed: {e}");
-                }
+                run_migrations(p).await?;
             }
         }
 
+        // 4. Init stores, catalog, and router
+        let store = SessionStore::new();
+        let catalog = agentrs_be::catalog::FormCatalog::new();
         let state = AppState {
             store,
             catalog,
@@ -227,7 +210,6 @@ fn run_start_cmd(config_path: Option<&Path>, secrets_path: Option<&Path>) {
 
         let auth_config_arc = Arc::new(cfg.auth.clone());
 
-        // Create router with prefix and auth middleware
         let prefix = &cfg.webservice.prefix;
         let mut app = create_prefixed_router(state, prefix)
             .layer(cors)
@@ -240,23 +222,29 @@ fn run_start_cmd(config_path: Option<&Path>, secrets_path: Option<&Path>) {
                 .layer(axum::Extension(auth_config_arc));
         }
 
+        // 5. Bind TcpListener before starting HaMS or marking ready
         let addr = SocketAddr::from(([0, 0, 0, 0], port));
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
+            .map_err(|source| BootError::Bind { addr, source })?;
+
+        // 6. Start HaMS & flip ready probe only after all boot checks and bind succeed
+        let mut hams = init_hams(hams_port)?;
+        hams.start()?;
+        hams.mark_ready();
+        info!(
+            "HaMS health service running on port {hams_port} (/hams/alive, /hams/ready, /hams/startup)"
+        );
+
+        // 7. Serve HTTP traffic
         info!("🚀 agentrs-be-container starting on http://{}", addr);
+        let serve_result = axum::serve(listener, app).await.map_err(BootError::Serve);
 
-        let listener = match tokio::net::TcpListener::bind(addr).await {
-            Ok(l) => l,
-            Err(e) => {
-                error!("Failed to bind TCP listener on {}: {e}", addr);
-                return;
-            }
-        };
-
-        if let Err(e) = axum::serve(listener, app).await {
-            error!("Server error: {e}");
+        hams.mark_not_ready();
+        if let Err(e) = hams.stop() {
+            info!("HaMS stopped or already stopped: {e}");
         }
-    });
 
-    if let Err(e) = hams.stop() {
-        info!("HaMS stopped or already stopped: {e}");
-    }
+        serve_result
+    })
 }

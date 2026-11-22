@@ -213,7 +213,18 @@ async fn test_sample_expense_claim_form_switch_and_submission() {
 #[test]
 fn test_hams_health_and_probes() {
     let mut hams = agentrs_be::hams::init_hams(8077).expect("Failed to initialize HaMS");
+    assert!(
+        !hams.is_ready(),
+        "HaMS ready probe must start false until boot completes"
+    );
     hams.start().expect("Failed to start HaMS");
+    hams.mark_ready();
+    assert!(hams.is_ready(), "HaMS ready probe should flip to true");
+    hams.mark_not_ready();
+    assert!(
+        !hams.is_ready(),
+        "HaMS ready probe should flip back to false"
+    );
     hams.stop().expect("Failed to stop HaMS");
 }
 
