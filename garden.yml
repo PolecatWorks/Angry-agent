@@ -70,6 +70,10 @@ spec:
         ollama_base_url: http://ollama.ollama:11434
       packager_aiclient:
         ollama_base_url: http://ollama.ollama:11434
+      hams:
+        url: http://0.0.0.0:8079
+        port: 8079
+        prefix: hams
     secretName: db0-angry-agent-user
     volumes:
       - name: configs

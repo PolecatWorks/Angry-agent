@@ -218,7 +218,7 @@ impl AgentEngine {
         let now = chrono::Utc::now().timestamp_millis();
         session.messages.push(ChatMessage {
             id: Uuid::new_v4().to_string(),
-            role: "user".into(),
+            role: crate::models::MessageRole::User,
             content: user_message,
             created_at: now,
         });

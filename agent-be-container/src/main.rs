@@ -27,28 +27,16 @@ fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
-        Some(Commands::Migrate {
+        Commands::Migrate {
             action,
             config,
             secrets,
-        }) => tokio::runtime::Builder::new_multi_thread()
+        } => tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .map_err(BootError::Runtime)
-            .and_then(|rt| {
-                rt.block_on(run_migrate_cmd(
-                    action,
-                    config.as_deref(),
-                    secrets.as_deref(),
-                ))
-            }),
-        Some(Commands::Start { config, secrets }) => {
-            run_start_cmd(config.as_deref(), secrets.as_deref())
-        }
-        None => {
-            // If invoked without a subcommand, check if --config was supplied or run default start
-            run_start_cmd(cli.config.as_deref(), cli.secrets.as_deref())
-        }
+            .and_then(|rt| rt.block_on(run_migrate_cmd(action, &config, secrets.as_deref()))),
+        Commands::Start { config, secrets } => run_start_cmd(&config, secrets.as_deref()),
     };
 
     if let Err(err) = result {
@@ -58,17 +46,11 @@ fn main() {
 }
 
 fn load_service_config(
-    config_path: Option<&Path>,
+    config_path: &Path,
     secrets_path: Option<&Path>,
 ) -> Result<ServiceConfig, ConfigError> {
-    if let Some(cfg_p) = config_path {
-        info!("Loading configuration from {}", cfg_p.display());
-        return ServiceConfig::from_yaml_and_secrets(cfg_p, secrets_path);
-    }
-
-    let cfg = ServiceConfig::default();
-    cfg.validate()?;
-    Ok(cfg)
+    info!("Loading configuration from {}", config_path.display());
+    ServiceConfig::from_yaml_and_secrets(config_path, secrets_path)
 }
 
 async fn create_pg_pool_from_config(
@@ -79,8 +61,7 @@ async fn create_pg_pool_from_config(
         .as_ref()
         .and_then(|p| p.db.as_ref())
         .and_then(|db| db.connection.as_ref())
-        .and_then(|conn| conn.dsn())
-        .or_else(|| std::env::var("DATABASE_URL").ok());
+        .and_then(|conn| conn.dsn());
 
     let Some(dsn_str) = dsn else {
         warn!("No database connection URL or DSN configured. Running without database pool.");
@@ -115,7 +96,7 @@ async fn create_pg_pool_from_config(
 
 async fn run_migrate_cmd(
     action: MigrationAction,
-    config: Option<&Path>,
+    config: &Path,
     secrets: Option<&Path>,
 ) -> Result<(), BootError> {
     info!("Running migrate command with action: {:?}", action);
@@ -150,25 +131,15 @@ async fn run_migrate_cmd(
     Ok(())
 }
 
-fn run_start_cmd(config_path: Option<&Path>, secrets_path: Option<&Path>) -> Result<(), BootError> {
+fn run_start_cmd(config_path: &Path, secrets_path: Option<&Path>) -> Result<(), BootError> {
     // 1. Load & validate configuration
     let cfg = load_service_config(config_path, secrets_path)?;
 
-    // Resolve port from env var or validated webservice config
-    let port: u16 = match std::env::var("PORT") {
-        Ok(p) => p
-            .parse()
-            .map_err(|_| ConfigError::InvalidWebServerPort(p))?,
-        Err(_) => cfg.webservice.port()?,
-    };
+    // Resolve port from validated webservice config
+    let port: u16 = cfg.webservice.port()?;
 
-    // Resolve HAMS port from env var or hams config
-    let hams_port: u16 = match std::env::var("HAMS_PORT") {
-        Ok(p) => p
-            .parse()
-            .map_err(|_| ConfigError::InvalidHamsConfig(format!("invalid HAMS_PORT: {p}")))?,
-        Err(_) => cfg.hams.as_ref().and_then(|h| h.port).unwrap_or(8079),
-    };
+    // Resolve HAMS port from hams config
+    let hams_port: u16 = cfg.hams.as_ref().and_then(|h| h.port).unwrap_or(8079);
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()

@@ -2,10 +2,10 @@ use crate::error::ConfigError;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use url::Url;
 
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ServiceConfig {
-    #[serde(default)]
     pub webservice: WebServerConfig,
     #[serde(default)]
     pub auth: Option<AuthConfig>,
@@ -15,88 +15,30 @@ pub struct ServiceConfig {
     pub hams: Option<HamsConfig>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct WebServerConfig {
-    #[serde(default = "default_url")]
-    pub url: String,
-    #[serde(default = "default_prefix")]
+    pub url: Url,
     pub prefix: String,
 }
 
-impl Default for WebServerConfig {
-    fn default() -> Self {
-        Self {
-            url: default_url(),
-            prefix: default_prefix(),
-        }
-    }
-}
-
 impl WebServerConfig {
-    /// Extracts the TCP port from `webservice.url`, properly handling path,
-    /// query, and fragment suffixes (e.g. `http://0.0.0.0:8080/agent-be`).
+    /// Extracts the TCP port from `webservice.url` using `Url::port_or_known_default()`,
+    /// verifying that the scheme is `http` or `https` and a host is present.
     pub fn port(&self) -> Result<u16, ConfigError> {
-        let trimmed = self.url.trim();
-        let after_scheme = trimmed
-            .strip_prefix("http://")
-            .or_else(|| trimmed.strip_prefix("https://"))
-            .ok_or_else(|| ConfigError::InvalidWebServerUrl(self.url.clone()))?;
-
-        let authority = after_scheme.split(['/', '?', '#']).next().unwrap_or("");
-        if authority.is_empty() {
-            return Err(ConfigError::InvalidWebServerUrl(self.url.clone()));
+        if !matches!(self.url.scheme(), "http" | "https") {
+            return Err(ConfigError::InvalidWebServerUrl(self.url.to_string()));
         }
-
-        let host_port = authority
-            .rsplit_once('@')
-            .map(|(_, hp)| hp)
-            .unwrap_or(authority);
-
-        let port_str = if let Some(rest) = host_port.strip_prefix('[') {
-            let (host, after_bracket) = rest
-                .split_once(']')
-                .ok_or_else(|| ConfigError::InvalidWebServerUrl(self.url.clone()))?;
-            if host.is_empty() {
-                return Err(ConfigError::InvalidWebServerUrl(self.url.clone()));
-            }
-            if after_bracket.is_empty() {
-                None
-            } else {
-                let p = after_bracket
-                    .strip_prefix(':')
-                    .ok_or_else(|| ConfigError::InvalidWebServerUrl(self.url.clone()))?;
-                Some(p)
-            }
-        } else if let Some((host, p)) = host_port.rsplit_once(':') {
-            if host.is_empty() {
-                return Err(ConfigError::InvalidWebServerUrl(self.url.clone()));
-            }
-            Some(p)
-        } else {
-            if host_port.is_empty() {
-                return Err(ConfigError::InvalidWebServerUrl(self.url.clone()));
-            }
-            None
-        };
-
-        match port_str {
-            Some(p) => {
-                let port: u16 = p
-                    .parse()
-                    .map_err(|_| ConfigError::InvalidWebServerPort(self.url.clone()))?;
-                if port == 0 {
-                    return Err(ConfigError::InvalidWebServerPort(self.url.clone()));
-                }
-                Ok(port)
-            }
-            None => {
-                if trimmed.starts_with("https://") {
-                    Ok(443)
-                } else {
-                    Ok(80)
-                }
-            }
+        if self.url.host_str().is_none_or(|h| h.is_empty()) {
+            return Err(ConfigError::InvalidWebServerUrl(self.url.to_string()));
         }
+        let port = self
+            .url
+            .port_or_known_default()
+            .ok_or_else(|| ConfigError::InvalidWebServerPort(self.url.to_string()))?;
+        if port == 0 {
+            return Err(ConfigError::InvalidWebServerPort(self.url.to_string()));
+        }
+        Ok(port)
     }
 
     pub fn validate(&self) -> Result<(), ConfigError> {
@@ -108,14 +50,6 @@ impl WebServerConfig {
         }
         Ok(())
     }
-}
-
-fn default_url() -> String {
-    "http://0.0.0.0:8080".to_string()
-}
-
-fn default_prefix() -> String {
-    "/api/angry-agent/v1".to_string()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -335,40 +269,52 @@ mod tests {
         std::env::temp_dir().join(format!("agentrs_be_test_{}_{}.yaml", name, Uuid::new_v4()))
     }
 
+    fn base_service_config() -> ServiceConfig {
+        ServiceConfig {
+            webservice: WebServerConfig {
+                url: Url::parse("http://0.0.0.0:8080/agent-be").unwrap(),
+                prefix: "/api/angry-agent/v1".to_string(),
+            },
+            auth: None,
+            persistence: None,
+            hams: None,
+        }
+    }
+
     #[test]
     fn webserver_port_parses_standard_and_path_suffixed_urls() {
         let cfg = WebServerConfig {
-            url: "http://0.0.0.0:8080".to_string(),
+            url: Url::parse("http://0.0.0.0:8080").unwrap(),
             prefix: "/api".to_string(),
         };
         assert_eq!(cfg.port().unwrap(), 8080);
 
         let cfg_with_path = WebServerConfig {
-            url: "http://0.0.0.0:8080/agent-be".to_string(),
+            url: Url::parse("http://0.0.0.0:8080/agent-be").unwrap(),
             prefix: "/api/angry-agent/v1".to_string(),
         };
         assert_eq!(cfg_with_path.port().unwrap(), 8080);
 
         let cfg_https_with_query = WebServerConfig {
-            url: "https://api.example.com:8443/agent-be?debug=1#frag".to_string(),
+            url: Url::parse("https://api.example.com:8443/agent-be?debug=1#frag").unwrap(),
             prefix: "/api".to_string(),
         };
         assert_eq!(cfg_https_with_query.port().unwrap(), 8443);
 
         let cfg_ipv6 = WebServerConfig {
-            url: "http://[::]:9090/agent-be".to_string(),
+            url: Url::parse("http://[::]:9090/agent-be").unwrap(),
             prefix: "/api".to_string(),
         };
         assert_eq!(cfg_ipv6.port().unwrap(), 9090);
 
         let cfg_default_http = WebServerConfig {
-            url: "http://example.com/agent-be".to_string(),
+            url: Url::parse("http://example.com/agent-be").unwrap(),
             prefix: "/api".to_string(),
         };
         assert_eq!(cfg_default_http.port().unwrap(), 80);
 
         let cfg_default_https = WebServerConfig {
-            url: "https://example.com/agent-be".to_string(),
+            url: Url::parse("https://example.com/agent-be").unwrap(),
             prefix: "/api".to_string(),
         };
         assert_eq!(cfg_default_https.port().unwrap(), 443);
@@ -376,45 +322,43 @@ mod tests {
 
     #[test]
     fn webserver_port_rejects_invalid_urls_and_ports() {
-        for bad_url in [
-            "",
-            "0.0.0.0:8080",
-            "ftp://0.0.0.0:8080",
-            "http:///agent-be",
-            "http://:8080/agent-be",
-            "http://[::/agent-be",
-        ] {
-            let cfg = WebServerConfig {
-                url: bad_url.to_string(),
-                prefix: "/api".to_string(),
-            };
-            assert!(
-                matches!(cfg.port(), Err(ConfigError::InvalidWebServerUrl(_))),
-                "expected InvalidWebServerUrl for {bad_url:?}, got {:?}",
-                cfg.port()
-            );
-        }
+        let ftp_cfg = WebServerConfig {
+            url: Url::parse("ftp://0.0.0.0:8080").unwrap(),
+            prefix: "/api".to_string(),
+        };
+        assert!(matches!(
+            ftp_cfg.port(),
+            Err(ConfigError::InvalidWebServerUrl(_))
+        ));
 
-        for bad_port_url in [
-            "http://0.0.0.0:0/agent-be",
-            "http://0.0.0.0:99999/agent-be",
-            "http://0.0.0.0:notaport/agent-be",
+        let zero_port_cfg = WebServerConfig {
+            url: Url::parse("http://0.0.0.0:0/agent-be").unwrap(),
+            prefix: "/api".to_string(),
+        };
+        assert!(matches!(
+            zero_port_cfg.port(),
+            Err(ConfigError::InvalidWebServerPort(_))
+        ));
+
+        for unparseable_yaml in [
+            "url: \"\"\nprefix: \"/api\"",
+            "url: \"0.0.0.0:8080\"\nprefix: \"/api\"",
+            "url: \"http://:8080/agent-be\"\nprefix: \"/api\"",
+            "url: \"http://0.0.0.0:99999/agent-be\"\nprefix: \"/api\"",
+            "url: \"http://0.0.0.0:notaport/agent-be\"\nprefix: \"/api\"",
+            "prefix: \"/api\"",
+            "url: \"http://0.0.0.0:8080\"",
         ] {
-            let cfg = WebServerConfig {
-                url: bad_port_url.to_string(),
-                prefix: "/api".to_string(),
-            };
             assert!(
-                matches!(cfg.port(), Err(ConfigError::InvalidWebServerPort(_))),
-                "expected InvalidWebServerPort for {bad_port_url:?}, got {:?}",
-                cfg.port()
+                serde_yaml::from_str::<WebServerConfig>(unparseable_yaml).is_err(),
+                "expected YAML deserialization failure for {unparseable_yaml}"
             );
         }
     }
 
     #[test]
-    fn validate_accepts_default_config() {
-        let cfg = ServiceConfig::default();
+    fn validate_accepts_base_config() {
+        let cfg = base_service_config();
         assert!(cfg.validate().is_ok());
     }
 
@@ -428,7 +372,7 @@ mod tests {
                 jwt_issuer: "https://issuer".to_string(),
                 jwt_audience: "aud".to_string(),
             }),
-            ..Default::default()
+            ..base_service_config()
         };
         assert!(cfg.validate().is_ok());
 
@@ -438,7 +382,7 @@ mod tests {
                 jwt_issuer: "https://issuer".to_string(),
                 jwt_audience: "aud".to_string(),
             }),
-            ..Default::default()
+            ..base_service_config()
         };
         assert!(cfg_escaped_newlines.validate().is_ok());
     }
@@ -451,7 +395,7 @@ mod tests {
                 jwt_issuer: "https://issuer".to_string(),
                 jwt_audience: "aud".to_string(),
             }),
-            ..Default::default()
+            ..base_service_config()
         };
         assert!(matches!(
             cfg.validate(),
@@ -464,7 +408,7 @@ mod tests {
                 jwt_issuer: "https://issuer".to_string(),
                 jwt_audience: "aud".to_string(),
             }),
-            ..Default::default()
+            ..base_service_config()
         };
         assert!(matches!(
             cfg_malformed_pem.validate(),
@@ -477,7 +421,7 @@ mod tests {
                 jwt_issuer: "".to_string(),
                 jwt_audience: "aud".to_string(),
             }),
-            ..Default::default()
+            ..base_service_config()
         };
         assert!(matches!(
             cfg_empty_issuer.validate(),
@@ -490,7 +434,7 @@ mod tests {
                 jwt_issuer: "https://issuer".to_string(),
                 jwt_audience: " ".to_string(),
             }),
-            ..Default::default()
+            ..base_service_config()
         };
         assert!(matches!(
             cfg_empty_aud.validate(),
@@ -507,7 +451,7 @@ mod tests {
                     ..Default::default()
                 }),
             }),
-            ..Default::default()
+            ..base_service_config()
         };
         assert!(matches!(
             cfg_zero_pool.validate(),
@@ -521,7 +465,7 @@ mod tests {
                     ..Default::default()
                 }),
             }),
-            ..Default::default()
+            ..base_service_config()
         };
         assert!(matches!(
             cfg_zero_timeout.validate(),
@@ -538,7 +482,7 @@ mod tests {
                     ..Default::default()
                 }),
             }),
-            ..Default::default()
+            ..base_service_config()
         };
         assert!(matches!(
             cfg_empty_db_url.validate(),
@@ -550,7 +494,7 @@ mod tests {
                 port: Some(0),
                 ..Default::default()
             }),
-            ..Default::default()
+            ..base_service_config()
         };
         assert!(matches!(
             cfg_zero_hams_port.validate(),
