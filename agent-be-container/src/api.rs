@@ -11,7 +11,6 @@ use axum::{
     routing::{get, patch, post, put},
     Extension, Json, Router,
 };
-use base64::Engine;
 use futures::stream::Stream;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -116,35 +115,16 @@ fn extract_user_id(auth_user: Option<&AuthenticatedUser>, headers: &HeaderMap) -
         }
     }
 
-    // 2. Check if Authorization Bearer JWT is passed and decode sub claim payload
-    if let Some(auth_val) = headers.get("Authorization").and_then(|h| h.to_str().ok()) {
-        if auth_val.to_lowercase().starts_with("bearer ") {
-            let token = auth_val[7..].trim();
-            let parts: Vec<&str> = token.split('.').collect();
-            if parts.len() >= 2 {
-                let payload_b64 = parts[1];
-                let decoded_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-                    .decode(payload_b64)
-                    .or_else(|_| base64::engine::general_purpose::STANDARD.decode(payload_b64));
-                if let Ok(bytes) = decoded_bytes {
-                    if let Ok(claims) = serde_json::from_slice::<crate::auth::Claims>(&bytes) {
-                        if let Some(sub) = claims.sub {
-                            if !sub.trim().is_empty() {
-                                return sub;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 3. Fall back to X-User-ID header if provided
+    // 2. Fall back to X-User-ID header if provided (never decode unverified Bearer JWTs)
     headers
         .get("X-User-ID")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("default_user")
         .to_string()
+}
+
+fn truncate_thread_title(message: &str) -> String {
+    message.chars().take(30).collect()
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -961,11 +941,7 @@ async fn chat_handler(
                 false
             }
             None => {
-                let title_snip = if message.len() > 30 {
-                    &message[..30]
-                } else {
-                    &message
-                };
+                let title_snip = truncate_thread_title(&message);
                 sqlx::query("INSERT INTO threads (thread_id, user_id, title) VALUES ($1, $2, $3)")
                     .bind(&thread_id)
                     .bind(&user_id)
@@ -1304,5 +1280,45 @@ mod tests {
 
         headers.insert("X-User-ID", HeaderValue::from_static("test-user-42"));
         assert_eq!(extract_user_id(None, &headers), "test-user-42");
+    }
+
+    #[test]
+    fn extract_user_id_does_not_decode_unverified_bearer_jwt() {
+        use base64::Engine;
+
+        let header = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(r#"{"alg":"none","typ":"JWT"}"#);
+        let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(r#"{"sub":"spoofed-admin-user"}"#);
+        let forged_jwt = format!("Bearer {header}.{payload}.forgedsig");
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Authorization",
+            HeaderValue::from_str(&forged_jwt).expect("valid header value"),
+        );
+
+        // Without verified AuthenticatedUser from auth_middleware, Bearer token must NOT be decoded
+        assert_eq!(extract_user_id(None, &headers), "default_user");
+
+        headers.insert("X-User-ID", HeaderValue::from_static("header-user"));
+        assert_eq!(extract_user_id(None, &headers), "header-user");
+    }
+
+    #[test]
+    fn truncate_thread_title_handles_multibyte_utf8_safely() {
+        // 35 multi-byte characters (4 bytes each = 140 bytes; byte 30 falls mid-character)
+        let emoji_msg = "🚀".repeat(35);
+        let truncated = truncate_thread_title(&emoji_msg);
+        assert_eq!(truncated.chars().count(), 30);
+        assert_eq!(truncated, "🚀".repeat(30));
+
+        // Mixed ASCII + CJK where byte 30 splits a 3-byte CJK character
+        let mixed_msg = "Hello world! 你好世界这是一个非常长的标题用来测试截断";
+        let truncated_mixed = truncate_thread_title(mixed_msg);
+        assert_eq!(truncated_mixed.chars().count(), 30);
+
+        let short_msg = "Short title";
+        assert_eq!(truncate_thread_title(short_msg), "Short title");
     }
 }

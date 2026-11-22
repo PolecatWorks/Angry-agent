@@ -6,7 +6,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{decode, Algorithm, Validation};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
@@ -74,8 +74,7 @@ pub async fn auth_middleware(request: Request, next: Next) -> Response {
     // If AuthConfig is present and configured, validate RS256 JWT
     if let Some(arc_cfg) = auth_config {
         if let Some(ref cfg) = *arc_cfg {
-            let pem = cfg.jwt_public_key.replace("\\n", "\n");
-            let decoding_key = match DecodingKey::from_rsa_pem(pem.as_bytes()) {
+            let decoding_key = match cfg.decoding_key() {
                 Ok(k) => k,
                 Err(e) => {
                     tracing::error!("Invalid JWT public key PEM: {e}");

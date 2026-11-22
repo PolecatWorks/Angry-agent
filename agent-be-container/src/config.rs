@@ -126,12 +126,20 @@ pub struct AuthConfig {
 }
 
 impl AuthConfig {
+    pub fn decoding_key(&self) -> Result<jsonwebtoken::DecodingKey, jsonwebtoken::errors::Error> {
+        let pem = self.jwt_public_key.replace("\\n", "\n");
+        jsonwebtoken::DecodingKey::from_rsa_pem(pem.as_bytes())
+    }
+
     pub fn validate(&self) -> Result<(), ConfigError> {
         if self.jwt_public_key.trim().is_empty() {
             return Err(ConfigError::InvalidAuthConfig(
                 "jwt_public_key cannot be empty".to_string(),
             ));
         }
+        self.decoding_key().map_err(|e| {
+            ConfigError::InvalidAuthConfig(format!("invalid jwt_public_key RSA PEM: {e}"))
+        })?;
         if self.jwt_issuer.trim().is_empty() {
             return Err(ConfigError::InvalidAuthConfig(
                 "jwt_issuer cannot be empty".to_string(),
@@ -252,11 +260,14 @@ impl ServiceConfig {
                 source,
             })?;
 
-        // If secrets dir exists, load projected secrets
+        // If secrets dir is specified, require it to exist and be a directory
         if let Some(sec_dir) = secrets_path {
-            if sec_dir.exists() && sec_dir.is_dir() {
-                config.load_secrets(sec_dir)?;
+            if !sec_dir.exists() || !sec_dir.is_dir() {
+                return Err(ConfigError::InvalidSecretsDir {
+                    path: sec_dir.to_path_buf(),
+                });
             }
+            config.load_secrets(sec_dir)?;
         }
 
         config.validate()?;
@@ -407,6 +418,31 @@ mod tests {
         assert!(cfg.validate().is_ok());
     }
 
+    const TEST_RSA_PUBLIC_KEY_PEM: &str = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqcAgTagDgfhm3VCxV4FA\nWl3Yos4/f9xyFNkJwkudV4b52KcLSHomBEVFfIb65CnSJUHIs8E0vLda3wmZTNdc\nld9K7a4stkfItDGd1JJKqAZNiYlWkgwwMj+TeQUt4mbiVUvt2KZY78r4RlrKE1w7\nGuzs711R/HZz7mz4FFiNAR4GRynZHH6BLbIJA8EJ+JvtRJZ59tybWpuZt5bUUbxv\n9V1fQsF2HR6jCvt/OnctqarMfHm3B/0Ko0EtXCNhzJIqlByvw1n8u0pDEMoLUkOv\neXvigynPOk29FEEYji+UOEvZZHMpMHqgZukUr9dDKYysj18mr06zgpy9HWxEXU1J\n4wIDAQAB\n-----END PUBLIC KEY-----";
+
+    #[test]
+    fn validate_accepts_valid_auth_config_with_rsa_pem() {
+        let cfg = ServiceConfig {
+            auth: Some(AuthConfig {
+                jwt_public_key: TEST_RSA_PUBLIC_KEY_PEM.to_string(),
+                jwt_issuer: "https://issuer".to_string(),
+                jwt_audience: "aud".to_string(),
+            }),
+            ..Default::default()
+        };
+        assert!(cfg.validate().is_ok());
+
+        let cfg_escaped_newlines = ServiceConfig {
+            auth: Some(AuthConfig {
+                jwt_public_key: TEST_RSA_PUBLIC_KEY_PEM.replace('\n', "\\n"),
+                jwt_issuer: "https://issuer".to_string(),
+                jwt_audience: "aud".to_string(),
+            }),
+            ..Default::default()
+        };
+        assert!(cfg_escaped_newlines.validate().is_ok());
+    }
+
     #[test]
     fn validate_rejects_invalid_auth_config() {
         let cfg = ServiceConfig {
@@ -422,9 +458,22 @@ mod tests {
             Err(ConfigError::InvalidAuthConfig(_))
         ));
 
+        let cfg_malformed_pem = ServiceConfig {
+            auth: Some(AuthConfig {
+                jwt_public_key: "not-a-valid-rsa-pem".to_string(),
+                jwt_issuer: "https://issuer".to_string(),
+                jwt_audience: "aud".to_string(),
+            }),
+            ..Default::default()
+        };
+        assert!(matches!(
+            cfg_malformed_pem.validate(),
+            Err(ConfigError::InvalidAuthConfig(_))
+        ));
+
         let cfg_empty_issuer = ServiceConfig {
             auth: Some(AuthConfig {
-                jwt_public_key: "key".to_string(),
+                jwt_public_key: TEST_RSA_PUBLIC_KEY_PEM.to_string(),
                 jwt_issuer: "".to_string(),
                 jwt_audience: "aud".to_string(),
             }),
@@ -437,7 +486,7 @@ mod tests {
 
         let cfg_empty_aud = ServiceConfig {
             auth: Some(AuthConfig {
-                jwt_public_key: "key".to_string(),
+                jwt_public_key: TEST_RSA_PUBLIC_KEY_PEM.to_string(),
                 jwt_issuer: "https://issuer".to_string(),
                 jwt_audience: " ".to_string(),
             }),
@@ -520,6 +569,32 @@ mod tests {
         let err = ServiceConfig::from_yaml_and_secrets(&invalid_yaml, None).unwrap_err();
         let _ = fs::remove_file(&invalid_yaml);
         assert!(matches!(err, ConfigError::ParseYaml { .. }));
+    }
+
+    #[test]
+    fn from_yaml_and_secrets_fails_fast_on_missing_or_non_directory_secrets_path() {
+        let valid_yaml = temp_config_path("valid_for_secrets");
+        fs::write(
+            &valid_yaml,
+            r#"
+webservice:
+  url: http://0.0.0.0:8080/agent-be
+  prefix: "/api/angry-agent/v1"
+"#,
+        )
+        .unwrap();
+
+        let missing_dir =
+            std::env::temp_dir().join(format!("nonexistent_secrets_{}", Uuid::new_v4()));
+        let err =
+            ServiceConfig::from_yaml_and_secrets(&valid_yaml, Some(&missing_dir)).unwrap_err();
+        assert!(matches!(err, ConfigError::InvalidSecretsDir { .. }));
+
+        // Passing a regular file instead of a directory must also fail fast
+        let err_file =
+            ServiceConfig::from_yaml_and_secrets(&valid_yaml, Some(&valid_yaml)).unwrap_err();
+        let _ = fs::remove_file(&valid_yaml);
+        assert!(matches!(err_file, ConfigError::InvalidSecretsDir { .. }));
     }
 
     #[test]
