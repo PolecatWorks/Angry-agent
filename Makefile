@@ -76,7 +76,7 @@ $(foreach app,$(NODE_APPS),$(app)-test):%-test:%-container/node_modules
 $(foreach app,$(RUST_APPS),$(app)-dev):%-dev:
 	-@lsof -t -i :$($*_PORT) | xargs kill -9 2>/dev/null || true
 	$(if $($*_HEALTH_PORT),-@lsof -t -i :$($*_HEALTH_PORT) | xargs kill -9 2>/dev/null || true)
-	cd $*-container && cargo run
+	cd $*-container && cargo run -- start --config ../charts/agent-be/configs/config.yaml
 
 $(foreach app,$(RUST_APPS),$(app)-test):%-test:
 	cd $*-container && cargo test

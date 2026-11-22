@@ -10,10 +10,19 @@ pub struct FormContext {
     pub focused_field: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum MessageRole {
+    User,
+    Assistant,
+    System,
+    Human,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ChatMessage {
     pub id: String,
-    pub role: String, // "user", "assistant", "system"
+    pub role: MessageRole,
     pub content: String,
     pub created_at: i64,
 }
@@ -110,4 +119,27 @@ pub struct RunAgentRequest {
     pub message: Option<String>,
     #[serde(default)]
     pub messages: Option<Vec<ChatMessage>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn message_role_serializes_and_deserializes_lowercase() {
+        for (role, expected) in [
+            (MessageRole::User, "user"),
+            (MessageRole::Assistant, "assistant"),
+            (MessageRole::System, "system"),
+            (MessageRole::Human, "human"),
+        ] {
+            let val = serde_json::to_value(role).unwrap();
+            assert_eq!(val, json!(expected));
+            let roundtrip: MessageRole = serde_json::from_value(val).unwrap();
+            assert_eq!(roundtrip, role);
+        }
+
+        assert!(serde_json::from_value::<MessageRole>(json!("invalid_role")).is_err());
+    }
 }

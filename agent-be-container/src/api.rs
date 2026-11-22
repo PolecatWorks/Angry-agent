@@ -1008,7 +1008,7 @@ async fn chat_handler(
         // Record user message
         let user_msg = crate::models::ChatMessage {
             id: Uuid::new_v4().to_string(),
-            role: "human".to_string(),
+            role: crate::models::MessageRole::Human,
             content: message.clone(),
             created_at: chrono::Utc::now().timestamp_millis(),
         };
@@ -1150,16 +1150,9 @@ async fn create_agent_handler(
 
 async fn update_agent_handler(
     State(state): State<AppState>,
-    Path(agent_id_str): Path<String>,
+    Path(agent_id): Path<Uuid>,
     Json(payload): Json<AgentDefinitionRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let agent_id = Uuid::parse_str(&agent_id_str).map_err(|_| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "Invalid agent_id UUID" })),
-        )
-    })?;
-
     let name = payload
         .name
         .filter(|n| !n.trim().is_empty())
@@ -1218,15 +1211,8 @@ async fn update_agent_handler(
 
 async fn delete_agent_handler(
     State(state): State<AppState>,
-    Path(agent_id_str): Path<String>,
+    Path(agent_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let agent_id = Uuid::parse_str(&agent_id_str).map_err(|_| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "Invalid agent_id UUID" })),
-        )
-    })?;
-
     if let Some(pool) = &state.pool {
         let result = sqlx::query("DELETE FROM agent_definitions WHERE id = $1")
             .bind(agent_id)

@@ -56,6 +56,7 @@ logging:
 
 hams:
   url: http://0.0.0.0:8079
+  port: 8079
   prefix: hams
   shutdownDuration: P0DT0H0M10S
   checks:
