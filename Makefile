@@ -108,7 +108,7 @@ db-local:
 		-e POSTGRES_PASSWORD=mysecretpassword \
 		-e POSTGRES_DB=agentdb \
 		-p 5432:5432 \
-		pgvector/pgvector:pg15
+		pgvector/pgvector:pg18
 
 # --- Garden ---
 garden-up:
