@@ -65,7 +65,10 @@ impl AgentEngine {
                         "semantic_topology_v1",
                         Some(("data-engine", "./SemanticTopologyWrapper")),
                     )
-                } else if lower.contains("explorer") || lower.contains("visual") || lower.contains("chart") {
+                } else if lower.contains("explorer")
+                    || lower.contains("visual")
+                    || lower.contains("chart")
+                {
                     (
                         "data_visual_explorer_v1",
                         Some(("data-engine", "./DataVisualExplorerWrapper")),
@@ -124,7 +127,9 @@ impl AgentEngine {
                 .map(|f| f.form_id.as_str())
                 .unwrap_or_default();
 
-            if active_id == "data_visual_explorer_v1" && (lower.contains("log scale") || lower.contains("echarts")) {
+            if active_id == "data_visual_explorer_v1"
+                && (lower.contains("log scale") || lower.contains("echarts"))
+            {
                 if lower.contains("log scale") {
                     patches_vec.push(json!({
                         "op": "replace",
@@ -139,7 +144,9 @@ impl AgentEngine {
                         "value": "echarts"
                     }));
                 }
-            } else if active_id == "semantic_topology_v1" && (lower.contains("field anatomy") || lower.contains("er join")) {
+            } else if active_id == "semantic_topology_v1"
+                && (lower.contains("field anatomy") || lower.contains("er join"))
+            {
                 let next_lens = if lower.contains("field anatomy") {
                     "field_anatomy"
                 } else {
