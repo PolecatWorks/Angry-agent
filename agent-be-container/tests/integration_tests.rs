@@ -1,6 +1,18 @@
 use axum::http::StatusCode;
 use axum_test::TestServer;
 use serde_json::{json, Value};
+use sqlx::postgres::PgPoolOptions;
+use std::time::Duration;
+
+async fn try_test_db_pool() -> Option<sqlx::PgPool> {
+    let url = std::env::var("DATABASE_URL").ok()?;
+    PgPoolOptions::new()
+        .max_connections(5)
+        .acquire_timeout(Duration::from_secs(2))
+        .connect(&url)
+        .await
+        .ok()
+}
 
 #[tokio::test]
 async fn test_full_agentrs_form_workflow() {
@@ -209,7 +221,7 @@ fn test_hams_health_and_probes() {
 async fn test_user_settings_api() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let pool = agentrs_be::db::create_pool().await.ok();
+    let pool = try_test_db_pool().await;
     let state = agentrs_be::api::AppState {
         store,
         catalog,
@@ -258,7 +270,7 @@ async fn test_user_settings_api() {
 async fn test_thread_crud_lifecycle() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let pool = agentrs_be::db::create_pool().await.ok();
+    let pool = try_test_db_pool().await;
     let state = agentrs_be::api::AppState {
         store,
         catalog,
@@ -326,7 +338,7 @@ async fn test_thread_crud_lifecycle() {
 async fn test_thread_history_and_visualizations_api() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let pool = agentrs_be::db::create_pool().await.ok();
+    let pool = try_test_db_pool().await;
     let state = agentrs_be::api::AppState {
         store,
         catalog,
@@ -394,7 +406,7 @@ async fn test_thread_history_and_visualizations_api() {
 async fn test_chat_endpoint_lifecycle() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let pool = agentrs_be::db::create_pool().await.ok();
+    let pool = try_test_db_pool().await;
     let state = agentrs_be::api::AppState {
         store,
         catalog,
@@ -425,7 +437,7 @@ async fn test_chat_endpoint_lifecycle() {
 async fn test_agent_definitions_crud() {
     let store = agentrs_be::session_store::SessionStore::new();
     let catalog = agentrs_be::catalog::FormCatalog::new();
-    let pool = agentrs_be::db::create_pool().await.ok();
+    let pool = try_test_db_pool().await;
     let state = agentrs_be::api::AppState {
         store,
         catalog,

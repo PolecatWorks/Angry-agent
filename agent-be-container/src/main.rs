@@ -1,67 +1,20 @@
 use agentrs_be::api::{create_prefixed_router, AppState};
 use agentrs_be::auth::auth_middleware;
+use agentrs_be::cli::{Cli, Commands, MigrationAction};
 use agentrs_be::config::ServiceConfig;
+use agentrs_be::error::ConfigError;
 use agentrs_be::hams::init_hams;
-use agentrs_be::migrations::run_migrations;
+use agentrs_be::migrations::{rollback_migrations, run_migrations, MIGRATOR};
 use agentrs_be::session_store::SessionStore;
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::Parser;
 use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::{error, info, warn};
-
-#[derive(Parser, Debug)]
-#[command(
-    name = "agentrs-be",
-    version,
-    about = "Angry Agent Rust Backend Service"
-)]
-struct Cli {
-    #[arg(long, default_value = "false")]
-    debug: bool,
-
-    #[command(subcommand)]
-    command: Option<Commands>,
-
-    /// Fallback option for running directly with --config
-    #[arg(long)]
-    config: Option<PathBuf>,
-
-    /// Fallback option for running directly with --secrets
-    #[arg(long)]
-    secrets: Option<PathBuf>,
-}
-
-#[derive(Subcommand, Debug)]
-enum Commands {
-    /// Start the web server and background services
-    Start {
-        #[arg(long)]
-        config: Option<PathBuf>,
-        #[arg(long)]
-        secrets: Option<PathBuf>,
-    },
-    /// Run database schema migrations
-    Migrate {
-        #[arg(long, value_enum, default_value_t = MigrationAction::Apply)]
-        action: MigrationAction,
-        #[arg(long)]
-        config: Option<PathBuf>,
-        #[arg(long)]
-        secrets: Option<PathBuf>,
-    },
-}
-
-#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
-enum MigrationAction {
-    Apply,
-    Rollback,
-    List,
-}
 
 fn main() {
     tracing_subscriber::fmt()
@@ -97,34 +50,18 @@ fn main() {
     }
 }
 
-fn load_service_config(config_path: Option<&Path>, secrets_path: Option<&Path>) -> ServiceConfig {
+fn load_service_config(
+    config_path: Option<&Path>,
+    secrets_path: Option<&Path>,
+) -> Result<ServiceConfig, ConfigError> {
     if let Some(cfg_p) = config_path {
-        if cfg_p.exists() {
-            info!("Loading configuration from {}", cfg_p.display());
-            match ServiceConfig::from_yaml_and_secrets(cfg_p, secrets_path) {
-                Ok(cfg) => return cfg,
-                Err(e) => {
-                    warn!(
-                        "Failed to load configuration from {}: {e}. Falling back to defaults.",
-                        cfg_p.display()
-                    );
-                }
-            }
-        } else {
-            warn!(
-                "Config file {} not found; falling back to defaults.",
-                cfg_p.display()
-            );
-        }
+        info!("Loading configuration from {}", cfg_p.display());
+        return ServiceConfig::from_yaml_and_secrets(cfg_p, secrets_path);
     }
 
-    // Default configuration
-    ServiceConfig {
-        webservice: Default::default(),
-        auth: None,
-        persistence: None,
-        hams: None,
-    }
+    let cfg = ServiceConfig::default();
+    cfg.validate()?;
+    Ok(cfg)
 }
 
 async fn create_pg_pool_from_config(config: &ServiceConfig) -> Option<sqlx::PgPool> {
@@ -175,7 +112,13 @@ async fn create_pg_pool_from_config(config: &ServiceConfig) -> Option<sqlx::PgPo
 
 async fn run_migrate_cmd(action: MigrationAction, config: Option<&Path>, secrets: Option<&Path>) {
     info!("Running migrate command with action: {:?}", action);
-    let cfg = load_service_config(config, secrets);
+    let cfg = match load_service_config(config, secrets) {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            error!("Configuration error: {e}");
+            std::process::exit(1);
+        }
+    };
 
     let pool = create_pg_pool_from_config(&cfg)
         .await
@@ -190,29 +133,42 @@ async fn run_migrate_cmd(action: MigrationAction, config: Option<&Path>, secrets
             info!("Migrations applied successfully.");
         }
         MigrationAction::List => {
+            for m in MIGRATOR.iter() {
+                info!(
+                    "Migration {}: {} ({:?})",
+                    m.version, m.description, m.migration_type
+                );
+            }
             info!("Migration action list completed.");
         }
         MigrationAction::Rollback => {
-            warn!("Rollback is not currently implemented in agentrs-be; skipping.");
+            if let Err(e) = rollback_migrations(&pool).await {
+                error!("Migration rollback failed: {e}");
+                std::process::exit(1);
+            }
+            info!("Migrations rolled back successfully.");
         }
     }
 }
 
 fn run_start_cmd(config_path: Option<&Path>, secrets_path: Option<&Path>) {
-    let cfg = load_service_config(config_path, secrets_path);
+    let cfg = match load_service_config(config_path, secrets_path) {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            error!("Configuration error: {e}");
+            std::process::exit(1);
+        }
+    };
 
-    // Resolve port from env var or webservice config
+    // Resolve port from env var or validated webservice config
     let port: u16 = std::env::var("PORT")
         .ok()
         .and_then(|p| p.parse().ok())
-        .or_else(|| {
+        .unwrap_or_else(|| {
             cfg.webservice
-                .url
-                .split(':')
-                .next_back()
-                .and_then(|p| p.parse().ok())
-        })
-        .unwrap_or(8080);
+                .port()
+                .expect("Validated webservice URL must contain a valid port")
+        });
 
     // Resolve HAMS port from env var or hams config
     let hams_port: u16 = std::env::var("HAMS_PORT")
@@ -226,7 +182,9 @@ fn run_start_cmd(config_path: Option<&Path>, secrets_path: Option<&Path>) {
     if let Err(e) = hams.start() {
         error!("Failed to start HaMS: {e}");
     } else {
-        info!("HaMS health service running on port {hams_port} (/hams/alive, /hams/ready, /hams/startup)");
+        info!(
+            "HaMS health service running on port {hams_port} (/hams/alive, /hams/ready, /hams/startup)"
+        );
     }
 
     let rt = tokio::runtime::Builder::new_multi_thread()

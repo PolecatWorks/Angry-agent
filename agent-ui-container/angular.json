@@ -42,7 +42,11 @@
 					}
 				},
 				"test": {
-					"builder": "@angular/build:unit-test"
+					"builder": "@angular/build:unit-test",
+					"options": {
+						"buildTarget": "agent-ui:esbuild:development",
+						"tsConfig": "tsconfig.spec.json"
+					}
 				},
 				"esbuild": {
 					"builder": "@angular/build:application",

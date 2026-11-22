@@ -38,7 +38,7 @@ The interface supports rendering rich media:
 - **Conditional Content Rendering**: To reduce visual redundancy, the text content of an AI message is automatically hidden if it contains one or more `mfe_contents`. In these cases, the MFE is shown as the primary response.
 
 ### 4.2 Multi-User Isolation & Authentication
-Chats are isolated by `User ID`. Identity is derived from OIDC Bearer tokens provided via `SharedContextService` (`@polecatworks/mfe-shared`). Client-controlled identity headers (such as `X-User-ID`) and fake unsigned JWTs are eliminated. Requests to the backend require valid Bearer access tokens.
+Chats are isolated by `User ID`. Identity is derived exclusively from OIDC Bearer tokens provided via `SharedContextService` (`@polecatworks/mfe-shared`). Legacy `localStorage`-based fake authentication (`AuthService` and the standalone `Login` component), client-controlled identity headers (such as `X-User-ID`), and fake unsigned JWTs have been removed. Requests to the backend require valid Bearer access tokens.
 
 ### 4.3 Module Federation Integration & Runtime Configuration
 To support embedding within a shell application, the container exposes its core functionality via a specific route configuration (`./routes`), which is mapped to `remote.routes.ts`. This configuration includes the primary `chat` routes and the `settings` route, ensuring they are accessible when the application is loaded as a remote module.

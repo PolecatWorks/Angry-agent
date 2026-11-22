@@ -2,7 +2,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { vi } from 'vitest';
-import { AuthService } from '../../services/auth.service';
 import { SharedContextService } from '@polecatworks/mfe-shared';
 import { ChatService } from '../../services/chat.service';
 import { of } from 'rxjs';
@@ -38,13 +37,6 @@ describe('MainLayout', () => {
           }
         },
         {
-          provide: AuthService,
-          useValue: {
-            getUserId: () => 'test-user',
-            isLoggedIn: () => true
-          }
-        },
-        {
           provide: SharedContextService,
           useValue: {
             context$: { subscribe: (fn: any) => fn({}) }
@@ -58,8 +50,6 @@ describe('MainLayout', () => {
     component = fixture.componentInstance;
     await fixture.whenStable();
   });
-
-
 
   it('should create', () => {
     expect(component).toBeTruthy();

@@ -1,3 +1,4 @@
+use crate::auth::AuthenticatedUser;
 use crate::broadcaster::EventBroadcaster;
 use crate::catalog::FormCatalog;
 use crate::models::{AgUiEvent, FormSyncRequest, RegisterFormRequest, RunAgentRequest};
@@ -8,8 +9,9 @@ use axum::{
     response::sse::{Event, KeepAlive, Sse},
     response::IntoResponse,
     routing::{get, patch, post, put},
-    Json, Router,
+    Extension, Json, Router,
 };
+use base64::Engine;
 use futures::stream::Stream;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -106,14 +108,20 @@ pub fn create_prefixed_router(state: AppState, prefix: &str) -> Router {
     router.with_state(state)
 }
 
-fn extract_user_id(headers: &HeaderMap) -> String {
-    // 1. Check if Authorization Bearer JWT is passed and decode sub claim payload
+fn extract_user_id(auth_user: Option<&AuthenticatedUser>, headers: &HeaderMap) -> String {
+    // 1. Prefer verified AuthenticatedUser injected by auth_middleware
+    if let Some(user) = auth_user {
+        if !user.user_id.trim().is_empty() {
+            return user.user_id.clone();
+        }
+    }
+
+    // 2. Check if Authorization Bearer JWT is passed and decode sub claim payload
     if let Some(auth_val) = headers.get("Authorization").and_then(|h| h.to_str().ok()) {
         if auth_val.to_lowercase().starts_with("bearer ") {
             let token = auth_val[7..].trim();
             let parts: Vec<&str> = token.split('.').collect();
             if parts.len() >= 2 {
-                use base64::Engine;
                 let payload_b64 = parts[1];
                 let decoded_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
                     .decode(payload_b64)
@@ -131,7 +139,7 @@ fn extract_user_id(headers: &HeaderMap) -> String {
         }
     }
 
-    // 2. Fall back to X-User-ID header if provided
+    // 3. Fall back to X-User-ID header if provided
     headers
         .get("X-User-ID")
         .and_then(|v| v.to_str().ok())
@@ -151,16 +159,17 @@ pub struct UpdateUserSettingsRequest {
 
 pub async fn get_user_settings_handler(
     State(state): State<AppState>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     let Some(pool) = &state.pool else {
         return Ok(Json(json!({ "learning_mode_enabled": false })));
     };
 
-    let row = sqlx::query_as::<_, (Option<bool>,)>(
-        "SELECT learning_mode_enabled FROM users WHERE user_id = $1",
+    let row = sqlx::query_as::<_, (bool,)>(
+        "SELECT learning_mode_enabled FROM user_settings WHERE user_id = $1",
     )
     .bind(user_id)
     .fetch_optional(pool)
@@ -172,7 +181,7 @@ pub async fn get_user_settings_handler(
         )
     })?;
 
-    let learning_mode_enabled = row.and_then(|(val,)| val).unwrap_or(false);
+    let learning_mode_enabled = row.map(|(val,)| val).unwrap_or(false);
 
     Ok(Json(
         json!({ "learning_mode_enabled": learning_mode_enabled }),
@@ -181,10 +190,11 @@ pub async fn get_user_settings_handler(
 
 pub async fn update_user_settings_handler(
     State(state): State<AppState>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<UpdateUserSettingsRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     let Some(pool) = &state.pool else {
         return Ok(Json(json!({ "status": "updated" })));
@@ -192,10 +202,11 @@ pub async fn update_user_settings_handler(
 
     sqlx::query(
         r#"
-        INSERT INTO users (user_id, learning_mode_enabled)
-        VALUES ($1, $2)
+        INSERT INTO user_settings (user_id, learning_mode_enabled, updated_at)
+        VALUES ($1, $2, NOW())
         ON CONFLICT (user_id) DO UPDATE
-        SET learning_mode_enabled = EXCLUDED.learning_mode_enabled
+        SET learning_mode_enabled = EXCLUDED.learning_mode_enabled,
+            updated_at = NOW()
         "#,
     )
     .bind(user_id)
@@ -253,9 +264,10 @@ pub struct ThreadSummary {
 
 async fn list_threads_handler(
     State(state): State<AppState>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
         // Track user login
@@ -313,10 +325,11 @@ async fn list_threads_handler(
 async fn update_thread_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<String>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<UpdateThreadRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
         let result = sqlx::query(
@@ -362,9 +375,10 @@ async fn update_thread_handler(
 async fn delete_thread_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<String>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
         let result = sqlx::query("DELETE FROM threads WHERE thread_id = $1 AND user_id = $2")
@@ -430,9 +444,10 @@ struct VisualizationRow {
 async fn get_visualizations_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<String>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
         // Check access
@@ -522,10 +537,11 @@ pub struct PatchVisualizationPayload {
 async fn patch_visualization_handler(
     State(state): State<AppState>,
     Path((thread_id, viz_id)): Path<(String, String)>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<PatchVisualizationPayload>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
         // Verify thread exists
@@ -647,9 +663,10 @@ async fn patch_visualization_handler(
 async fn get_thread_history_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<String>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
         let thread_row = sqlx::query_as::<_, ThreadRow>(
@@ -793,20 +810,22 @@ async fn get_thread_history_handler(
 
 async fn register_form_handler(
     State(state): State<AppState>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<RegisterFormRequest>,
 ) -> impl IntoResponse {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
     let session = state.store.register_form(payload, &user_id);
     Json(json!({ "status": "registered", "session": session }))
 }
 
 async fn sync_form_handler(
     State(state): State<AppState>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<FormSyncRequest>,
 ) -> impl IntoResponse {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
     match state.store.apply_sync_patch(payload, &user_id) {
         Ok(session) => Json(json!({ "status": "synchronized", "session": session })),
         Err(err) => Json(json!({ "status": "error", "message": err })),
@@ -815,10 +834,11 @@ async fn sync_form_handler(
 
 async fn run_agent_handler(
     State(state): State<AppState>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<RunAgentRequest>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
     let thread_id = payload.thread_id.clone();
     let run_id = payload
         .run_id
@@ -879,10 +899,11 @@ pub struct ChatRequest {
 
 async fn chat_handler(
     State(state): State<AppState>,
+    auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<ChatRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let user_id = extract_user_id(&headers);
+    let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     let message = payload
         .message
@@ -988,15 +1009,15 @@ async fn chat_handler(
 
         // Initialize state for new thread
         if is_new_thread {
-            let _user_settings = sqlx::query_as::<_, (Option<bool>,)>(
-                "SELECT learning_mode_enabled FROM users WHERE user_id = $1",
+            let _user_settings = sqlx::query_as::<_, (bool,)>(
+                "SELECT learning_mode_enabled FROM user_settings WHERE user_id = $1",
             )
             .bind(&user_id)
             .fetch_optional(pool)
             .await
             .ok()
             .flatten()
-            .and_then(|(l,)| l)
+            .map(|(l,)| l)
             .unwrap_or(false);
         }
     }
@@ -1253,4 +1274,35 @@ async fn delete_agent_handler(
     }
 
     Ok(Json(json!({ "status": "deleted" })))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::HeaderValue;
+
+    #[test]
+    fn extract_user_id_prefers_authenticated_user_extension() {
+        let mut headers = HeaderMap::new();
+        headers.insert("X-User-ID", HeaderValue::from_static("spoofed-header-user"));
+
+        let auth_user = AuthenticatedUser {
+            user_id: "verified-jwt-sub".to_string(),
+            user_name: "Verified User".to_string(),
+        };
+
+        assert_eq!(
+            extract_user_id(Some(&auth_user), &headers),
+            "verified-jwt-sub"
+        );
+    }
+
+    #[test]
+    fn extract_user_id_falls_back_to_header_or_default() {
+        let mut headers = HeaderMap::new();
+        assert_eq!(extract_user_id(None, &headers), "default_user");
+
+        headers.insert("X-User-ID", HeaderValue::from_static("test-user-42"));
+        assert_eq!(extract_user_id(None, &headers), "test-user-42");
+    }
 }

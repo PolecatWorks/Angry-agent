@@ -1,20 +1,7 @@
 import { Routes } from '@angular/router';
-import { Login } from './components/login/login';
 import { MainLayout } from './components/main-layout/main-layout';
 import { ChatWindow } from './components/chat-window/chat-window';
 import { ErrorPage } from './components/error-page/error-page';
-import { inject } from '@angular/core';
-import { Router } from '@angular/router';
-import { AuthService } from './services/auth.service';
-
-const authGuard = () => {
-  const authService = inject(AuthService);
-  const router = inject(Router);
-  if (authService.isLoggedIn()) {
-    return true;
-  }
-  return router.parseUrl('/login');
-};
 
 export const routes: Routes = [
   {

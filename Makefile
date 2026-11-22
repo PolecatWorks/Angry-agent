@@ -1,4 +1,4 @@
-.PHONY: all build-fe build-be helm-package helm-deploy test tests \
+.PHONY: help all build-fe build-be helm-package helm-deploy test tests \
         compose-db compose-db-up compose-db-down compose-db-clean db-local \
         garden-up garden-test garden-down
 
@@ -24,6 +24,23 @@ agent-be_DOCKER_BUILD_OPTS :=
 agent-ui_DOCKER_BUILD_OPTS := --secret id=NODE_AUTH_TOKEN,env=NODE_AUTH_TOKEN
 
 # Top-level aggregate and alias commands
+help:
+	@echo "Angry-agent Makefile targets:"
+	@echo "  make all               Build frontend/backend Docker images and package Helm chart"
+	@echo "  make test              Run tests for all components (agent-ui-test, agent-be-test)"
+	@echo "  make agent-be-test     Run Rust backend unit & integration tests"
+	@echo "  make agent-ui-test     Run Angular frontend unit tests"
+	@echo "  make agent-be-dev      Run Rust backend locally on port $(agent-be_PORT)"
+	@echo "  make agent-ui-dev      Run Angular frontend dev server on port $(agent-ui_PORT)"
+	@echo "  make build-be          Build agent-be Docker image"
+	@echo "  make build-fe          Build agent-ui Docker image"
+	@echo "  make helm-package      Package the $(HELM_CHART) Helm chart"
+	@echo "  make helm-deploy       Deploy the $(HELM_CHART) Helm chart"
+	@echo "  make db-local          Start local pgvector Postgres container on port 5432"
+	@echo "  make garden-up         Deploy stack via Garden"
+	@echo "  make garden-test       Deploy and run Garden tests"
+	@echo "  make garden-down       Tear down Garden environment"
+
 all: build-fe build-be helm-package
 
 test:
