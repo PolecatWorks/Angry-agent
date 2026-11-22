@@ -1,82 +1,29 @@
-# Backend-Specific Keycloak Claims, Service Accounts & Zero-Fake-Auth Architecture PRD
+# Angry-Agent Keycloak Service Claims & Auth Addendum PRD
 
-## Overview
-This PRD defines the production authentication, authorization, and claims architecture for **Angry-Agent (`agent-ui-container`, `agent-be-container`, `agentrs-be-container`)** integrated into the PolecatWorks ecosystem.
-
-It codifies:
-1. **Zero Fake/Dev-Only Auth**: Total elimination of client-controlled identity headers (such as `X-User-ID`, fake mock bearer tokens, or fallback mock users).
-2. **MFE Shell Driven OIDC Session & Silent Refresh**: Token lifecycle management hosted by `Mfe-shell` via PKCE OIDC and propagated to `agent-ui-container` through `@polecatworks/mfe-shared` (`SharedContextService`).
-3. **Application-Specific Claims & Scopes**: Isolation of roles and domain claims per backend service via Keycloak client-level scopes and `resource_access.<client-id>` mappings.
-4. **Machine-to-Machine (M2M) Service Accounts**: Explicit `client_credentials` authentication for backend-to-backend communication (e.g. `Angry-agent` calling `Graphrag` or `data-engine`).
-5. **Dynamic JWKS Verification**: OIDC token validation via cluster Keycloak JWKS endpoints (`/.well-known/openid-configuration` / `jwks_uri`) replacing static PEM public keys.
+> [!IMPORTANT]
+> **Canonical Auth Pattern**: Global Keycloak OIDC (`shell-ui` + `ecosystem-audiences`), `@polecatworks/mfe-shared` token distribution, zero-fake-auth rules, dynamic JWKS verification, and M2M `client_credentials` mechanics are defined canonically in [**Mfe-shell: Ecosystem Keycloak OIDC, Claims Distribution & Service Auth Pattern PRD**](https://github.com/PolecatWorks/Mfe-shell/blob/main/spec/prds/keycloak-oidc-and-claims-distribution-prd.md).
+>
+> This document specifies only the **Angry-Agent (`agent-ui-container`, `agent-be-container`)** service-local contract.
 
 ---
 
-## Authentication & Authorization Topology
+## 1. Keycloak Client & Roles (`angry-agent-api`)
 
-```mermaid
-flowchart TD
-    subgraph Browser ["Browser Session (PolecatWorks AI Portal)"]
-        Shell["Mfe-shell-container\n(angular-oauth2-oidc + PKCE)"]
-        SharedCtx["@polecatworks/mfe-shared\n(SharedContextService)"]
-        AgentUI["Angry-agent UI (agent-ui-container)\n(Angular HTTP Interceptor)"]
-    end
-
-    subgraph Identity ["Identity Provider (Keycloak / EPAM Keycloak Operator)"]
-        KC_JWKS["JWKS Endpoint\n(/protocol/openid-connect/certs)"]
-        Client_Shell["KeycloakClient: mfe-shell\n(Public, PKCE)"]
-        Client_API["KeycloakClient: angry-agent-api\n(Bearer-Only / Resource Server)"]
-        Client_SA["KeycloakClient: angry-agent-sa\n(Confidential / Service Account)"]
-    end
-
-    subgraph Backends ["Angry-Agent Backends"]
-        AgentBE["agent-be-container (FastAPI)"]
-        AgentRS["agentrs-be-container (Axum/Rust)"]
-    end
-
-    subgraph Downstream ["Ecosystem Services"]
-        GraphRAG["Graphrag (/api/graphrag/v1/mcp)"]
-        DataEngine["data-engine (/api/data-engine/v1/mcp)"]
-    end
-
-    Shell -->|1. Auth Code + PKCE| Client_Shell
-    Client_Shell -->|2. Mint User Access Token| Shell
-    Shell -->|3. setContext(accessToken, claims)| SharedCtx
-    SharedCtx -.->|4. getAccessToken()| AgentUI
-    AgentUI -->|5. HTTP Bearer Token| AgentBE
-    AgentUI -->|5. HTTP Bearer Token| AgentRS
-    AgentBE -->|6. Verify Signature & Claims| KC_JWKS
-    AgentRS -->|6. Verify Signature & Claims| KC_JWKS
-
-    AgentBE -->|7. M2M client_credentials| Client_SA
-    Client_SA -->|8. SA Token (aud: downstream)| AgentBE
-    AgentBE -->|9. MCP Request + SA Token| GraphRAG & DataEngine
-```
-
----
-
-## Specification Details
-
-### 1. Unique Keycloak Client & Claims for Angry-Agent
-
-#### A. Keycloak Client Definition (`KeycloakClient: angry-agent-api`)
-- **Client ID**: `angry-agent-api`
-- **Type**: Bearer-only / Resource Server
-- **Audience**: `aud: ["angry-agent-api"]`
-- **Client Roles**:
-  - `agent:execute`: Execute agent workflows and run tasks.
+- **Client ID (`aud`)**: `angry-agent-api`
+- **Type**: Bearer-only / Resource Server (declared in `fluxcd-dev/keycloak-crs.yaml`)
+- **Client Roles** (`resource_access["angry-agent-api"].roles`):
+  - `agent:execute`: Execute agent workflows and run conversational turns.
   - `agent:create`: Author and register new agents.
-  - `agent:admin`: Delete sessions, administer system prompts, view audit logs across all users.
+  - `agent:admin`: Delete sessions, administer system prompts, and view audit logs across all users.
 
-#### B. Token Claims Structure
-Tokens received by `agent-be` and `agentrs-be` must conform to the following schema:
+---
+
+## 2. Service-Specific Token Claims (`angry_agent`)
+
 ```json
 {
-  "iss": "http://keycloak-keycloakx-http.auth.svc.cluster.local/auth/realms/sw-dev",
   "sub": "4a761e82-2d17-4861-8290-79883bfad211",
   "aud": ["angry-agent-api"],
-  "preferred_username": "bgreene",
-  "email": "ben@polecatworks.com",
   "resource_access": {
     "angry-agent-api": {
       "roles": ["agent:create", "agent:execute"]
@@ -89,31 +36,10 @@ Tokens received by `agent-be` and `agentrs-be` must conform to the following sch
 }
 ```
 
-#### C. Identity Claims Rules
-- **Canonical User ID**: The backend **must** extract `user_id = token["sub"]`.
-- **Zero Fallback**: If the `Authorization` header is missing or the token signature / audience validation fails, the service returns `401 Unauthorized`. It never falls back to `default-user` or `X-User-ID`.
-
 ---
 
-### 2. Frontend Integration (`agent-ui-container`)
+## 3. Service-Local Integration Notes
 
-- **HTTP Interceptor**: An Angular interceptor reads `SharedContextService.getAccessToken()` from `@polecatworks/mfe-shared`.
-- **Bearer Injection**: For every request matching `/api/*`, injects `Authorization: Bearer ${token}`.
-- **Unauthenticated Handling**: If `token` is missing or expired and refresh fails, emit an authentication event back to `Mfe-shell` to trigger login redirect. Do not construct fake JWTs.
-
----
-
-### 3. Backend Verification (`agent-be-container` & `agentrs-be-container`)
-
-- **JWKS Caching**: Backends fetch JWKS from Keycloak OIDC certs endpoint and cache public keys with TTL and key-id (`kid`) rotation handling.
-- **Audience & Issuer Check**: Must verify `iss` matches realm issuer and `aud` contains `angry-agent-api`.
-- **Service Account Identity**: When `sub` belongs to a service account (e.g. `service-account-angry-agent-sa`), verify `client_id` / `azp` matches authorized ecosystem callers.
-
----
-
-### 4. Machine-to-Machine Communication (`angry-agent-sa`)
-
-- When `agent-be-container` connects to downstream MCP services (`Graphrag`, `data-engine`):
-  - Uses Keycloak `client_credentials` grant with client ID `angry-agent-sa` and secret mounted via Kubernetes Secret `angry-agent-sa-credentials`.
-  - Obtains tokens with audience `aud: ["graphrag-api"]` or `aud: ["data-engine-api"]`.
-  - Attaches Bearer token to JSON-RPC / SSE MCP requests.
+- **Frontend (`agent-ui-container`)**: Consumes `SharedContextService.getAccessToken()` via Angular HTTP interceptor for all `/api/*` requests per the canonical child MFE pattern; no local login or `localStorage` fallback.
+- **Backend (`agent-be-container`, Rust/Axum)**: Enforces the canonical JWKS middleware (`aud` contains `angry-agent-api`, `user_id = claims.sub`, zero `X-User-ID` or `default_user` fallback).
+- **Outbound M2M (`angry-agent-sa`)**: Uses Kubernetes Secret `angry-agent-sa-credentials` to obtain `client_credentials` tokens targeting `graphrag-api`, `data-engine-api`, and `agent-as-data-api` when invoking downstream MCP servers.

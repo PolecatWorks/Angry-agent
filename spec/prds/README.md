@@ -8,6 +8,7 @@ This directory contains the Product Requirements Documents (PRDs) defining the c
 | :--- | :--- |
 | [bidirectional-shared-canvas-mfe-prd.md](./bidirectional-shared-canvas-mfe-prd.md) | **Bidirectional Shared Canvas & Live MFE Co-Editing PRD**: Upgrades `MfeRenderer` and the right-hand AI Workspace panel from one-shot mounting to a live, two-way `MfeCanvasController` (`applyPatch` RFC 6902 JSON Patch, `getState`, self-describing `getSchema`, silent `onStateChange` sync, "Point-and-Ask" `onSelectionChange` focus chips, active-focus locks, and dynamic MFE form switching). |
 | [semantic-steward-and-provenance-journey-prd.md](./semantic-steward-and-provenance-journey-prd.md) | **Autonomous Semantic Stewardship, Data Reasoning & Provenance Journey PRD**: Integrates `Angry-agent`'s LangGraph backend (`MultiServerMCPClient`) with `Graphrag` and `data-engine` MCP servers and mounts `data-engine` MFE wrappers (`./DataAssetFormWrapper`, `./JoinHypothesisReviewWrapper`, `./AlgorithmSandboxWrapper`, `./ProvenanceLineageWrapper`) on the RHS canvas. |
+| [service-claims-and-keycloak-auth-prd.md](./service-claims-and-keycloak-auth-prd.md) | **Angry-Agent Keycloak Service Claims & Auth Addendum PRD**: Service-local client (`angry-agent-api`), service account (`angry-agent-sa`), roles (`agent:execute`, `agent:create`, `agent:admin`), and `angry_agent` claims referencing the canonical ecosystem auth pattern in `Mfe-shell`. |
 
 ## Container-Level & RFC Specifications
 - [Frontend Container PRD (`agent-ui-container/spec/prd.md`)](../../agent-ui-container/spec/prd.md)
