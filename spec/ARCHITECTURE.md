@@ -472,17 +472,12 @@ Kubernetes Cluster
 
 ---
 
-## Related Requirements
+## Related Specifications
 
 For specifications related to this architecture:
 
-- [REQ-A001: Frontend Container Architecture](requirements/architecture/REQ-A001.md)
-- [REQ-A002: Backend Container Architecture](requirements/architecture/REQ-A002.md)
-- [REQ-A003: Authentication & Authorization](requirements/architecture/REQ-A003.md)
-- [REQ-F007: Core API Endpoints](requirements/features/REQ-F007.md)
-
-See `requirements/README.md` for complete list.
-
----
-
-**For questions or updates:** See GAP_ANALYSIS.md for known issues, or open a requirement in requirements/ directory.
+- [Specification Hub (`spec/README.md`)](README.md)
+- [Product Requirements Documents (`spec/prds/README.md`)](prds/README.md)
+- [TDD Build Specifications (`spec/specs/README.md`)](specs/README.md)
+- [Frontend Container PRD (`agent-ui-container/spec/prd.md`)](../agent-ui-container/spec/prd.md)
+- [Backend Container PRD (`agent-be-container/spec/prd.md`)](../agent-be-container/spec/prd.md)
