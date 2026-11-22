@@ -1,0 +1,29 @@
+{
+  "form_id": "semantic_topology_v1",
+  "title": "Semantic & Structural Data Topology (data-engine)",
+  "mfe": "data-engine",
+  "component": "./SemanticTopologyWrapper",
+  "json_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["lens", "visible_layers"],
+    "properties": {
+      "lens": {
+        "type": "string",
+        "enum": ["semantic_3layer", "er_join", "field_anatomy", "lineage_overlay"]
+      },
+      "visible_layers": {
+        "type": "array",
+        "items": { "type": "integer", "enum": [0, 1, 2] }
+      },
+      "focus_node_id": { "type": ["string", "null"] },
+      "highlighted_path": { "type": ["object", "null"] }
+    }
+  },
+  "initial_data": {
+    "lens": "semantic_3layer",
+    "visible_layers": [0, 1, 2],
+    "focus_node_id": null,
+    "highlighted_path": null
+  }
+}

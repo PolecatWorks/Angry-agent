@@ -11,8 +11,13 @@
     <div class="p-5">
       <div class="flex justify-between items-start mb-4">
         <div>
-          <p class="text-[10px] font-bold text-outline uppercase tracking-tight">{{ viz.name || viz.provider || 'AI Component' }}</p>
-          <h4 class="font-headline font-bold text-on-surface line-clamp-1">{{ viz.description || 'Live Module' }}</h4>
+          <div class="flex items-center gap-2">
+            <p class="text-[10px] font-bold text-outline uppercase tracking-tight">{{ getDisplayTitle(viz) }}</p>
+            <span *ngIf="getCanvasBadge(viz) as badge" class="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-primary/10 text-primary uppercase tracking-wider">
+              {{ badge }}
+            </span>
+          </div>
+          <h4 class="font-headline font-bold text-on-surface line-clamp-1">{{ getDisplaySubtitle(viz) }}</h4>
         </div>
         <div class="flex items-center gap-2">
           <button (click)="toggleJsonView(viz.id); $event.stopPropagation()" class="p-1.5 hover:bg-primary/10 rounded-lg transition-all flex items-center justify-center text-primary" [title]="isJsonView(viz.id) ? 'View Module' : 'View Raw JSON'">

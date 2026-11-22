@@ -52,22 +52,50 @@ impl AgentEngine {
         // Supports automatic simulation / offline execution or LLM integration
         let lower = user_message.to_lowercase();
 
-        if lower.contains("switch to") || lower.contains("switch form") {
-            let target_form = if lower.contains("vendor") {
-                "vendor_onboarding_v2"
-            } else if lower.contains("expense") {
-                "expense_claim_v1"
-            } else {
-                "general_inquiry"
-            };
+        if lower.contains("switch to")
+            || lower.contains("switch form")
+            || lower.contains("open data explorer")
+            || lower.contains("open topology")
+            || lower.contains("show topology")
+            || lower.contains("show chart")
+        {
+            let (target_form, mfe_coords): (&str, Option<(&str, &str)>) =
+                if lower.contains("topology") || lower.contains("semantic graph") {
+                    (
+                        "semantic_topology_v1",
+                        Some(("data-engine", "./SemanticTopologyWrapper")),
+                    )
+                } else if lower.contains("explorer") || lower.contains("visual") || lower.contains("chart") {
+                    (
+                        "data_visual_explorer_v1",
+                        Some(("data-engine", "./DataVisualExplorerWrapper")),
+                    )
+                } else if lower.contains("statistical") || lower.contains("diagnostics") {
+                    (
+                        "statistical_diagnostics_v1",
+                        Some(("data-engine", "./StatisticalDiagnosticsWrapper")),
+                    )
+                } else if lower.contains("vendor") {
+                    ("vendor_onboarding_v2", None)
+                } else if lower.contains("expense") {
+                    ("expense_claim_v1", None)
+                } else {
+                    ("general_inquiry", None)
+                };
 
-            broadcaster.send_custom(
-                "LOAD_MFE",
-                json!({ "form_id": target_form, "reason": "User requested form switch" }),
-            );
+            let mut payload = json!({
+                "form_id": target_form,
+                "reason": "User requested workspace switch"
+            });
+            if let Some((mfe, component)) = mfe_coords {
+                payload["mfe"] = json!(mfe);
+                payload["component"] = json!(component);
+            }
+
+            broadcaster.send_custom("LOAD_MFE", payload);
             broadcaster.send_text_delta(
                 &message_id,
-                &format!("Switching active workspace to the {} form.", target_form),
+                &format!("Switching active workspace to {}.", target_form),
             );
         } else if lower.contains("submit") || lower.contains("submit form") {
             broadcaster.send_custom(
@@ -81,13 +109,48 @@ impl AgentEngine {
         } else if (lower.contains("populate")
             || lower.contains("set")
             || lower.contains("fill")
-            || lower.contains("vat"))
+            || lower.contains("vat")
+            || lower.contains("log scale")
+            || lower.contains("echarts")
+            || lower.contains("field anatomy")
+            || lower.contains("er join"))
             && session.active_form.is_some()
         {
             // Simulate agent patch generation
             let mut patches_vec = Vec::new();
+            let active_id = session
+                .active_form
+                .as_ref()
+                .map(|f| f.form_id.as_str())
+                .unwrap_or_default();
 
-            if lower.contains("vat") || lower.contains("uk") {
+            if active_id == "data_visual_explorer_v1" && (lower.contains("log scale") || lower.contains("echarts")) {
+                if lower.contains("log scale") {
+                    patches_vec.push(json!({
+                        "op": "replace",
+                        "path": "/spec/encoding/y/scale/type",
+                        "value": "log"
+                    }));
+                }
+                if lower.contains("echarts") {
+                    patches_vec.push(json!({
+                        "op": "replace",
+                        "path": "/renderer",
+                        "value": "echarts"
+                    }));
+                }
+            } else if active_id == "semantic_topology_v1" && (lower.contains("field anatomy") || lower.contains("er join")) {
+                let next_lens = if lower.contains("field anatomy") {
+                    "field_anatomy"
+                } else {
+                    "er_join"
+                };
+                patches_vec.push(json!({
+                    "op": "replace",
+                    "path": "/lens",
+                    "value": next_lens
+                }));
+            } else if lower.contains("vat") || lower.contains("uk") {
                 patches_vec.push(json!({
                     "op": "replace",
                     "path": "/vatNumber",
@@ -118,7 +181,7 @@ impl AgentEngine {
 
             broadcaster.send_text_delta(
                 &message_id,
-                "I have updated the form fields according to your request.",
+                "I have updated the active workspace state according to your request.",
             );
         } else {
             // General conversational query (e.g. "what is currently in the form?")

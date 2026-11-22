@@ -1,0 +1,38 @@
+{
+  "form_id": "data_visual_explorer_v1",
+  "title": "Data Visual Explorer (data-engine)",
+  "mfe": "data-engine",
+  "component": "./DataVisualExplorerWrapper",
+  "json_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["visual_id", "title", "renderer", "chart_family", "spec"],
+    "properties": {
+      "visual_id": { "type": "string" },
+      "title": { "type": "string" },
+      "renderer": { "type": "string", "enum": ["vega_lite", "echarts"] },
+      "chart_family": {
+        "type": "string",
+        "enum": ["bar", "grouped_bar", "stacked_bar", "line", "area", "scatter", "histogram", "box_plot", "heatmap"]
+      },
+      "spec": { "type": "object" },
+      "active_filters": { "type": "object" },
+      "profile_overlays": { "type": "object" }
+    }
+  },
+  "initial_data": {
+    "visual_id": "daily-net-revenue",
+    "title": "Daily Net Revenue by Customer Segment",
+    "renderer": "vega_lite",
+    "chart_family": "bar",
+    "spec": {
+      "mark": "bar",
+      "encoding": {
+        "x": { "field": "segment", "type": "nominal" },
+        "y": { "field": "net_revenue", "type": "quantitative", "scale": { "type": "linear" } }
+      }
+    },
+    "active_filters": {},
+    "profile_overlays": { "reference_lines": [], "annotations": [] }
+  }
+}
