@@ -117,3 +117,11 @@ Tokens received by `agent-be` and `agentrs-be` must conform to the following sch
   - Uses Keycloak `client_credentials` grant with client ID `angry-agent-sa` and secret mounted via Kubernetes Secret `angry-agent-sa-credentials`.
   - Obtains tokens with audience `aud: ["graphrag-api"]` or `aud: ["data-engine-api"]`.
   - Attaches Bearer token to JSON-RPC / SSE MCP requests.
+
+---
+
+### 5. Ecosystem Realm Groups (`DataAgentAdmins` & `DataAgentUsers`)
+Angry-Agent client roles are mapped to users through centralized Keycloak realm groups defined in `Mfe-shell/fluxcd-dev/keycloak-service-capture.yaml`:
+- **`DataAgentAdmins` (`metadata.name: data-agent-admins`)**: Grants `agent:execute`, `agent:create`, and `agent:admin`.
+- **`DataAgentUsers` (`metadata.name: data-agent-users`)**: Grants `agent:execute` and `agent:create`.
+
