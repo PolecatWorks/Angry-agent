@@ -1,0 +1,23 @@
+{
+  "form_id": "statistical_diagnostics_v1",
+  "title": "Statistical Diagnostics Scorecard (data-engine)",
+  "mfe": "data-engine",
+  "component": "./StatisticalDiagnosticsWrapper",
+  "json_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["tool", "provenance_run_id"],
+    "properties": {
+      "tool": { "type": "string" },
+      "provenance_run_id": { "type": "string" },
+      "assumption_checks": { "type": "array" },
+      "learned_field_traits": { "type": "array" }
+    }
+  },
+  "initial_data": {
+    "tool": "stat_hypothesis_test",
+    "provenance_run_id": "pending",
+    "assumption_checks": [],
+    "learned_field_traits": []
+  }
+}

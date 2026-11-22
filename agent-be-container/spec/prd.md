@@ -21,9 +21,9 @@
 5. **Agent-as-Data & GraphRAG Integration**:
    - Model agents, tool definitions, workflows, and form state as queryable data structures.
    - Graph-based context retrieval and persistence in PostgreSQL with in-memory caching (`DashMap`).
-6. **Form Catalog & Sample Forms Management**:
-   - Built-in catalog of reference MFE forms (e.g. Vendor Onboarding, Expense Claim) exposing standard Draft 2020-12 JSON Schemas, field constraints, and initial states.
-   - API endpoints to list available catalog forms (`GET /api/forms`) and retrieve form definitions by ID (`GET /api/forms/{form_id}`).
+6. **Form & Interactive Canvas Catalog Management**:
+   - Built-in catalog of reference MFE forms and interactive `data-engine` canvases (`vendor_onboarding_v2`, `expense_claim_v1`, `data_visual_explorer_v1`, `semantic_topology_v1`, `statistical_diagnostics_v1`) exposing standard JSON Schemas, MFE remote coordinates (`data-engine` + `./DataVisualExplorerWrapper`, `./SemanticTopologyWrapper`, `./StatisticalDiagnosticsWrapper`), and initial states.
+   - API endpoints to list available catalog entries (`GET /api/forms`) and retrieve definitions by ID (`GET /api/forms/{form_id}`), plus conversational `LOAD_MFE` workspace switching and `STATE_DELTA` patching for chart scale/renderer and topology lens/highlight transitions.
 7. **Comprehensive Integration Testing & Verification Suite**:
    - End-to-end integration tests validating form lifecycle, human-to-backend RFC 6902 state synchronization, focus collision protection, SSE streaming of AG-UI events, conversational form switching, and submission confirmation guardrails.
    - Robot Framework test suites for container-level validation in deployment pipelines.

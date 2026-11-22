@@ -557,3 +557,119 @@ async fn test_patch_visualization_endpoint() {
         "00000000-0000-0000-0000-000000000001"
     );
 }
+
+#[tokio::test]
+async fn test_data_engine_visuals_and_topology_canvases_workflow() {
+    let store = agentrs_be::session_store::SessionStore::new();
+    let catalog = agentrs_be::catalog::FormCatalog::new();
+    let state = agentrs_be::api::AppState {
+        store,
+        catalog,
+        pool: None,
+    };
+    let app = agentrs_be::api::create_router(state);
+    let server = TestServer::new(app).unwrap();
+
+    // 1. Verify data-engine visual & topology canvases are registered in /api/forms
+    let vis_form = server.get("/api/forms/data_visual_explorer_v1").await;
+    assert_eq!(vis_form.status_code(), StatusCode::OK);
+    let vis_body: Value = vis_form.json();
+    let vis_json = &vis_body["form"];
+    assert_eq!(vis_json["mfe"], "data-engine");
+    assert_eq!(vis_json["component"], "./DataVisualExplorerWrapper");
+
+    let topo_form = server.get("/api/forms/semantic_topology_v1").await;
+    assert_eq!(topo_form.status_code(), StatusCode::OK);
+    let topo_body: Value = topo_form.json();
+    let topo_json = &topo_body["form"];
+    assert_eq!(topo_json["mfe"], "data-engine");
+    assert_eq!(topo_json["component"], "./SemanticTopologyWrapper");
+
+    let stat_form = server.get("/api/forms/statistical_diagnostics_v1").await;
+    assert_eq!(stat_form.status_code(), StatusCode::OK);
+    let stat_body: Value = stat_form.json();
+    let stat_json = &stat_body["form"];
+    assert_eq!(stat_json["mfe"], "data-engine");
+    assert_eq!(stat_json["component"], "./StatisticalDiagnosticsWrapper");
+
+    // 2. Conversational LOAD_MFE switch to DataVisualExplorerWrapper & SemanticTopologyWrapper
+    let thread_id = "thread-de-canvas-01";
+    let switch_vis = server
+        .post("/api/agent/run")
+        .add_header("X-User-ID", "analyst-1")
+        .json(&json!({
+            "thread_id": thread_id,
+            "message": "Open data explorer chart"
+        }))
+        .await;
+    assert_eq!(switch_vis.status_code(), StatusCode::OK);
+    let vis_sse = switch_vis.text();
+    assert!(vis_sse.contains("LOAD_MFE"));
+    assert!(vis_sse.contains("./DataVisualExplorerWrapper"));
+
+    let switch_topo = server
+        .post("/api/agent/run")
+        .add_header("X-User-ID", "analyst-1")
+        .json(&json!({
+            "thread_id": thread_id,
+            "message": "Show topology semantic graph"
+        }))
+        .await;
+    assert_eq!(switch_topo.status_code(), StatusCode::OK);
+    let topo_sse = switch_topo.text();
+    assert!(topo_sse.contains("LOAD_MFE"));
+    assert!(topo_sse.contains("./SemanticTopologyWrapper"));
+
+    // 3. Register data_visual_explorer_v1 and patch Y-axis to log scale via STATE_DELTA
+    let reg_vis = server
+        .post("/api/form/register")
+        .add_header("X-User-ID", "analyst-1")
+        .json(&json!({
+            "thread_id": thread_id,
+            "form_id": vis_json["form_id"],
+            "json_schema": vis_json["json_schema"],
+            "initial_data": vis_json["initial_data"],
+        }))
+        .await;
+    assert_eq!(reg_vis.status_code(), StatusCode::OK);
+
+    let patch_vis = server
+        .post("/api/agent/run")
+        .add_header("X-User-ID", "analyst-1")
+        .json(&json!({
+            "thread_id": thread_id,
+            "message": "Switch Y axis to log scale and use echarts"
+        }))
+        .await;
+    assert_eq!(patch_vis.status_code(), StatusCode::OK);
+    let patch_sse = patch_vis.text();
+    assert!(patch_sse.contains("STATE_DELTA"));
+    assert!(patch_sse.contains("/spec/encoding/y/scale/type"));
+    assert!(patch_sse.contains("echarts"));
+
+    // 4. Register semantic_topology_v1 and patch lens to field_anatomy via STATE_DELTA
+    let reg_topo = server
+        .post("/api/form/register")
+        .add_header("X-User-ID", "analyst-1")
+        .json(&json!({
+            "thread_id": "thread-de-topo-02",
+            "form_id": topo_json["form_id"],
+            "json_schema": topo_json["json_schema"],
+            "initial_data": topo_json["initial_data"],
+        }))
+        .await;
+    assert_eq!(reg_topo.status_code(), StatusCode::OK);
+
+    let patch_topo = server
+        .post("/api/agent/run")
+        .add_header("X-User-ID", "analyst-1")
+        .json(&json!({
+            "thread_id": "thread-de-topo-02",
+            "message": "Switch lens to field anatomy"
+        }))
+        .await;
+    assert_eq!(patch_topo.status_code(), StatusCode::OK);
+    let patch_topo_sse = patch_topo.text();
+    assert!(patch_topo_sse.contains("STATE_DELTA"));
+    assert!(patch_topo_sse.contains("field_anatomy"));
+}

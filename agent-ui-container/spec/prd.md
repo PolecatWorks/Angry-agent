@@ -52,10 +52,16 @@ The frontend application must be packaged and run inside a Docker container with
 The main layout features a draggable splitter between the central chat area and the right-side visualization panel (AI WORKSPACE). This allows users to dynamically adjust the proportions of the interface to focus on either the conversation or the generated visualizations and data MFEs. The panel width is persisted during the session and constrained between 320px and 850px to maintain layout integrity.
 
 ### 4.6 Bidirectional Shared Canvas & Live MFE Co-Editing (`MfeCanvasController`)
-To support live human + AI co-editing of mounted forms and applications (such as `mfe1/./PersonalDataFormWrapper` and `data-engine` steward forms), `MfeRenderer` and `VisualizationsPanel` implement the [Bidirectional Shared Canvas & Live MFE Co-Editing PRD](../../spec/prds/bidirectional-shared-canvas-mfe-prd.md):
+To support live human + AI co-editing of mounted forms and applications (such as `mfe1/./PersonalDataFormWrapper` and `data-engine` interactive visuals/topology/steward canvases), `MfeRenderer` and `VisualizationsPanel` implement the [Bidirectional Shared Canvas & Live MFE Co-Editing PRD](../../spec/prds/bidirectional-shared-canvas-mfe-prd.md):
 - **In-Place Patching (`ngOnChanges` + `applyPatch`)**: Updates to `viz.content` invoke `controller.applyPatch(patches)` in-place without unmounting the DOM container, preserving cursor focus, scroll position, and active user edits.
 - **Silent Human Edit Sync (`onStateChange`)**: Direct user edits in the RHS form sync silently to `PATCH /api/threads/{thread_id}/visualizations/{viz_id}` without cluttering the chat stream, and the live `getState()` + `getSchema()` are attached to every `/api/chat` request.
-- **"Point-and-Ask" Selection Context (`onSelectionChange`)**: Clicking a field or row in the RHS MFE displays a focus chip (`🎯 Focused: <label>`) above the chat input so the LLM knows which element the user is referencing.
+- **"Point-and-Ask" Selection Context (`onSelectionChange`)**: Clicking a field, chart datum, or graph edge in the RHS MFE displays a focus chip (`🎯 Focused: <label>`) above the chat input so the LLM knows which element the user is referencing.
+- **Data-Engine Visualization & Semantic Topology Wrappers (`data-engine` remote)**:
+  - `data-engine/./DataVisualExplorerWrapper` (Vega-Lite v5 / Apache ECharts interactive explorer; emits `run_statistical_check`, `open_provenance`, `save_visual`, `drill_down_rows`, `export_spec`)
+  - `data-engine/./SemanticTopologyWrapper` (Cytoscape.js + ELK 3-layer semantic/ER/field-anatomy/lineage graph; emits `verify_join`, `reject_forbidden_join`, `probe_join`, `inspect_dataset_form`, `explore_data_visual`, `open_provenance`)
+  - `data-engine/./StatisticalDiagnosticsWrapper` (assumption scorecard & trait verification; emits `verify_statistical_trait`, `open_provenance`)
+  - Core steward wrappers: `data-engine/./DataAssetFormWrapper`, `data-engine/./JoinHypothesisReviewWrapper`, `data-engine/./AlgorithmSandboxWrapper`, `data-engine/./ProvenanceLineageWrapper`.
+  - `VisualizationsPanel` enriches header badges and display titles from `DATA_ENGINE_CANVAS_REGISTRY` when `viz.provider === 'data-engine'`.
 
 ## 5. Development Guidelines
 

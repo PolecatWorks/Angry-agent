@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SimpleChange } from '@angular/core';
 import { MfeRenderer } from './mfe-renderer';
 import { ChatService, MfeCanvasController } from '../../services/chat.service';
+import { resolveDataEngineCanvasMeta } from '../../services/data-engine-canvas.registry';
 import { vi } from 'vitest';
 
 describe('MfeRenderer (Shared Canvas MfeCanvasController)', () => {
@@ -104,5 +105,61 @@ describe('MfeRenderer (Shared Canvas MfeCanvasController)', () => {
 
     component.ngOnDestroy();
     expect(legacyUnmountSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should mount data-engine DataVisualExplorerWrapper and SemanticTopologyWrapper and forward actions', async () => {
+    const explorerMeta = resolveDataEngineCanvasMeta('data-engine', './DataVisualExplorerWrapper');
+    const topologyMeta = resolveDataEngineCanvasMeta('data-engine', 'SemanticTopologyWrapper');
+    expect(explorerMeta?.displayName).toBe('Data Visual Explorer');
+    expect(explorerMeta?.supportedActions).toContain('run_statistical_check');
+    expect(topologyMeta?.displayName).toBe('Semantic & Structural Topology');
+    expect(topologyMeta?.supportedActions).toContain('explore_data_visual');
+
+    let capturedProps: any;
+    const unmountSpy = vi.fn();
+    component.remoteLoader = vi.fn().mockResolvedValue({
+      mount: vi.fn().mockImplementation(async (_el: HTMLElement, props: any) => {
+        capturedProps = props;
+        return {
+          applyPatch: vi.fn(),
+          getState: () => ({ lens: 'semantic_3layer' }),
+          getSchema: () => ({ title: 'SemanticTopologyState' }),
+          unmount: unmountSpy,
+        };
+      }),
+    });
+
+    component.id = 'viz-de-topo-1';
+    component.mfe = 'data-engine';
+    component.component = './SemanticTopologyWrapper';
+    component.content = { lens: 'semantic_3layer' };
+
+    const actions: any[] = [];
+    component.action.subscribe((evt) => actions.push(evt));
+
+    await component.ngAfterViewInit();
+    expect(component.remoteLoader).toHaveBeenCalledWith({
+      remoteName: 'data-engine',
+      exposedModule: './SemanticTopologyWrapper',
+    });
+
+    capturedProps.onAction('explore_data_visual', {
+      join_id: 'join_orders_customers',
+      left_dataset: 'sales_orders',
+      right_dataset: 'crm_customers',
+    });
+    expect(actions).toEqual([
+      {
+        action: 'explore_data_visual',
+        payload: {
+          join_id: 'join_orders_customers',
+          left_dataset: 'sales_orders',
+          right_dataset: 'crm_customers',
+        },
+      },
+    ]);
+
+    component.ngOnDestroy();
+    expect(unmountSpy).toHaveBeenCalledTimes(1);
   });
 });

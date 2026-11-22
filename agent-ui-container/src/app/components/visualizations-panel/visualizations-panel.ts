@@ -2,6 +2,7 @@ import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@
 import { CommonModule } from '@angular/common';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ChatService, Visualization, JsonPatchOp, CanvasSelection } from '../../services/chat.service';
+import { resolveDataEngineCanvasMeta } from '../../services/data-engine-canvas.registry';
 import { MfeRenderer } from '../mfe-renderer/mfe-renderer';
 import { Subscription } from 'rxjs';
 
@@ -45,6 +46,21 @@ export class VisualizationsPanel implements OnInit, OnDestroy, OnChanges {
 
   trackByVizId(index: number, viz: Visualization): string {
     return viz.id;
+  }
+
+  getDisplayTitle(viz: Visualization): string {
+    const meta = resolveDataEngineCanvasMeta(viz.provider, viz.component);
+    return viz.name || meta?.displayName || viz.provider || 'AI Component';
+  }
+
+  getDisplaySubtitle(viz: Visualization): string {
+    const meta = resolveDataEngineCanvasMeta(viz.provider, viz.component);
+    return viz.description || meta?.defaultDescription || 'Live Module';
+  }
+
+  getCanvasBadge(viz: Visualization): string | null {
+    const meta = resolveDataEngineCanvasMeta(viz.provider, viz.component);
+    return meta?.badge ?? null;
   }
 
   private restartPolling() {
