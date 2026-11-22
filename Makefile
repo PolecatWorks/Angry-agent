@@ -1,4 +1,4 @@
-.PHONY: all build-fe build-be build-rs-be helm-package helm-deploy test tests venvs \
+.PHONY: all build-fe build-be helm-package helm-deploy test tests \
         compose-db compose-db-up compose-db-down compose-db-clean db-local \
         garden-up garden-test garden-down
 
@@ -8,30 +8,20 @@ HELM_CHART := agent-be
 HELM_DIR := charts/$(HELM_CHART)
 
 RUST_APPS := agent-be
-PYTHON_APPS := agentpy-be
 NODE_APPS := agent-ui
-APPS := $(PYTHON_APPS) $(NODE_APPS) $(RUST_APPS)
+APPS := $(NODE_APPS) $(RUST_APPS)
 
 agent-be_PORT := 8080
 agent-be_HEALTH_PORT := 8079
-agentpy-be_PORT := 8080
-agentpy-be_HEALTH_PORT := 8079
 agent-ui_PORT := 3001
 
 agent-be_INTERNAL_PORT := 8080
 agent-be_INTERNAL_HEALTH_PORT := 8079
-agentpy-be_INTERNAL_PORT := 8080
-agentpy-be_INTERNAL_HEALTH_PORT := 8079
 agent-ui_INTERNAL_PORT := 8080
 
 # Docker Build
 agent-be_DOCKER_BUILD_OPTS :=
-agentpy-be_DOCKER_BUILD_OPTS := --secret id=GOOGLE_API_KEY,env=GOOGLE_API_KEY
 agent-ui_DOCKER_BUILD_OPTS := --secret id=NODE_AUTH_TOKEN,env=NODE_AUTH_TOKEN
-
-export APP_MAIN_AICLIENT__GOOGLE_API_KEY := ${GOOGLE_API_KEY}
-export APP_PACKAGER_AICLIENT__GOOGLE_API_KEY := ${GOOGLE_API_KEY}
-export APP_EMBEDDING_CLIENT__GOOGLE_API_KEY := ${GOOGLE_API_KEY}
 
 # Top-level aggregate and alias commands
 all: build-fe build-be helm-package
@@ -42,48 +32,12 @@ test:
 
 build-fe: agent-ui-docker
 build-be: agent-be-docker
-build-py-be: agentpy-be-docker
 
 helm-package:
 	helm package $(HELM_DIR) -d charts
 
 helm-deploy:
 	helm upgrade --install $(HELM_CHART) $(HELM_DIR)
-
-# --- Python Venvs & Deps ---
-
-# Pattern to create venvs and install deps for any app in PYTHON_APPS
-# Expects a folder name: <app>-container
-$(foreach app,$(PYTHON_APPS),$(app)-venv/bin/activate):%-venv/bin/activate:%-container/pyproject.toml
-	@echo Creating venv for $*
-	python3 -m venv $*-venv
-	$*-venv/bin/pip install --upgrade pip
-	$*-venv/bin/pip install poetry
-	cd $*-container && \
-	. ../$*-venv/bin/activate && \
-	poetry install --with dev
-
-# Ensure pytest is available (installed via dev deps above)
-$(foreach app,$(PYTHON_APPS),$(app)-venv/bin/pytest): %-venv/bin/pytest: %-venv/bin/activate
-	@touch $@
-
-# Ensure adev is available (installed via dev deps above)
-$(foreach app,$(PYTHON_APPS),$(app)-venv/bin/adev):%-venv/bin/adev: %-venv/bin/activate
-	@echo creating development tools for $*
-	@# Dependencies are installed in the activate target
-	@touch $@
-
-# Run development server (Python)
-$(foreach app,$(PYTHON_APPS),$(app)-dev):%-dev:%-venv/bin/adev
-	-@lsof -t -i :$($*_PORT) | xargs kill -9 2>/dev/null || true
-	$(if $($*_HEALTH_PORT),-@lsof -t -i :$($*_HEALTH_PORT) | xargs kill -9 2>/dev/null || true)
-	cd $*-container && \
-	${BASE_DIR}$*-venv/bin/adev runserver --port ${$*_PORT}
-
-# Run tests (Python)
-$(foreach app,$(PYTHON_APPS),$(app)-test):%-test:%-venv/bin/pytest
-	cd $*-container && \
-	PYTHONPATH=. ../$*-venv/bin/pytest
 
 # --- Node/Frontend Patterns ---
 
@@ -125,7 +79,6 @@ $(foreach app,$(APPS),$(app)-docker-run):%-docker-run:%-docker
 		--mount type=bind,src=$(PWD)/$*-container/tests/test_data,dst=/test_data \
 		$* start --config /test_data/config.yaml --secrets /test_data/secrets
 
-venvs: $(foreach app,$(PYTHON_APPS),$(app)-venv/bin/activate)
 tests: $(foreach app,$(APPS),$(app)-test)
 
 # --- Database ---
