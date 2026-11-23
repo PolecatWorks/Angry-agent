@@ -1,3 +1,4 @@
+use crate::error::SessionError;
 use crate::models::{AgentSession, FormContext, FormSyncRequest, RegisterFormRequest};
 use dashmap::DashMap;
 use std::sync::Arc;
@@ -46,24 +47,24 @@ impl SessionStore {
         &self,
         req: FormSyncRequest,
         user_id: &str,
-    ) -> Result<AgentSession, String> {
+    ) -> Result<AgentSession, SessionError> {
         let mut session = self
             .sessions
             .entry(req.thread_id.clone())
             .or_insert_with(|| AgentSession::new(&req.thread_id, user_id));
 
-        if let Some(ref mut form) = session.active_form {
-            // Apply RFC 6902 patch
-            json_patch::patch(&mut form.current_data, &req.patches)
-                .map_err(|e| format!("Failed to apply patch: {e}"))?;
+        let form = session
+            .active_form
+            .as_mut()
+            .ok_or(SessionError::NoActiveForm)?;
 
-            form.validation_errors = req.validation_errors;
-            form.focused_field = req.focused_field;
-            session.updated_at = chrono::Utc::now().timestamp_millis();
-            Ok(session.clone())
-        } else {
-            Err("No active form registered for this thread".to_string())
-        }
+        // Apply RFC 6902 patch
+        json_patch::patch(&mut form.current_data, &req.patches)?;
+
+        form.validation_errors = req.validation_errors;
+        form.focused_field = req.focused_field;
+        session.updated_at = chrono::Utc::now().timestamp_millis();
+        Ok(session.clone())
     }
 
     pub fn list_user_sessions(&self, user_id: &str) -> Vec<AgentSession> {

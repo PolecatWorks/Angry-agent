@@ -579,6 +579,55 @@ async fn test_patch_visualization_endpoint() {
         patch_json["visualization"]["id"],
         "00000000-0000-0000-0000-000000000001"
     );
+
+    // Malformed RFC 6902 patch operation must return 400 Bad Request
+    let malformed_patch_resp = server
+        .patch("/api/threads/thread-101/visualizations/00000000-0000-0000-0000-000000000001")
+        .add_header("X-User-ID", "test-user")
+        .json(&json!({
+            "patches": [
+                { "op": "not_a_valid_op", "path": "/title", "value": "Broken" }
+            ]
+        }))
+        .await;
+    assert_eq!(malformed_patch_resp.status_code(), StatusCode::BAD_REQUEST);
+
+    // Unapplicable RFC 6902 patch path must return 422 Unprocessable Entity
+    let unapplicable_patch_resp = server
+        .patch("/api/threads/thread-101/visualizations/00000000-0000-0000-0000-000000000001")
+        .add_header("X-User-ID", "test-user")
+        .json(&json!({
+            "content": { "title": "Initial" },
+            "patches": [
+                { "op": "replace", "path": "/nonexistent_path", "value": "Broken" }
+            ]
+        }))
+        .await;
+    assert_eq!(
+        unapplicable_patch_resp.status_code(),
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+
+    // Missing form, missing thread, and syncing without active form return typed 4xx errors
+    let missing_form = server.get("/api/forms/nonexistent_form_id").await;
+    assert_eq!(missing_form.status_code(), StatusCode::NOT_FOUND);
+
+    let missing_thread = server.get("/api/threads/nonexistent_thread_id").await;
+    assert_eq!(missing_thread.status_code(), StatusCode::NOT_FOUND);
+
+    let sync_without_form = server
+        .post("/api/form/sync")
+        .add_header("X-User-ID", "test-user")
+        .json(&json!({
+            "thread_id": "thread-without-form",
+            "patches": [
+                { "op": "replace", "path": "/companyName", "value": "Acme" }
+            ],
+            "validation_errors": {},
+            "focused_field": null
+        }))
+        .await;
+    assert_eq!(sync_without_form.status_code(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]

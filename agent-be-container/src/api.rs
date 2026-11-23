@@ -1,6 +1,7 @@
 use crate::auth::AuthenticatedUser;
 use crate::broadcaster::EventBroadcaster;
 use crate::catalog::FormCatalog;
+use crate::error::ApiError;
 use crate::models::{AgUiEvent, FormSyncRequest, RegisterFormRequest, RunAgentRequest};
 use crate::session_store::SessionStore;
 use axum::{
@@ -141,7 +142,7 @@ pub async fn get_user_settings_handler(
     State(state): State<AppState>,
     auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     let Some(pool) = &state.pool else {
@@ -153,13 +154,7 @@ pub async fn get_user_settings_handler(
     )
     .bind(user_id)
     .fetch_optional(pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": e.to_string() })),
-        )
-    })?;
+    .await?;
 
     let learning_mode_enabled = row.map(|(val,)| val).unwrap_or(false);
 
@@ -173,7 +168,7 @@ pub async fn update_user_settings_handler(
     auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<UpdateUserSettingsRequest>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     let Some(pool) = &state.pool else {
@@ -192,13 +187,7 @@ pub async fn update_user_settings_handler(
     .bind(user_id)
     .bind(payload.learning_mode_enabled)
     .execute(pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": e.to_string() })),
-        )
-    })?;
+    .await?;
 
     Ok(Json(json!({ "status": "updated" })))
 }
@@ -220,11 +209,12 @@ async fn list_forms_handler(State(state): State<AppState>) -> impl IntoResponse 
 async fn get_form_handler(
     State(state): State<AppState>,
     Path(form_id): Path<String>,
-) -> impl IntoResponse {
-    match state.catalog.get(&form_id) {
-        Some(form) => Json(json!({ "form": form })),
-        None => Json(json!({ "error": "Form not found" })),
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    let form = state
+        .catalog
+        .get(&form_id)
+        .ok_or_else(|| ApiError::NotFound("Form not found".to_string()))?;
+    Ok(Json(json!({ "form": form })))
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -246,12 +236,12 @@ async fn list_threads_handler(
     State(state): State<AppState>,
     auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
         // Track user login
-        let _ = sqlx::query(
+        sqlx::query(
             r#"
             INSERT INTO users (user_id, user_name, last_login_at)
             VALUES ($1, $1, NOW())
@@ -262,7 +252,7 @@ async fn list_threads_handler(
         )
         .bind(&user_id)
         .execute(pool)
-        .await;
+        .await?;
 
         let rows = sqlx::query_as::<_, ThreadSummary>(
             r#"
@@ -275,13 +265,7 @@ async fn list_threads_handler(
         )
         .bind(&user_id)
         .fetch_all(pool)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": e.to_string() })),
-            )
-        })?;
+        .await?;
 
         let threads_json: Vec<serde_json::Value> = rows
             .into_iter()
@@ -308,7 +292,7 @@ async fn update_thread_handler(
     auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<UpdateThreadRequest>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
@@ -324,32 +308,21 @@ async fn update_thread_handler(
         .bind(&thread_id)
         .bind(&user_id)
         .execute(pool)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": e.to_string() })),
-            )
-        })?;
+        .await?;
 
         if result.rows_affected() == 0 {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({ "error": "Not found or access denied" })),
-            ));
+            return Err(ApiError::NotFound("Not found or access denied".to_string()));
         }
 
         return Ok(Json(json!({ "status": "updated" })));
     }
 
     // Fallback in-memory
-    match state.store.get(&thread_id) {
-        Some(_) => Ok(Json(json!({ "status": "updated" }))),
-        None => Err((
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "Not found or access denied" })),
-        )),
-    }
+    state
+        .store
+        .get(&thread_id)
+        .ok_or_else(|| ApiError::NotFound("Not found or access denied".to_string()))?;
+    Ok(Json(json!({ "status": "updated" })))
 }
 
 async fn delete_thread_handler(
@@ -357,7 +330,7 @@ async fn delete_thread_handler(
     Path(thread_id): Path<String>,
     auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
@@ -365,19 +338,10 @@ async fn delete_thread_handler(
             .bind(&thread_id)
             .bind(&user_id)
             .execute(pool)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": e.to_string() })),
-                )
-            })?;
+            .await?;
 
         if result.rows_affected() == 0 {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({ "error": "Not found or access denied" })),
-            ));
+            return Err(ApiError::NotFound("Not found or access denied".to_string()));
         }
 
         return Ok(Json(json!({ "status": "deleted" })));
@@ -391,11 +355,12 @@ async fn delete_thread_handler(
 async fn get_thread_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<String>,
-) -> impl IntoResponse {
-    match state.store.get(&thread_id) {
-        Some(session) => Json(json!({ "session": session })),
-        None => Json(json!({ "error": "Thread not found" })),
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    let session = state
+        .store
+        .get(&thread_id)
+        .ok_or_else(|| ApiError::NotFound("Thread not found".to_string()))?;
+    Ok(Json(json!({ "session": session })))
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -426,7 +391,7 @@ async fn get_visualizations_handler(
     Path(thread_id): Path<String>,
     auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
@@ -435,13 +400,7 @@ async fn get_visualizations_handler(
             sqlx::query_as::<_, (String,)>("SELECT user_id FROM threads WHERE thread_id = $1")
                 .bind(&thread_id)
                 .fetch_optional(pool)
-                .await
-                .map_err(|e| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({ "error": e.to_string() })),
-                    )
-                })?;
+                .await?;
 
         let Some((owner_id,)) = thread_row else {
             return Ok(Json(json!({ "visualizations": [] })));
@@ -454,13 +413,7 @@ async fn get_visualizations_handler(
             .bind(&thread_id)
             .bind(&user_id)
             .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": e.to_string() })),
-                )
-            })?;
+            .await?;
 
             if access_row.is_none() {
                 return Ok(Json(json!({ "visualizations": [] })));
@@ -477,8 +430,7 @@ async fn get_visualizations_handler(
         )
         .bind(&thread_id)
         .fetch_all(pool)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+        .await?;
 
         let vis_json: Vec<serde_json::Value> = vis_rows
             .into_iter()
@@ -520,7 +472,7 @@ async fn patch_visualization_handler(
     auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<PatchVisualizationPayload>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
@@ -529,19 +481,10 @@ async fn patch_visualization_handler(
             sqlx::query_as::<_, (String,)>("SELECT user_id FROM threads WHERE thread_id = $1")
                 .bind(&thread_id)
                 .fetch_optional(pool)
-                .await
-                .map_err(|e| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({ "error": e.to_string() })),
-                    )
-                })?;
+                .await?;
 
         let Some((owner_id,)) = thread_row else {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({ "error": "Thread not found" })),
-            ));
+            return Err(ApiError::NotFound("Thread not found".to_string()));
         };
 
         if owner_id != user_id {
@@ -551,29 +494,16 @@ async fn patch_visualization_handler(
             .bind(&thread_id)
             .bind(&user_id)
             .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": e.to_string() })),
-                )
-            })?;
+            .await?;
 
             if access_row.is_none() {
-                return Err((
-                    StatusCode::FORBIDDEN,
-                    Json(json!({ "error": "Thread access denied" })),
-                ));
+                return Err(ApiError::Forbidden("Thread access denied".to_string()));
             }
         }
 
         // Parse UUID
-        let Ok(parsed_viz_uuid) = Uuid::parse_str(&viz_id) else {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({ "error": format!("Visualization {} not found", viz_id) })),
-            ));
-        };
+        let parsed_viz_uuid = Uuid::parse_str(&viz_id)
+            .map_err(|_| ApiError::NotFound(format!("Visualization {} not found", viz_id)))?;
 
         // Fetch existing visualization content
         let existing = sqlx::query_as::<_, (serde_json::Value,)>(
@@ -582,28 +512,20 @@ async fn patch_visualization_handler(
         .bind(parsed_viz_uuid)
         .bind(&thread_id)
         .fetch_optional(pool)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": e.to_string() })),
-            )
-        })?;
+        .await?;
 
         let Some((mut content_val,)) = existing else {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({ "error": format!("Visualization {} not found", viz_id) })),
-            ));
+            return Err(ApiError::NotFound(format!(
+                "Visualization {} not found",
+                viz_id
+            )));
         };
 
         // Apply RFC 6902 patches if provided
         if let Some(patches) = payload.patches {
-            if let Ok(patch_arr) =
-                serde_json::from_value::<json_patch::Patch>(serde_json::Value::Array(patches))
-            {
-                let _ = json_patch::patch(&mut content_val, &patch_arr);
-            }
+            let patch_arr =
+                serde_json::from_value::<json_patch::Patch>(serde_json::Value::Array(patches))?;
+            json_patch::patch(&mut content_val, &patch_arr)?;
         } else if let Some(direct_content) = payload.content {
             content_val = direct_content;
         }
@@ -616,8 +538,7 @@ async fn patch_visualization_handler(
         .bind(parsed_viz_uuid)
         .bind(&thread_id)
         .execute(pool)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+        .await?;
 
         return Ok(Json(json!({
             "status": "updated",
@@ -630,12 +551,19 @@ async fn patch_visualization_handler(
     }
 
     // In-memory fallback if pool is not configured
+    let mut content_val = payload.content.unwrap_or_else(|| json!({}));
+    if let Some(patches) = payload.patches {
+        let patch_arr =
+            serde_json::from_value::<json_patch::Patch>(serde_json::Value::Array(patches))?;
+        json_patch::patch(&mut content_val, &patch_arr)?;
+    }
+
     Ok(Json(json!({
         "status": "updated",
         "visualization": {
             "id": viz_id,
             "thread_id": thread_id,
-            "content": payload.content.unwrap_or(json!({}))
+            "content": content_val
         }
     })))
 }
@@ -645,7 +573,7 @@ async fn get_thread_history_handler(
     Path(thread_id): Path<String>,
     auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     if let Some(pool) = &state.pool {
@@ -654,8 +582,7 @@ async fn get_thread_history_handler(
         )
         .bind(&thread_id)
         .fetch_optional(pool)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))))?;
+        .await?;
 
         let Some(t_row) = thread_row else {
             return Ok(Json(json!({
@@ -672,13 +599,7 @@ async fn get_thread_history_handler(
             .bind(&thread_id)
             .bind(&user_id)
             .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": e.to_string() })),
-                )
-            })?;
+            .await?;
 
             if access_row.is_none() {
                 return Ok(Json(json!({
@@ -700,8 +621,7 @@ async fn get_thread_history_handler(
         )
         .bind(&thread_id)
         .fetch_all(pool)
-        .await
-        .unwrap_or_default();
+        .await?;
 
         let vis_json: Vec<serde_json::Value> = vis_rows
             .into_iter()
@@ -804,12 +724,12 @@ async fn sync_form_handler(
     auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<FormSyncRequest>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, ApiError> {
     let user_id = extract_user_id(auth_user.as_deref(), &headers);
-    match state.store.apply_sync_patch(payload, &user_id) {
-        Ok(session) => Json(json!({ "status": "synchronized", "session": session })),
-        Err(err) => Json(json!({ "status": "error", "message": err })),
-    }
+    let session = state.store.apply_sync_patch(payload, &user_id)?;
+    Ok(Json(
+        json!({ "status": "synchronized", "session": session }),
+    ))
 }
 
 async fn run_agent_handler(
@@ -882,18 +802,13 @@ async fn chat_handler(
     auth_user: Option<Extension<AuthenticatedUser>>,
     headers: HeaderMap,
     Json(payload): Json<ChatRequest>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     let user_id = extract_user_id(auth_user.as_deref(), &headers);
 
     let message = payload
         .message
         .filter(|m| !m.trim().is_empty())
-        .ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": "Message required" })),
-            )
-        })?;
+        .ok_or_else(|| ApiError::BadRequest("Message required".to_string()))?;
 
     let thread_id = payload
         .thread_id
@@ -906,15 +821,9 @@ async fn chat_handler(
             sqlx::query_as::<_, (String,)>("SELECT user_id FROM threads WHERE thread_id = $1")
                 .bind(&thread_id)
                 .fetch_optional(pool)
-                .await
-                .map_err(|e| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({ "error": e.to_string() })),
-                    )
-                })?;
+                .await?;
 
-        let is_new_thread = match row {
+        match row {
             Some((owner_id,)) => {
                 if owner_id != user_id {
                     let access_row = sqlx::query_as::<_, (i32,)>(
@@ -923,22 +832,12 @@ async fn chat_handler(
                     .bind(&thread_id)
                     .bind(&user_id)
                     .fetch_optional(pool)
-                    .await
-                    .map_err(|e| {
-                        (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            Json(json!({ "error": e.to_string() })),
-                        )
-                    })?;
+                    .await?;
 
                     if access_row.is_none() {
-                        return Err((
-                            StatusCode::FORBIDDEN,
-                            Json(json!({ "error": "Thread access denied" })),
-                        ));
+                        return Err(ApiError::Forbidden("Thread access denied".to_string()));
                     }
                 }
-                false
             }
             None => {
                 let title_snip = truncate_thread_title(&message);
@@ -947,16 +846,9 @@ async fn chat_handler(
                     .bind(&user_id)
                     .bind(title_snip)
                     .execute(pool)
-                    .await
-                    .map_err(|e| {
-                        (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            Json(json!({ "error": e.to_string() })),
-                        )
-                    })?;
-                true
+                    .await?;
             }
-        };
+        }
 
         // Attempt to acquire lock atomically
         let lock_query = r#"
@@ -968,33 +860,12 @@ async fn chat_handler(
         let locked_row = sqlx::query_as::<_, (String,)>(lock_query)
             .bind(&thread_id)
             .fetch_optional(pool)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": e.to_string() })),
-                )
-            })?;
+            .await?;
 
         if locked_row.is_none() {
-            return Err((
-                StatusCode::CONFLICT,
-                Json(json!({ "error": "Thread is busy processing a previous request." })),
+            return Err(ApiError::Conflict(
+                "Thread is busy processing a previous request.".to_string(),
             ));
-        }
-
-        // Initialize state for new thread
-        if is_new_thread {
-            let _user_settings = sqlx::query_as::<_, (bool,)>(
-                "SELECT learning_mode_enabled FROM user_settings WHERE user_id = $1",
-            )
-            .bind(&user_id)
-            .fetch_optional(pool)
-            .await
-            .ok()
-            .flatten()
-            .map(|(l,)| l)
-            .unwrap_or(false);
         }
     }
 
@@ -1024,12 +895,19 @@ async fn chat_handler(
 
         // Release lock
         if let Some(pool) = &pool_clone {
-            let _ = sqlx::query(
+            if let Err(e) = sqlx::query(
                 "UPDATE threads SET locked_until = NULL, updated_at = NOW() WHERE thread_id = $1",
             )
             .bind(&thread_id_clone)
             .execute(pool)
-            .await;
+            .await
+            {
+                tracing::error!(
+                    thread_id = %thread_id_clone,
+                    error = %e,
+                    "Failed to release thread lock after chat execution"
+                );
+            }
         }
     });
 
@@ -1055,21 +933,13 @@ pub struct AgentDefinitionRow {
     pub content: String,
 }
 
-async fn get_agents_handler(
-    State(state): State<AppState>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+async fn get_agents_handler(State(state): State<AppState>) -> Result<impl IntoResponse, ApiError> {
     if let Some(pool) = &state.pool {
         let rows = sqlx::query_as::<_, AgentDefinitionRow>(
             "SELECT id, name, content FROM agent_definitions ORDER BY name",
         )
         .fetch_all(pool)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": e.to_string() })),
-            )
-        })?;
+        .await?;
 
         let agents_json: Vec<serde_json::Value> = rows
             .into_iter()
@@ -1091,26 +961,16 @@ async fn get_agents_handler(
 async fn create_agent_handler(
     State(state): State<AppState>,
     Json(payload): Json<AgentDefinitionRequest>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     let name = payload
         .name
         .filter(|n| !n.trim().is_empty())
-        .ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": "name and content are required" })),
-            )
-        })?;
+        .ok_or_else(|| ApiError::BadRequest("name and content are required".to_string()))?;
 
     let content = payload
         .content
         .filter(|c| !c.trim().is_empty())
-        .ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": "name and content are required" })),
-            )
-        })?;
+        .ok_or_else(|| ApiError::BadRequest("name and content are required".to_string()))?;
 
     let agent_id = Uuid::new_v4();
 
@@ -1120,13 +980,7 @@ async fn create_agent_handler(
             .bind(&name)
             .bind(&content)
             .execute(pool)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": e.to_string() })),
-                )
-            })?;
+            .await?;
 
         return Ok((
             StatusCode::CREATED,
@@ -1152,26 +1006,16 @@ async fn update_agent_handler(
     State(state): State<AppState>,
     Path(agent_id): Path<Uuid>,
     Json(payload): Json<AgentDefinitionRequest>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     let name = payload
         .name
         .filter(|n| !n.trim().is_empty())
-        .ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": "name and content are required" })),
-            )
-        })?;
+        .ok_or_else(|| ApiError::BadRequest("name and content are required".to_string()))?;
 
     let content = payload
         .content
         .filter(|c| !c.trim().is_empty())
-        .ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": "name and content are required" })),
-            )
-        })?;
+        .ok_or_else(|| ApiError::BadRequest("name and content are required".to_string()))?;
 
     if let Some(pool) = &state.pool {
         let result =
@@ -1180,19 +1024,10 @@ async fn update_agent_handler(
                 .bind(&content)
                 .bind(agent_id)
                 .execute(pool)
-                .await
-                .map_err(|e| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({ "error": e.to_string() })),
-                    )
-                })?;
+                .await?;
 
         if result.rows_affected() == 0 {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({ "error": "Agent definition not found" })),
-            ));
+            return Err(ApiError::NotFound("Agent definition not found".to_string()));
         }
 
         return Ok(Json(json!({
@@ -1212,24 +1047,15 @@ async fn update_agent_handler(
 async fn delete_agent_handler(
     State(state): State<AppState>,
     Path(agent_id): Path<Uuid>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, ApiError> {
     if let Some(pool) = &state.pool {
         let result = sqlx::query("DELETE FROM agent_definitions WHERE id = $1")
             .bind(agent_id)
             .execute(pool)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": e.to_string() })),
-                )
-            })?;
+            .await?;
 
         if result.rows_affected() == 0 {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({ "error": "Agent definition not found" })),
-            ));
+            return Err(ApiError::NotFound("Agent definition not found".to_string()));
         }
 
         return Ok(Json(json!({ "status": "deleted" })));
