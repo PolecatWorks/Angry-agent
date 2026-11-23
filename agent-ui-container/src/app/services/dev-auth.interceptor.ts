@@ -6,15 +6,9 @@ import { SharedContextService } from '@polecatworks/mfe-shared';
 
 export const devAuthInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
-  let sharedContext: SharedContextService | null = null;
-  try {
-    sharedContext = inject(SharedContextService);
-  } catch {
-    // If running in isolation outside MFE shell without provider
-    sharedContext = null;
-  }
+  const sharedContext = inject(SharedContextService);
 
-  const token = sharedContext?.getAccessToken();
+  const token = sharedContext.getAccessToken();
 
   let authReq = req;
   if (token) {

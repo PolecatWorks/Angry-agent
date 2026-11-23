@@ -8,8 +8,7 @@ import {
   AfterViewInit,
   OnChanges,
   SimpleChanges,
-  OnDestroy,
-  Optional
+  OnDestroy
 } from '@angular/core';
 import { loadRemoteModule } from '@angular-architects/native-federation';
 import {
@@ -50,7 +49,7 @@ export class MfeRenderer implements AfterViewInit, OnChanges, OnDestroy {
   remoteLoader: (options: { remoteName: string; exposedModule: string }) => Promise<any> =
     (options) => loadRemoteModule(options);
 
-  constructor(@Optional() private chatService?: ChatService) {}
+  constructor(private chatService: ChatService) {}
 
   async ngAfterViewInit() {
     await this.mountRemote();
