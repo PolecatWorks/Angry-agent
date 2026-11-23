@@ -145,8 +145,13 @@ export class ChatService {
     } catch {
       configPath = "/assets/contents/config.json";
     }
-    this.apiUrl$ = this.http.get<{ apiUrl: string }>(configPath).pipe(
-      map(config => (config.apiUrl ? config.apiUrl.replace(/\/+$/, '') : '')),
+    this.apiUrl$ = this.http.get<{ apiUrl?: unknown }>(configPath).pipe(
+      map(config => {
+        if (!config || typeof config.apiUrl !== 'string' || config.apiUrl.trim() === '') {
+          throw new Error('Invalid runtime configuration: apiUrl must be a non-empty string');
+        }
+        return config.apiUrl.trim().replace(/\/+$/, '');
+      }),
       shareReplay(1)
     );
   }

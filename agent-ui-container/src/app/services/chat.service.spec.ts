@@ -9,7 +9,12 @@ describe('ChatService', () => {
     beforeEach(() => {
         httpClientSpy = {
             post: vi.fn(),
-            get: vi.fn().mockReturnValue(of({ apiUrl: '/api' })),
+            get: vi.fn((url: string) => {
+                if (url.endsWith('config.json')) {
+                    return of({ apiUrl: '/api' });
+                }
+                return of({});
+            }),
             delete: vi.fn(),
             patch: vi.fn()
         };
@@ -156,6 +161,33 @@ describe('ChatService', () => {
                 expect.anything(),
                 expect.anything()
             );
+        });
+
+        it('NEGATIVE: fails fast with an explicit error when config.json has a missing or empty apiUrl', () => {
+            const invalidConfigs = [
+                {},
+                { apiUrl: '' },
+                { apiUrl: '   ' },
+                { apiUrl: null }
+            ];
+
+            for (const badConfig of invalidConfigs) {
+                const badSpy: any = {
+                    get: vi.fn().mockReturnValue(of(badConfig)),
+                    post: vi.fn(),
+                    delete: vi.fn(),
+                    patch: vi.fn()
+                };
+                const badService = new ChatService(badSpy);
+                let capturedError: Error | undefined;
+                badService.sendMessage('hello').subscribe({
+                    error: (err) => {
+                        capturedError = err;
+                    }
+                });
+                expect(capturedError?.message).toBe('Invalid runtime configuration: apiUrl must be a non-empty string');
+                expect(badSpy.post).not.toHaveBeenCalled();
+            }
         });
 
         it('NEGATIVE: rejects or flags URLs missing the /api/angry-agent/v1 prefix pattern', () => {
